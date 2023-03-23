@@ -2,7 +2,8 @@
 name = "configurable-optimizer"
 version = "0.0.0"
 dependencies = [
-    "torch"
+    "torch",
+    "numpy"
 ]
 requires-python = ">=3.8"
 authors = [{ name = "Arjun Krishnakumar", email = "arjun.krishnakumar.mec@gmail.com" }]
