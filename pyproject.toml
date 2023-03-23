@@ -158,7 +158,8 @@ ignore = [
   "W292", # No newline at end of file
   "PLC1901", # "" can be simplified to be falsey
   "PLR0913", # Too many arguments to function call
-  # "PLR2004", # Magic value used in comparison
+  "PLR2004", # Magic value used in comparison
+  "PLW2901", # For loop variable overwritten by assignment target
   "RET504", # Unnecessary variable assignment before `return` statement
 ]
 
