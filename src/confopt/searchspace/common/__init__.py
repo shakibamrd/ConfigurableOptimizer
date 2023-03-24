@@ -1,3 +1,3 @@
-from .mixop import MixOp
+from .mixop import OperationChoices
 
-__all__ = ["MixOp"]
+__all__ = ["OperationChoices"]

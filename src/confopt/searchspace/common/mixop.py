@@ -3,10 +3,10 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-__all__ = ["MixOp"]
+__all__ = ["OperationChoices"]
 
 
-class MixOp(nn.Module):
+class OperationChoices(nn.Module):
     def __init__(self, ops: list[nn.Module]):
         super().__init__()
         self.ops = ops
