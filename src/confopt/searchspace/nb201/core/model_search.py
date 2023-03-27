@@ -10,12 +10,12 @@ from copy import deepcopy
 import torch
 from torch import nn
 
-from .core.cells import NAS201SearchCell as SearchCell
-from .core.genotypes import Structure
-from .core.operations import NAS_BENCH_201, ResNetBasicblock
+from .cells import NAS201SearchCell as SearchCell
+from .genotypes import Structure
+from .operations import NAS_BENCH_201, ResNetBasicblock
 
 
-class NASBench201SearchSpace(nn.Module):
+class NB201SearchModel(nn.Module):
     def __init__(
         self,
         C: int = 16,

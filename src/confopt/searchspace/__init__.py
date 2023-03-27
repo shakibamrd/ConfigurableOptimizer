@@ -1,3 +1,3 @@
-from .nb201.model_search import NASBench201SearchSpace
+from .nb201.supernet import NASBench201SearchSpace  # type: ignore
 
 __all__ = ["NASBench201SearchSpace"]
