@@ -10,7 +10,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
         search_space = NASBench201SearchSpace()
         arch_params = search_space.arch_parameters
-        assert len(arch_params) >= 1
+        assert len(arch_params) == 1
         assert isinstance(arch_params[0], nn.Parameter)
 
     def test_forward_pass(self) -> None:
@@ -30,8 +30,9 @@ class TestDARTSSearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
         search_space = DARTSSearchSpace()
         arch_params = search_space.arch_parameters
-        assert len(arch_params) >= 1
+        assert len(arch_params) == 2
         assert isinstance(arch_params[0], nn.Parameter)
+        assert isinstance(arch_params[1], nn.Parameter)
 
     def test_forward_pass(self) -> None:
         search_space = DARTSSearchSpace()
