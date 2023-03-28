@@ -6,7 +6,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-__all__ = ["OPS", "ResNetBasicblock", "SearchSpaceNames"]
+__all__ = ["OPS", "ResNetBasicblock", "SearchSpaceNames", "ReLUConvBN"]
 
 OPS = {
     "none": lambda C_in, C_out, stride, affine, track_running_stats: Zero(  # noqa:
