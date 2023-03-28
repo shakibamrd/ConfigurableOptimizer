@@ -4,6 +4,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
+from confopt.searchspace.common.mixop import OperationChoices
+
 from .genotypes import PRIMITIVES, Genotype
 from .operations import OPS, FactorizedReduce, ReLUConvBN
 
@@ -52,7 +54,8 @@ class Cell(nn.Module):
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride)
+                ops = MixedOp(C, stride)._ops
+                op = OperationChoices(ops)
                 self._ops.append(op)
 
     def forward(
