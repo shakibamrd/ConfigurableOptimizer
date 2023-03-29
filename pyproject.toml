@@ -151,6 +151,7 @@ ignore = [
   "D401", # First line of docstring should be in imperative mood
   "FBT001", # Boolean positional arg in function definition
   "FBT002", # Boolean default arg in function definition
+  "FBT003", # Boolean positional value in function call
   "N803", # Argument name should be lowercase
   "N806", # Variable X in function should be lowercase
   "E731", # Do not assign a lambda expression, use a def
