@@ -13,7 +13,7 @@ pip install -e ".[dev, test]"
 
 Install the precommit hooks
 ```
-precommit install
+pre-commit install
 ```
 
 Run the tests
