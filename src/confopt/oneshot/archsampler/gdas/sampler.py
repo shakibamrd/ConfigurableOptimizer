@@ -1,17 +1,32 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
 
 from confopt.oneshot.archsampler import BaseSampler
 
 
 class GDASSampler(BaseSampler):
-    def __init__(self) -> None:
-        self.tau_min = None
-        self.tau_max = None
-        self.tau_curr = None
-        self.total_epochs = 0
-        self.epoch = 0
+    def __init__(
+        self,
+        arch_parameters: list[torch.Tensor],
+        sample_frequency: Literal["epoch", "step"] = "step",
+        tau_min: float = 0.1,
+        tau_max: float = 10,
+        total_epochs: int = 250,
+    ) -> None:
+        super().__init__(
+            arch_parameters=arch_parameters, sample_frequency=sample_frequency
+        )
+
+        self.tau_min = torch.Tensor([tau_min])
+        self.tau_max = torch.Tensor([tau_max])
+        self.total_epochs = total_epochs
+
+        self.tau_curr = self.tau_max - (self.tau_max - self.tau_min) * self._epoch / (
+            self.total_epochs - 1
+        )
 
     def set_taus(self, tau_min: float, tau_max: float) -> None:
         self.tau_min = torch.Tensor([tau_min])  # type: ignore
@@ -20,12 +35,9 @@ class GDASSampler(BaseSampler):
     def set_total_epochs(self, total_epochs: int) -> None:
         self.total_epochs = total_epochs
 
-    def sample_epoch(self, alphas: list[torch.Tensor]) -> list[torch.Tensor] | None:
-        pass
-
-    def sample_step(self, alphas: list[torch.Tensor]) -> list[torch.Tensor]:
+    def sample_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
         sampled_alphas = []
-        for alpha in alphas:
+        for alpha in arch_parameters:
             sampled_alphas.append(self.sample(alpha))
         return sampled_alphas
 
@@ -49,11 +61,9 @@ class GDASSampler(BaseSampler):
 
         return hardwts
 
-    def before_epoch(self) -> None:
-        if self.tau_max is None:
-            raise Exception("tau_max has to be set in GDASSampler")
-
-        self.tau_curr = self.tau_max - (self.tau_max - self.tau_min) * self.epoch / (
+    def new_epoch(self) -> None:
+        self.tau_curr = self.tau_max - (self.tau_max - self.tau_min) * self._epoch / (
             self.total_epochs - 1
         )
-        self.epoch += 1
+
+        super().new_epoch()

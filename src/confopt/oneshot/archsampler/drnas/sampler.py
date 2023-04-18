@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
 import torch.nn.functional as F  # noqa: N812
 
@@ -7,12 +9,18 @@ from confopt.oneshot.archsampler import BaseSampler
 
 
 class DRNASSampler(BaseSampler):
-    def sample_epoch(self, alphas: torch.Tensor) -> None:
-        pass
+    def __init__(
+        self,
+        arch_parameters: list[torch.Tensor],
+        sample_frequency: Literal["epoch", "step"] = "step",
+    ) -> None:
+        super().__init__(
+            arch_parameters=arch_parameters, sample_frequency=sample_frequency
+        )
 
-    def sample_step(self, alphas: torch.Tensor) -> list[torch.Tensor]:
+    def sample_alphas(self, arch_parameters: torch.Tensor) -> list[torch.Tensor]:
         sampled_alphas = []
-        for alpha in alphas:
+        for alpha in arch_parameters:
             sampled_alphas.append(self.sample(alpha))
         return sampled_alphas
 

@@ -1,19 +1,49 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import Literal
 
 import torch
 
+from confopt.oneshot.base_component import OneShotComponent
 
-class BaseSampler(ABC):
+
+class BaseSampler(OneShotComponent):
+    def __init__(
+        self,
+        arch_parameters: list[torch.Tensor],
+        sample_frequency: Literal["epoch", "step"],
+    ) -> None:
+        super().__init__()
+        self.arch_parameters = arch_parameters
+        self.sampled_alphas: list[torch.Tensor] = arch_parameters
+
+        assert sample_frequency in [
+            "epoch",
+            "step",
+        ], "sample_frequency must be either 'epoch' or 'step'"
+        self.sample_frequency = sample_frequency
+
     @abstractmethod
-    def sample_epoch(self, alphas: list[torch.Tensor]) -> list[torch.Tensor] | None:
+    def sample_alphas(
+        self, arch_parameters: list[torch.Tensor]
+    ) -> list[torch.Tensor] | None:
         pass
 
-    @abstractmethod
-    def sample_step(self, alphas: list[torch.Tensor]) -> list[torch.Tensor] | None:
-        pass
+    def _sample_and_update_alphas(self) -> None:
+        sampled_alphas = self.sample_alphas(self.arch_parameters)
 
-    @abstractmethod
-    def sample(self, alpha: torch.Tensor) -> torch.Tensor:
-        pass
+        if sampled_alphas is not None:
+            self.sampled_alphas = sampled_alphas
+
+    def new_epoch(self) -> None:
+        super().new_epoch()
+
+        if self.sample_frequency == "epoch":
+            self._sample_and_update_alphas()
+
+    def new_step(self) -> None:
+        super().new_step()
+
+        if self.sample_frequency == "step":
+            self._sample_and_update_alphas()
