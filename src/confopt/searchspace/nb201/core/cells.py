@@ -47,7 +47,9 @@ class NAS201SearchCell(nn.Module):
                         OPS[op_name](C_in, C_out, 1, affine, track_running_stats)
                         for op_name in op_names
                     ]
-                self.edges[node_str] = OperationChoices(ops=xlists)
+                self.edges[node_str] = OperationChoices(
+                    ops=xlists, is_reduction_cell=False
+                )
         self.edge_keys = sorted(self.edges.keys())
         self.edge2index = {key: i for i, key in enumerate(self.edge_keys)}
         self.num_edges: int = len(self.edges)

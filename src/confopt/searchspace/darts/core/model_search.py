@@ -17,7 +17,7 @@ class MixedOp(nn.Module):
         super().__init__()
         self._ops = nn.ModuleList()
         for primitive in PRIMITIVES:
-            op = OPS[primitive](C, stride, False)  # noqa: FBT003
+            op = OPS[primitive](C, stride, False)
             if "pool" in primitive:
                 op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
             self._ops.append(op)
@@ -43,8 +43,9 @@ class Cell(nn.Module):
         if reduction_prev:
             self.preprocess0 = FactorizedReduce(C_prev_prev, C, affine=False)
         else:
-            # type: ignore
-            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0, affine=False)
+            self.preprocess0 = ReLUConvBN(
+                C_prev_prev, C, 1, 1, 0, affine=False
+            )  # type: ignore
         self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0, affine=False)
         self._steps = steps
         self._multiplier = multiplier
@@ -55,7 +56,7 @@ class Cell(nn.Module):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
                 ops = MixedOp(C, stride)._ops
-                op = OperationChoices(ops)
+                op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
 
     def forward(
