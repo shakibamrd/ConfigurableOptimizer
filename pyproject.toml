@@ -3,7 +3,10 @@ name = "configurable-optimizer"
 version = "0.0.0"
 dependencies = [
     "torch",
-    "numpy"
+    "numpy",
+    "ConfigSpace",
+    "nasbench@git+https://github.com/automl-classroom/nasbench-for-automl-lectures",
+    "protobuf==3.20.*",
 ]
 requires-python = ">=3.8"
 authors = [{ name = "Arjun Krishnakumar", email = "arjun.krishnakumar.mec@gmail.com" }]
