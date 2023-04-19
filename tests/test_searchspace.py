@@ -1,14 +1,22 @@
 import unittest
 
 import torch
-import torch.nn as nn  # noqa: PLR0402
+from torch import nn
 
-from confopt.searchspace import DARTSSearchSpace, NASBench201SearchSpace
+from confopt.searchspace import (
+    DARTSSearchSpace,
+    NASBench1Shot1SearchSpace,
+    NASBench201SearchSpace,
+)
 from confopt.searchspace.darts.core.model_search import Cell as DARTSSearchCell
+from confopt.searchspace.nb1shot1.core.model_search import (
+    Cell as NasBench1Shot1SearchCell,
+)
 from confopt.searchspace.nb201.core import NAS201SearchCell
 from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
 from utils import get_modules_of_type
 
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class TestNASBench201SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -19,7 +27,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
 
     def test_forward_pass(self) -> None:
         search_space = NASBench201SearchSpace()
-        x = torch.randn(2, 3, 32, 32)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
 
         out = search_space(x)
 
@@ -48,7 +56,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
                 assert op.op[1].in_channels == C
                 assert op.op[1].out_channels == C
 
-        x = torch.randn(2, 3, 32, 32)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
         out, logits = search_space(x)
 
         assert logits.shape == torch.Size([2, num_classes])
@@ -63,7 +71,7 @@ class TestDARTSSearchSpace(unittest.TestCase):
 
     def test_forward_pass(self) -> None:
         search_space = DARTSSearchSpace()
-        x = torch.randn(2, 3, 64, 64)
+        x = torch.randn(2, 3, 64, 64).to(DEVICE)
 
         out = search_space(x)
 
@@ -86,9 +94,41 @@ class TestDARTSSearchSpace(unittest.TestCase):
         reduction_cells = [cell for cell in search_cells if cell.reduction is True]
         assert len(reduction_cells) == 2
 
-        x = torch.randn(2, 3, 32, 32)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
         out, logits = search_space(x)
 
+        assert logits.shape == torch.Size([2, num_classes])
+
+class TestNASBench1Shot1SearchSpace(unittest.TestCase):
+    def test_arch_parameters(self) -> None:
+        search_space = NASBench1Shot1SearchSpace()
+        arch_params = search_space.arch_parameters
+        assert len(arch_params) == 4
+        assert isinstance(arch_params[0], nn.Parameter)
+
+    def test_forward_pass(self) -> None:
+        search_space = NASBench1Shot1SearchSpace()
+        x = torch.randn(2, 3, 64, 64).to(DEVICE)
+
+        out = search_space(x)
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 64])
+        assert out[1].shape == torch.Size([2, 10])
+
+    def test_supernet_init(self) -> None:
+        layers = 8
+        num_classes = 10
+        search_space = NASBench1Shot1SearchSpace()
+
+        search_cells = get_modules_of_type(search_space.model, NasBench1Shot1SearchCell)
+        assert len(search_cells) == layers
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = search_space(x)
+        print(logits.shape)
         assert logits.shape == torch.Size([2, num_classes])
 
 if __name__ == "__main__":
