@@ -106,11 +106,11 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
         assert len(arch_params) == 4
         assert isinstance(arch_params[0], nn.Parameter)
 
-    def test_forward_pass(self) -> None:
-        search_space = NASBench1Shot1SearchSpace()
-        x = torch.randn(2, 3, 64, 64).to(DEVICE)
+    def _test_forward_pass(self, model: nn.Module) -> None:
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
 
-        out = search_space(x)
+        out = model(x)
+
         assert isinstance(out, tuple)
         assert len(out) == 2
         assert isinstance(out[0], torch.Tensor)
@@ -118,18 +118,46 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 64])
         assert out[1].shape == torch.Size([2, 10])
 
+    def test_forward_pass_s1(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4,
+            search_space_type="S1",
+        )
+        self._test_forward_pass(search_space)
+
+    def test_forward_pass_s2(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4,
+            search_space_type="S2",
+        )
+        self._test_forward_pass(search_space)
+
+    def test_forward_pass_s3(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4,
+            search_space_type="S3",
+        )
+        self._test_forward_pass(search_space)
+
+
     def test_supernet_init(self) -> None:
-        layers = 8
-        num_classes = 10
-        search_space = NASBench1Shot1SearchSpace()
+        layers = 7
+        num_classes = 13
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4,
+            search_space_type="S1",
+            layers=7,
+            num_classes=num_classes,
+        )
 
         search_cells = get_modules_of_type(search_space.model, NasBench1Shot1SearchCell)
         assert len(search_cells) == layers
 
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
         out, logits = search_space(x)
-        print(logits.shape)
+
         assert logits.shape == torch.Size([2, num_classes])
+        assert out.shape == torch.Size([2, 64])
 
 if __name__ == "__main__":
     unittest.main()
