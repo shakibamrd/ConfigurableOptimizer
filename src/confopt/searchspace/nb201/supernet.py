@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import torch
 from torch import nn
 
 from confopt.searchspace.common.base_search import SearchSpace
 
 from .core import NB201SearchModel
 
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 
 class NASBench201SearchSpace(SearchSpace):
     def __init__(self, *args, **kwargs):  # type: ignore
-        model = NB201SearchModel(*args, **kwargs)
+        model = NB201SearchModel(*args, **kwargs).to(DEVICE)
         super().__init__(model)
 
     @property

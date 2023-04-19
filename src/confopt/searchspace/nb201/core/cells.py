@@ -38,15 +38,21 @@ class NAS201SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 if j == 0:
-                    xlists = [
-                        OPS[op_name](C_in, C_out, stride, affine, track_running_stats)
-                        for op_name in op_names
-                    ]
+                    xlists = nn.ModuleList(
+                        [
+                            OPS[op_name](
+                                C_in, C_out, stride, affine, track_running_stats
+                            )
+                            for op_name in op_names
+                        ]
+                    )
                 else:
-                    xlists = [
-                        OPS[op_name](C_in, C_out, 1, affine, track_running_stats)
-                        for op_name in op_names
-                    ]
+                    xlists = nn.ModuleList(
+                        [
+                            OPS[op_name](C_in, C_out, 1, affine, track_running_stats)
+                            for op_name in op_names
+                        ]
+                    )
                 self.edges[node_str] = OperationChoices(
                     ops=xlists, is_reduction_cell=False
                 )

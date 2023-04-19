@@ -130,7 +130,9 @@ class Network(nn.Module):
         self._initialize_alphas()
 
     def new(self) -> Network:
-        model_new = Network(self._C, self._num_classes, self._layers, self._criterion)
+        model_new = Network(
+            self._C, self._num_classes, self._layers, self._criterion
+        ).to(DEVICE)
         for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
             x.data.copy_(y.data)
         return model_new
@@ -155,8 +157,8 @@ class Network(nn.Module):
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
         num_ops = len(PRIMITIVES)
 
-        self.alphas_normal = nn.Parameter(1e-3 * torch.randn(k, num_ops)).to(DEVICE)
-        self.alphas_reduce = nn.Parameter(1e-3 * torch.randn(k, num_ops)).to(DEVICE)
+        self.alphas_normal = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
+        self.alphas_reduce = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
         self._arch_parameters = [
             self.alphas_normal,
             self.alphas_reduce,

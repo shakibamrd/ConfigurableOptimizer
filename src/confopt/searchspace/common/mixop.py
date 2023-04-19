@@ -9,7 +9,7 @@ __all__ = ["OperationChoices"]
 
 
 class OperationChoices(nn.Module):
-    def __init__(self, ops: list[nn.Module], is_reduction_cell: bool) -> None:
+    def __init__(self, ops: list[nn.Module], is_reduction_cell: bool = False) -> None:
         super().__init__()
         self.ops = ops
         self.is_reduction_cell = is_reduction_cell
