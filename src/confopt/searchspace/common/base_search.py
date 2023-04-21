@@ -19,6 +19,11 @@ class SearchSpace(nn.Module, ABC):
     def arch_parameters(self) -> list[nn.Parameter]:
         pass
 
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        all_parameters = set(self.model.parameters())
+        arch_parameters = set(self.arch_parameters)
+        return list(all_parameters - arch_parameters)
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.model(x)  # type: ignore
 
