@@ -9,6 +9,7 @@ from confopt.oneshot.archsampler import (
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
+    SNASSampler
 )
 from confopt.searchspace import NASBench201SearchSpace
 
@@ -131,6 +132,54 @@ class TestArchSamplers(unittest.TestCase):
     def test_drnas_sampler_new_epoch(self) -> None:
         self._test_drnas_sampler_new_step_epoch(sample_frequency="epoch")
 
+    def test_snas_sampler(self) -> None:
+        searchspace = NASBench201SearchSpace(N=1)
+        sampler = SNASSampler(arch_parameters=searchspace.arch_parameters)
+
+        alphas_before = searchspace.arch_parameters
+        alphas_after = sampler.sample_alphas(alphas_before)
+
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+    
+    def _test_snas_sampler_new_step_epoch(self, sample_frequency: str) -> None:
+        searchspace = NASBench201SearchSpace(N=1)
+        sampler = SNASSampler(
+            arch_parameters=searchspace.arch_parameters,
+            sample_frequency=sample_frequency
+        )
+
+        alphas_before = searchspace.arch_parameters
+        self._sampler_new_step_or_epoch(sampler, sample_frequency)
+        alphas_after = sampler.sampled_alphas
+
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+
+    def test_snas_sampler_new_step(self) -> None:
+        self._test_snas_sampler_new_step_epoch(sample_frequency="step")
+
+    def test_snas_sampler_new_epoch(self) -> None:
+        self._test_snas_sampler_new_step_epoch(sample_frequency="epoch")
+    
+    def _test_snas_illegal_temperatures(self, temp_init: float, temp_min: float) -> None:
+        arch_parameters = [torch.randn(5, 5)]
+        with self.assertRaises(AssertionError):
+            SNASSampler(
+                arch_parameters=arch_parameters,
+                temp_init=temp_init,
+                temp_min=temp_min    
+            )
+
+    def test_snas_temperature_lower_bound(self) -> None:
+        self._test_snas_illegal_temperatures(1.0, -1.0)
+    
+    def test_snas_temperature_upper_bound(self) -> None:
+        self._test_snas_illegal_temperatures(1.1, 0.1)
+
+    def test_snas_temperature_mixedup(self) -> None:
+        self._test_snas_illegal_temperatures(0.1, 1.0)
+
     def test_illegal_sample_frequency(self) -> None:
         arch_parameters = [torch.randn(5, 5)]
         with self.assertRaises(AssertionError):
@@ -147,6 +196,12 @@ class TestArchSamplers(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             DRNASSampler(
+                arch_parameters=arch_parameters,
+                sample_frequency="illegal"
+            )
+
+        with self.assertRaises(AssertionError):
+            SNASSampler(
                 arch_parameters=arch_parameters,
                 sample_frequency="illegal"
             )
