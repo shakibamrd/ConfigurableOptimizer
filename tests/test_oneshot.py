@@ -162,6 +162,24 @@ class TestArchSamplers(unittest.TestCase):
     def test_snas_sampler_new_epoch(self) -> None:
         self._test_snas_sampler_new_step_epoch(sample_frequency="epoch")
     
+    def _test_snas_illegal_temperatures(self, temp_init: float, temp_min: float) -> None:
+        arch_parameters = [torch.randn(5, 5)]
+        with self.assertRaises(AssertionError):
+            SNASSampler(
+                arch_parameters=arch_parameters,
+                temp_init=temp_init,
+                temp_min=temp_min    
+            )
+
+    def test_snas_temperature_lower_bound(self) -> None:
+        self._test_snas_illegal_temperatures(1.0, -1.0)
+    
+    def test_snas_temperature_upper_bound(self) -> None:
+        self._test_snas_illegal_temperatures(1.1, 0.1)
+
+    def test_snas_temperature_mixedup(self) -> None:
+        self._test_snas_illegal_temperatures(0.1, 1.0)
+
     def test_illegal_sample_frequency(self) -> None:
         arch_parameters = [torch.randn(5, 5)]
         with self.assertRaises(AssertionError):
