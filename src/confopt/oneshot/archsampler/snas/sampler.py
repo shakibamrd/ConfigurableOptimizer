@@ -20,6 +20,10 @@ class SNASSampler(BaseSampler):
     ) -> None:
         super().__init__(arch_parameters, sample_frequency)
 
+        assert temp_init >= temp_min
+        assert temp_init <= 1.0
+        assert temp_min > 0
+
         self.temp_init = temp_init
         self.temp_annealing = temp_annealing
         self.temp_min = temp_min
@@ -42,7 +46,7 @@ class SNASSampler(BaseSampler):
         return weights
 
     def new_epoch(self) -> None:
-        if self.temp_annealing:
+        if self.temp_annealing is True:
             self.curr_temp = (1 - self._epoch / self.total_epochs) * (
                 self.temp_init - self.temp_min
             ) + self.temp_min
