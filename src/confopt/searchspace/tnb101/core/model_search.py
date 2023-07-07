@@ -31,6 +31,10 @@ class TNB101SearchModel(nn.Module):
         self.C_out = C_out
         self.stride = stride
 
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, C_in, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(C_in),
+        )
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
         self.cell = TNB101SearchCell(
@@ -42,17 +46,18 @@ class TNB101SearchModel(nn.Module):
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(C_out, num_classes)
 
-        self.arch_parameters = nn.Parameter(
+        self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
         ).to(DEVICE)
 
-    def get_alphas(self) -> list[torch.Tensor]:
-        return [self.arch_parameters]
+    def arch_parameters(self) -> nn.Parameter:
+        return self._arch_parameters
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)
+        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
 
-        feature = self.cell(inputs, alphas)
+        feature = self.stem(inputs)
+        feature = self.cell(feature, alphas)
 
         out = self.lastact(feature)
         out = self.global_pooling(out)

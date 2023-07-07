@@ -7,7 +7,9 @@ TRANS_NAS_BENCH_101 = ["none", "nor_conv_1x1", "skip_connect", "nor_conv_3x3"]
 
 # OPS defines operations for micro cell structures
 OPS = {
-    "none": lambda C_in, C_out, stride: Zero(C_in, C_out, stride),
+    "none": lambda C_in, C_out, stride, affine, track_running_stats: Zero(  # noqa:
+        C_in, C_out, stride  # type: ignore
+    ),
     "nor_conv_1x1": lambda C_in, C_out, stride, affine, track_running_stats: ReLUConvBN(
         C_in, C_out, (1, 1), stride, (0, 0), (1, 1), affine, track_running_stats
     ),

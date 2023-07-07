@@ -17,7 +17,7 @@ class TransNASBench101SearchSpace(SearchSpace):
 
     @property
     def arch_parameters(self) -> list[nn.Parameter]:
-        return [self.model.arch_parameters]  # type: ignore
+        return [self.model.arch_parameters()]  # type: ignore
 
 
 if __name__ == "__main__":
