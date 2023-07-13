@@ -17,13 +17,24 @@ class TNB101SearchModel(nn.Module):
         self,
         C_in: int = 16,
         C_out: int = 16,
-        max_nodes: int = 4,
         stride: int = 1,
+        max_nodes: int = 4,
         num_classes: int = 10,
         op_names: list[str] = TRANS_NAS_BENCH_101,
         affine: bool = False,
         track_running_stats: bool = False,
     ):
+        """Initialize a TransNasBench-101 network consisting of one cell
+        Args:
+            C_in: in channel
+            C_out: out channel
+            stride: 1 or 2
+            max_nodes: total amount of nodes in one cell
+            num_classes: classes
+            op_names: operations for cell structure
+            affine: used for torch.nn.BatchNorm2D
+            track_running_stats: used for torch.nn.BatchNorm2D.
+        """
         super().__init__()
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
 
@@ -80,12 +91,15 @@ class TNB101SearchCell(nn.Module):
         affine: bool = True,
         track_running_stats: bool = True,
     ):
-        """Initialize a cell
+        """Initialize a TransNasBench-101 cell
         Args:
             C_in: in channel
             C_out: out channel
             stride: 1 or 2
-            max_nodes.
+            max_nodes: total amount of nodes in one cell
+            op_names: operations for cell structure
+            affine: used for torch.nn.BatchNorm2D
+            track_running_stats: used for torch.nn.BatchNorm2D.
         """
         super().__init__()
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
@@ -133,8 +147,3 @@ class TNB101SearchCell(nn.Module):
                 inter_nodes.append(self.edges[node_str](nodes[j], weights))
             nodes.append(sum(inter_nodes))
         return nodes[-1]
-
-
-if __name__ == "__main__":
-    cell = TNB101SearchModel(C_in=8, C_out=16, stride=2)
-    print(cell.arch_parameters)
