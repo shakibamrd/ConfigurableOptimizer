@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from torch.utils import data
-from torch.utils.transforms import Compose
+from torchvision.transforms import Compose
 
 
 def calculate_md5(fpath: str, chunk_size: int = 1024 * 1024) -> str:

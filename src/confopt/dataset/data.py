@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Tuple, Union
 
 import numpy as np
 import torch
@@ -10,9 +11,35 @@ import torchvision.datasets as dset
 from torchvision.transforms import Compose
 
 from .imgnet16 import ImageNet16
-from .transforms import CUTOUT
 
-DS = tuple[Dataset | None, Sampler | None]
+DS = Tuple[Union[Dataset, None], Union[Sampler, None]]
+
+
+class CUTOUT:
+    def __init__(self, length: int):
+        self.length = length
+
+    def __repr__(self) -> str:
+        return "{name}(length={length})".format(
+            name=self.__class__.__name__, **self.__dict__
+        )
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        h, w = img.size(1), img.size(2)
+        mask = np.ones((h, w), np.float32)
+        y = np.random.randint(h)
+        x = np.random.randint(w)
+
+        y1 = np.clip(y - self.length // 2, 0, h)
+        y2 = np.clip(y + self.length // 2, 0, h)
+        x1 = np.clip(x - self.length // 2, 0, w)
+        x2 = np.clip(x + self.length // 2, 0, w)
+
+        mask[y1:y2, x1:x2] = 0.0
+        mask = torch.from_numpy(mask)  # type: ignore
+        mask = mask.expand_as(img)  # type: ignore
+        img *= mask
+        return img
 
 
 class AbstractData(ABC):
