@@ -143,6 +143,40 @@ class ReLUConvBN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        # TODO: make this change dynamic
+        in_channels = self.op[1].in_channels
+        out_channels = self.op[1].out_channels
+        kernel_size = self.op[1].kernel_size
+        stride = self.op[1].stride
+        padding = self.op[1].padding
+        dilation = self.op[1].dilation
+        groups = self.op[1].groups
+        bias = self.op[1].bias is not None
+        self.op[1] = nn.Conv2d(
+            in_channels // k,
+            out_channels // k,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+        )
+
+        num_features = self.op[2].num_features
+        eps = self.op[2].eps
+        momentum = self.op[2].momentum
+        affine = self.op[2].affine
+        track_running_stats = self.op[2].track_running_stats
+        self.op[2] = nn.BatchNorm2d(
+            num_features=num_features // k,
+            eps=eps,
+            momentum=momentum,
+            affine=affine,
+            track_running_stats=track_running_stats,
+        )
+
 
 class SepConv(nn.Module):
     def __init__(
@@ -178,6 +212,9 @@ class SepConv(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        pass
+
 
 class DualSepConv(nn.Module):
     def __init__(
@@ -210,6 +247,9 @@ class DualSepConv(nn.Module):
         x = self.op_a(x)
         x = self.op_b(x)
         return x
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
 
 class ResNetBasicblock(nn.Module):
@@ -260,6 +300,9 @@ class ResNetBasicblock(nn.Module):
         residual = self.downsample(inputs) if self.downsample is not None else inputs
         return residual + basicblock  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        pass
+
 
 class Pooling(nn.Module):
     def __init__(
@@ -289,6 +332,10 @@ class Pooling(nn.Module):
         x = self.preprocess(inputs) if self.preprocess else inputs
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        if self.preprocess:
+            self.preprocess.change_channel_size(k)
+
 
 class Identity(nn.Module):
     def __init__(self) -> None:
@@ -296,6 +343,9 @@ class Identity(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
 
 class Zero(nn.Module):
@@ -316,6 +366,9 @@ class Zero(nn.Module):
         shape[1] = self.C_out
         zeros = x.new_zeros(shape, dtype=x.dtype, device=x.device)
         return zeros
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
@@ -365,6 +418,9 @@ class FactorizedReduce(nn.Module):
             out = self.conv(x)
         out = self.bn(out)
         return out
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
