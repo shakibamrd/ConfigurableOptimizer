@@ -15,8 +15,7 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 class TNB101SearchModel(nn.Module):
     def __init__(
         self,
-        C_in: int = 16,
-        C_out: int = 16,
+        C: int = 16,
         stride: int = 1,
         max_nodes: int = 4,
         num_classes: int = 10,
@@ -38,24 +37,31 @@ class TNB101SearchModel(nn.Module):
         super().__init__()
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
 
-        self.C_in = C_in
-        self.C_out = C_out
+        self.C = C
         self.stride = stride
 
         self.stem = nn.Sequential(
-            nn.Conv2d(3, C_in, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(C_in),
+            nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(C),
         )
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
-        self.cell = TNB101SearchCell(
-            C_in, C_out, stride, max_nodes, op_names, affine, track_running_stats
-        ).to(DEVICE)
-        self.num_edge = len(self.cell.edges)
 
-        self.lastact = nn.Sequential(nn.BatchNorm2d(C_out), nn.ReLU())
+        layer_channels = [C * 2, C * 2, C * 4, C * 4, C * 8]
+
+        self.cells = nn.ModuleList()
+        C_prev = C
+        for _index, C_curr in enumerate(layer_channels):
+            cell = TNB101SearchCell(
+                C_prev, C_curr, stride, max_nodes, op_names, affine, track_running_stats
+            ).to(DEVICE)
+            self.cells.append(cell)
+            C_prev = cell.C_out
+        self.num_edge = len(self.cells[0].edges)
+
+        self.lastact = nn.Sequential(nn.BatchNorm2d(C_prev), nn.ReLU())
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
-        self.classifier = nn.Linear(C_out, num_classes)
+        self.classifier = nn.Linear(C_prev, num_classes)
 
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
@@ -68,7 +74,8 @@ class TNB101SearchModel(nn.Module):
         alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
 
         feature = self.stem(inputs)
-        feature = self.cell(feature, alphas)
+        for cell in self.cells:
+            feature = cell(feature, alphas)
 
         out = self.lastact(feature)
         out = self.global_pooling(out)
