@@ -6,6 +6,8 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+
 __all__ = ["OPS", "ResNetBasicblock", "SearchSpaceNames", "ReLUConvBN"]
 
 OPS = {
@@ -145,37 +147,8 @@ class ReLUConvBN(nn.Module):
 
     def change_channel_size(self, k: int) -> None:
         # TODO: make this change dynamic
-        in_channels = self.op[1].in_channels
-        out_channels = self.op[1].out_channels
-        kernel_size = self.op[1].kernel_size
-        stride = self.op[1].stride
-        padding = self.op[1].padding
-        dilation = self.op[1].dilation
-        groups = self.op[1].groups
-        bias = self.op[1].bias is not None
-        self.op[1] = nn.Conv2d(
-            in_channels // k,
-            out_channels // k,
-            kernel_size,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=groups,
-            bias=bias,
-        )
-
-        num_features = self.op[2].num_features
-        eps = self.op[2].eps
-        momentum = self.op[2].momentum
-        affine = self.op[2].affine
-        track_running_stats = self.op[2].track_running_stats
-        self.op[2] = nn.BatchNorm2d(
-            num_features=num_features // k,
-            eps=eps,
-            momentum=momentum,
-            affine=affine,
-            track_running_stats=track_running_stats,
-        )
+        self.op[1] = reduce_conv_channels(self.op[1], k)
+        self.op[2] = reduce_bn_features(self.op[2], k)
 
 
 class SepConv(nn.Module):
@@ -213,7 +186,9 @@ class SepConv(nn.Module):
         return self.op(x)  # type: ignore
 
     def change_channel_size(self, k: int) -> None:
-        pass
+        self.op[1] = reduce_conv_channels(self.op[1], k)
+        self.op[2] = reduce_conv_channels(self.op[2], k)
+        self.op[3] = reduce_bn_features(self.op[3], k)
 
 
 class DualSepConv(nn.Module):
@@ -249,7 +224,8 @@ class DualSepConv(nn.Module):
         return x
 
     def change_channel_size(self, k: int) -> None:
-        pass
+        self.op_b.change_channel_size(k)
+        self.op_b.change_channel_size(k)
 
 
 class ResNetBasicblock(nn.Module):
@@ -420,7 +396,15 @@ class FactorizedReduce(nn.Module):
         return out
 
     def change_channel_size(self, k: int) -> None:
-        pass
+        if self.stride == 2:
+            for i in range(2):
+                self.convs[i] = reduce_conv_channels(self.convs[i], k)
+        elif self.stride == 1:
+            self.conv = reduce_conv_channels(self.conv, k)
+        else:
+            raise ValueError(f"Invalid stride : {self.stride}")
+
+        self.bn = reduce_bn_features(self.bn, k)
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
