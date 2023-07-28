@@ -19,6 +19,7 @@ class PartialConnector(nn.Module):
         for op in ops:
             op.change_channel_size(k)  # type: ignore
         self.ops = ops
+        self.mp = nn.MaxPool2d(2, 2)
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
         assert len(alphas) == len(
@@ -29,6 +30,12 @@ class PartialConnector(nn.Module):
         xtemp = x[:, : dim_2 // self.k, :, :]
         xtemp2 = x[:, dim_2 // self.k :, :, :]
         temp1 = sum(op(xtemp) * alpha for op, alpha in zip(self.ops, alphas))
-        states = torch.cat([temp1, xtemp2], dim=1)
+
+        # reduction cell needs pooling before concat
+        if self.is_reduction_cell:
+            states = torch.cat([temp1, self.mp(xtemp2)], dim=1)
+        else:
+            states = torch.cat([temp1, xtemp2], dim=1)
+
         states = channel_shuffle(states, self.k)
         return states
