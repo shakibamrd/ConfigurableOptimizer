@@ -7,7 +7,7 @@ from confopt.searchspace import (
     DARTSSearchSpace,
     NASBench1Shot1SearchSpace,
     NASBench201SearchSpace,
-    TransNASBench101SearchSpace
+    TransNASBench101SearchSpace,
 )
 from confopt.searchspace.darts.core.model_search import Cell as DARTSSearchCell
 from confopt.searchspace.nb1shot1.core.model_search import (
@@ -15,7 +15,6 @@ from confopt.searchspace.nb1shot1.core.model_search import (
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell
 from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
-from confopt.searchspace.tnb101.core import TNB101MicroModel
 from utils import get_modules_of_type
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -202,6 +201,7 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
         assert logits.shape == torch.Size([2, num_classes])
         assert out.shape == torch.Size([2, 64])
 
+
 class TestTransNASBench101SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
         search_space = TransNASBench101SearchSpace()
@@ -221,6 +221,7 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 16])
         assert out[1].shape == torch.Size([2, 10])
+
 
 if __name__ == "__main__":
     unittest.main()
