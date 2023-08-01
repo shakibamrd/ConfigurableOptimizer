@@ -23,6 +23,7 @@ class TNB101SearchModel(nn.Module):
         op_names: list[str] = TRANS_NAS_BENCH_101,
         affine: bool = False,
         track_running_stats: bool = False,
+        edge_normalization: bool = False,
     ):
         """Initialize a TransNasBench-101 network consisting of one cell
         Args:
@@ -41,7 +42,7 @@ class TNB101SearchModel(nn.Module):
         self.C_in = C_in
         self.C_out = C_out
         self.stride = stride
-
+        self.edge_normalization = edge_normalization
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_in, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(C_in),
@@ -60,15 +61,24 @@ class TNB101SearchModel(nn.Module):
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
         ).to(DEVICE)
+        self._beta_parameters = nn.Parameter(1e-3 * torch.randn(self.num_edge))
 
     def arch_parameters(self) -> nn.Parameter:
         return self._arch_parameters
+
+    def beta_parameters(self) -> nn.Parameter:
+        return self._beta_parameters
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
 
         feature = self.stem(inputs)
-        feature = self.cell(feature, alphas)
+        if self.edge_normalization:
+            # TODO: find out how to structure beta
+            betas = torch.ones(self.num_edge)
+            feature = self.cell(feature, alphas, betas)
+        else:
+            feature = self.cell(feature, alphas)
 
         out = self.lastact(feature)
         out = self.global_pooling(out)
@@ -137,13 +147,24 @@ class TNB101SearchCell(nn.Module):
         self.edge2index = {key: i for i, key in enumerate(self.edge_keys)}
         self.num_edges: int = len(self.edges)
 
-    def forward(self, inputs: torch.Tensor, alphas: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        alphas: list[torch.Tensor],
+        betas: list[torch.Tensor] | None = None,
+    ) -> torch.Tensor:
         nodes = [inputs]
         for i in range(1, self.max_nodes):
             inter_nodes = []
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 weights = alphas[self.edge2index[node_str]]
-                inter_nodes.append(self.edges[node_str](nodes[j], weights))
+                if betas is not None:
+                    beta_weights = betas[self.edge2index[node_str]]
+                    inter_nodes.append(
+                        beta_weights * self.edges[node_str](nodes[j], weights)
+                    )
+                else:
+                    inter_nodes.append(self.edges[node_str](nodes[j], weights))
             nodes.append(sum(inter_nodes))
         return nodes[-1]

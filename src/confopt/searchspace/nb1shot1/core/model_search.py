@@ -297,5 +297,5 @@ class Network(nn.Module):
             *self.alphas_inputs,
         ]
 
-    def arch_parameters(self) -> list[torch.Tensor]:
+    def arch_parameters(self) -> list[nn.Parameter]:
         return self._arch_parameters

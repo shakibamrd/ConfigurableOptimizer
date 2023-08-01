@@ -3,6 +3,8 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+
 TRANS_NAS_BENCH_101 = ["none", "nor_conv_1x1", "skip_connect", "nor_conv_3x3"]
 
 # OPS defines operations for micro cell structures
@@ -64,6 +66,11 @@ class ReLUConvBN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.ops(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        # TODO: make this change dynamic
+        self.ops[1] = reduce_conv_channels(self.ops[1], k)
+        self.ops[2] = reduce_bn_features(self.ops[2], k)
+
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
 
@@ -74,6 +81,9 @@ class Identity(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
 
 class Zero(nn.Module):
@@ -94,6 +104,9 @@ class Zero(nn.Module):
         shape[1] = self.C_out
         zeros = x.new_zeros(shape, dtype=x.dtype, device=x.device)
         return zeros
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
@@ -134,6 +147,12 @@ class FactorizedReduce(nn.Module):
 
         out = self.bn(out)
         return out
+
+    def change_channel_size(self, k: int) -> None:
+        for i in range(2):
+            self.convs[i] = reduce_conv_channels(self.convs[i], k)
+
+        self.bn = reduce_bn_features(self.bn, k)
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
