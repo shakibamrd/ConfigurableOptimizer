@@ -13,27 +13,10 @@ class SDARTSSampler(BaseSampler):
         self,
         arch_parameters: list[torch.Tensor],
         sample_frequency: Literal["epoch", "step"] = "step",
-        tau_min: float = 0.1,
-        tau_max: float = 10,
-        total_epochs: int = 250,
     ) -> None:
         super().__init__(
             arch_parameters=arch_parameters, sample_frequency=sample_frequency
         )
-
-        self.tau_min = torch.Tensor([tau_min])
-        self.tau_max = torch.Tensor([tau_max])
-        self.total_epochs = total_epochs
-        self.tau_curr = self.tau_max - (self.tau_max - self.tau_min) * self._epoch / (
-            self.total_epochs - 1
-        )
-
-    def set_taus(self, tau_min: float, tau_max: float) -> None:
-        self.tau_min = torch.Tensor([tau_min])  # type: ignore
-        self.tau_max = torch.Tensor([tau_max])  # type: ignore
-
-    def set_total_epochs(self, total_epochs: int) -> None:
-        self.total_epochs = total_epochs
 
     def sample_alphas(
         self,
@@ -57,13 +40,7 @@ class SDARTSSampler(BaseSampler):
             for alpha in arch_parameters:
                 sampled_alphas.append(self.sample_random(alpha.clone(), epsilon))
 
-            for alpha in sampled_alphas:
-                for line in alpha:
-                    max_index = line.argmax()
-                    line.data.clamp_(0, 1)
-                    if line.sum() == 0.0:
-                        line.data[max_index] = 1.0
-                    line.data.div_(line.sum())
+            self.clip(sampled_alphas)
             return sampled_alphas
 
         return self.sample_linf_pgd_alpha(
@@ -101,7 +78,7 @@ class SDARTSSampler(BaseSampler):
         if random_start:
             for p in alphas:
                 p.data.add_(torch.zeros_like(p).uniform_(-epsilon, epsilon))
-            self.clip(model)
+            self.clip(model.arch_parameters)
 
         for _ in range(steps):
             optimizer.zero_grad()
@@ -116,7 +93,7 @@ class SDARTSSampler(BaseSampler):
             ]
             for i, p in enumerate(alphas):
                 p.data.copy_(diff[i] + saved_params[i])
-            self.clip(model)
+            self.clip(model.arch_parameters)
 
         optimizer.zero_grad()
         model.zero_grad()
@@ -129,21 +106,14 @@ class SDARTSSampler(BaseSampler):
 
         return alphas
 
-    def clip(self, model: torch.nn.Module) -> None:
-        for p in model.arch_parameters:
+    def clip(self, alphas: torch.nn.Module) -> None:
+        for p in alphas:
             for line in p:
                 max_index = line.argmax()
                 line.data.clamp_(0, 1)
                 if line.sum() == 0.0:
                     line.data[max_index] = 1.0
                 line.data.div_(line.sum())
-
-    def new_epoch(self, *args, **kwargs) -> None:  # type: ignore
-        self.tau_curr = self.tau_max - (self.tau_max - self.tau_min) * self._epoch / (
-            self.total_epochs - 1
-        )
-
-        super().new_epoch(*args, **kwargs)
 
 
 class LinfSGD(Optimizer):
