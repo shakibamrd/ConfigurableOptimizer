@@ -106,7 +106,7 @@ class SDARTSSampler(BaseSampler):
 
         return alphas
 
-    def clip(self, alphas: torch.nn.Module) -> None:
+    def clip(self, alphas: list[torch.Tensor]) -> None:
         for p in alphas:
             for line in p:
                 max_index = line.argmax()
