@@ -3,18 +3,19 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch import nn, optim
+from torch import nn
+from torch import optim
 
-from confopt.dataset import CIFAR10Data
 from confopt.oneshot.archsampler import DARTSSampler
 from confopt.searchspace import DARTSSearchSpace
-from confopt.train import ConfigurableTrainer
-from confopt.utils import BaseProfile, prepare_logger
+from confopt.train import ConfigurableTrainer, BaseProfile
+from confopt.dataset import CIFAR10Data
+from confopt.utils import prepare_logger
 
 
 class TestConfTrainer(unittest.TestCase):
     def test_basic_darts(self) -> None:
-        epochs = 1
+        epochs = 10
 
         searchspace = DARTSSearchSpace()
         sampler = DARTSSampler(searchspace.arch_parameters)
@@ -22,18 +23,14 @@ class TestConfTrainer(unittest.TestCase):
         a_optimizer = optim.Adam(searchspace.arch_parameters, lr=1e-3, betas=(0.9, 0.99), weight_decay=0.1)
         lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(m_optimizer, T_max=epochs)
         criterion = nn.CrossEntropyLoss()
-        data = CIFAR10Data("datasets", 0, 0.5)
+        data = CIFAR10Data("~/Documents/dev/ConfigurableOptimizer/data", 0, 0.5)
         logger = prepare_logger(
-            save_dir="logs",
+            save_dir="~/Documents/dev/ConfigurableOptimizer/logs",
             seed=0,
             exp_name="Test"
         )
 
-        profile = BaseProfile(samplers=[sampler])
-
-        # FIXME This is hacky but a quick way to check
-        # Add a break statement after each loop over loaders (train_func, valid_func)
-        # to speed up the process
+        profile = BaseProfile(sampler=sampler)
 
         trainer = ConfigurableTrainer(
             model=searchspace,
@@ -47,9 +44,8 @@ class TestConfTrainer(unittest.TestCase):
             )
 
         trainer.train(profile, epochs)
+        
         assert True
-
-        logger.close()
 
 if __name__ == "__main__":
     unittest.main()
