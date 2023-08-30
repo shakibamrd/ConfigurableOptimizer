@@ -12,7 +12,7 @@ from confopt.searchspace import SearchSpace
 from confopt.utils import AverageMeter, Logger, calc_accuracy
 from confopt.utils.profile import BaseProfile
 
-TrainingMetrics = namedtuple("TrainingMetrics", "loss acc_top1 acc_top5")
+TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
 DataLoaderType: TypeAlias = torch.utils.data.DataLoader
 OptimizerType: TypeAlias = torch.optim.Optimizer
@@ -42,8 +42,9 @@ class ConfigurableTrainer:
         self.scheduler = scheduler
         self.data = data
         self.device = (
-            torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
+
         self.logger = logger
         self.criterion = criterion
         self.use_data_parallel = use_data_parallel
@@ -52,7 +53,9 @@ class ConfigurableTrainer:
         self.load_saved_model = load_saved_model
         self.drop_path_prob = drop_path_prob
 
-    def train(self, profile: BaseProfile, epochs: int) -> None:
+    def train(
+        self, profile: BaseProfile, epochs: int, is_wandb_log: bool = True
+    ) -> None:
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
@@ -78,8 +81,8 @@ class ConfigurableTrainer:
 
         for epoch in range(epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
-
-            profile.sampler.new_epoch()
+            for sampler in profile.samplers:
+                sampler.new_epoch()
 
             base_metrics, arch_metrics = self.train_func(
                 profile,
@@ -95,22 +98,32 @@ class ConfigurableTrainer:
                 self.logger,
             )
 
+            # Logging
             search_time.update(time.time() - start_time)
             self.logger.log_metrics(
-                "Search: Model metrics", base_metrics, epoch_str, search_time.sum
+                "Search: Model metrics ", base_metrics, epoch_str, search_time.sum
             )
+
             self.logger.log_metrics(
-                "Search: Architecture metrics", arch_metrics, epoch_str
+                "Search: Architecture metrics ", arch_metrics, epoch_str
             )
 
             valid_metrics = self.valid_func(val_loader, self.model, self.criterion)
-            self.logger.log_metrics("Evaluation:", valid_metrics, epoch_str)
+            self.logger.log_metrics("Evaluation: ", valid_metrics, epoch_str)
+
+            if is_wandb_log:
+                self.logger.wandb_log_metrics(
+                    "search/model", base_metrics, epoch, search_time.sum
+                )
+                self.logger.wandb_log_metrics("search/arch", arch_metrics, epoch)
+                self.logger.wandb_log_metrics("eval", valid_metrics, epoch)
 
             (
                 self.valid_losses[epoch],
                 self.valid_accs_top1[epoch],
                 self.valid_accs_top5[epoch],
             ) = valid_metrics
+
             (
                 self.search_losses[epoch],
                 self.search_accs_top1[epoch],
@@ -120,7 +133,7 @@ class ConfigurableTrainer:
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
-                    f"<<<--->>> The {epoch_str}-th epoch : find the highest "
+                    f"<<<--->>> The {epoch_str}-th epoch : found the highest "
                     + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
                 )
             #     is_best = True
@@ -131,7 +144,8 @@ class ConfigurableTrainer:
             # self._save_checkpoint(epoch, is_best)
 
             with torch.no_grad():
-                self.logger.log(f"{self.model.show_alphas()}")
+                for i, alpha in enumerate(self.model.arch_parameters):
+                    self.logger.log(f"alpha {i} is {alpha}")
 
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
@@ -171,7 +185,9 @@ class ConfigurableTrainer:
         for step, (base_inputs, base_targets) in enumerate(train_loader):
             # TODO: What was the point of this? and is it safe to remove?
             # scheduler.update(None, 1.0 * step / len(xloader))
-            profile.sampler.new_step()
+            for sampler in profile.samplers:
+                sampler.new_epoch()
+
             arch_inputs, arch_targets = next(iter(valid_loader))
 
             base_targets, arch_targets = base_targets.to(self.device), arch_targets.to(
@@ -267,6 +283,9 @@ class ConfigurableTrainer:
                 #     arch_inputs = arch_inputs.cuda(non_blocking=True)
 
                 # prediction
+                arch_inputs = arch_inputs.to(self.device)
+                arch_targets = arch_targets.to(self.device)
+
                 _, logits = network(arch_inputs)
                 arch_loss = criterion(logits, arch_targets)
 
