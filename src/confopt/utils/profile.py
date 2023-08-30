@@ -6,6 +6,6 @@ from confopt.oneshot import BaseSampler
 class BaseProfile:
     def __init__(
         self,
-        sampler: BaseSampler,
+        samplers: list[BaseSampler],
     ) -> None:
-        self.sampler = sampler
+        self.samplers = samplers
