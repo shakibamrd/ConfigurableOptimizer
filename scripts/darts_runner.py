@@ -44,7 +44,8 @@ def run_experiment() -> None:
     config = wandb.config # type: ignore
     data = CIFAR10Data("datasets", 0, 0.5)
     search_space = DARTSSearchSpace()
-    samplers = [DARTSSampler(search_space.arch_parameters)]
+    sampler = DARTSSampler(search_space.arch_parameters)
+    # TODO Add pertubration and partial connections into this
     model_optimizer = optim.SGD(search_space.arch_parameters,
                             lr=config["model_lr"],
                             momentum=config["model_momentum"],
@@ -59,7 +60,7 @@ def run_experiment() -> None:
                                                         T_max=config["epochs"]
                                                     )
     criterion = nn.CrossEntropyLoss()
-    profile = BaseProfile(samplers)
+    profile = BaseProfile(sampler)
 
     trainer = ConfigurableTrainer(
                                 model=search_space,
