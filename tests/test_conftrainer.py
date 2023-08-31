@@ -6,13 +6,13 @@ from torch import nn, optim
 
 from confopt.dataset import CIFAR10Data
 from confopt.oneshot.archsampler import DARTSSampler
-from confopt.searchspace import DARTSSearchSpace
+from confopt.searchspace import DARTSSearchSpace, NASBench201SearchSpace
 from confopt.train import ConfigurableTrainer
 from confopt.utils import BaseProfile, prepare_logger
 
 
 class TestConfTrainer(unittest.TestCase):
-    def test_basic_darts(self) -> None:
+    def test_darts(self) -> None:
         epochs = 1
 
         searchspace = DARTSSearchSpace()
@@ -30,11 +30,12 @@ class TestConfTrainer(unittest.TestCase):
             exp_name="Test"
         )
 
-        profile = BaseProfile(samplers=[sampler])
+        profile = BaseProfile(sampler)
 
         # FIXME This is hacky but a quick way to check
         # Add a break statement after each loop over loaders (train_func, valid_func)
         # to speed up the process
+        # It taked 30 mins for 1 epoch
 
         trainer = ConfigurableTrainer(
             model=searchspace,
@@ -44,10 +45,10 @@ class TestConfTrainer(unittest.TestCase):
             scheduler=lr_scheduler,
             criterion=criterion,
             batchsize=16,
-            logger=logger
+            logger=logger,
             )
 
-        trainer.train(profile, epochs)
+        trainer.train(profile, epochs, is_wandb_log=False)
         assert True
 
         logger.close()
