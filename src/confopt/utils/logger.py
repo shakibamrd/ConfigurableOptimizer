@@ -11,6 +11,7 @@ import time
 from typing import IO, Any, NamedTuple
 
 import torch
+import wandb
 
 
 def prepare_logger(
@@ -121,3 +122,21 @@ class Logger:
             msg += f", time-cost={totaltime:.1f} s"
 
         self.log(msg)
+
+    def wandb_log_metrics(
+        self,
+        title: str,
+        metrics: NamedTuple,
+        epoch: int,
+        totaltime: float | None = None,
+    ) -> None:
+        log_metrics = {
+            f"{title}/epochs": epoch,
+            f"{title}/loss": metrics.loss,  # type: ignore
+            f"{title}/acc_top1": metrics.acc_top1,  # type: ignore
+            f"{title}/acc_top5": metrics.acc_top5,  # type: ignore
+        }
+        if totaltime is not None:
+            log_metrics.update({f"{title}/time": f"{totaltime:.1f}"})
+
+        wandb.log(log_metrics)  # type: ignore
