@@ -9,8 +9,7 @@ from typing_extensions import TypeAlias
 
 from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
-from confopt.utils import AverageMeter, Logger, calc_accuracy
-from confopt.utils.profile import BaseProfile
+from confopt.utils import AverageMeter, BaseProfile, Logger, calc_accuracy
 
 TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
@@ -81,8 +80,11 @@ class ConfigurableTrainer:
 
         for epoch in range(epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
-            for sampler in profile.samplers:
-                sampler.new_epoch()
+            profile.sampler.new_epoch()
+
+            # TODO Add functionality for profile.partial_connector
+            # if profile.pertubration is not None:
+            #     profile.pertubration.new_epoch()
 
             base_metrics, arch_metrics = self.train_func(
                 profile,
@@ -183,10 +185,17 @@ class ConfigurableTrainer:
         end = time.time()
 
         for step, (base_inputs, base_targets) in enumerate(train_loader):
-            # TODO: What was the point of this? and is it safe to remove?
+            # FIXME: What was the point of this? and is it safe to remove?
             # scheduler.update(None, 1.0 * step / len(xloader))
-            for sampler in profile.samplers:
-                sampler.new_epoch()
+
+            profile.sampler.new_step()
+
+            if profile.pertubration is not None:
+                profile.pertubration.new_step()
+
+            # TODO  Add functionality for profile.partial_connector
+            # if profile.partial_connector is not None:
+            #     profile.partial_connector.new_step()
 
             arch_inputs, arch_targets = next(iter(valid_loader))
 
