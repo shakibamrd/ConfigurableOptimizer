@@ -4,12 +4,12 @@ import unittest
 
 import torch
 
+from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
     BaseSampler,
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
-    SDARTSSampler,
     SNASSampler,
 )
 from confopt.searchspace import NASBench201SearchSpace
