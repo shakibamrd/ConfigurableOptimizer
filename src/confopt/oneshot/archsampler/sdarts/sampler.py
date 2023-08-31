@@ -6,52 +6,69 @@ import torch
 from torch.optim.optimizer import Optimizer, required
 
 from confopt.oneshot.archsampler import BaseSampler
+from confopt.searchspace.common import SearchSpace
 
 
 class SDARTSSampler(BaseSampler):
     def __init__(
         self,
         arch_parameters: list[torch.Tensor],
+        epsilon: float,
+        search_space: SearchSpace | None = None,
+        data: tuple[torch.Tensor, torch.Tensor] | None = None,
+        loss_criterion: torch.nn.modules.loss._Loss | None = None,
+        attack_type: Literal["random", "adverserial"] = "random",
+        steps: int = 7,
+        random_start: bool = True,
         sample_frequency: Literal["epoch", "step"] = "step",
     ) -> None:
         super().__init__(
             arch_parameters=arch_parameters, sample_frequency=sample_frequency
         )
+        self.epsilon = epsilon
 
-    def sample_alphas(
-        self,
-        arch_parameters: list[torch.Tensor],
-        epsilon: float,
-        attack_type: Literal["random", "adverserial"] = "random",
-        model: torch.nn.Module = None,
-        loss_criterion: torch.nn.Module = None,
-        X: torch.Tensor = None,
-        target: torch.Tensor = None,
-        steps: int = 7,
-        random_start: bool = True,
-    ) -> list[torch.Tensor]:
         assert attack_type in [
             "random",
             "adverserial",
         ], "attack_type must be either 'random' or 'adverserial'"
+        self.attack_type = attack_type
 
-        if attack_type == "random":
+        # Initialize variables for adverserial attack
+        if self.attack_type == "adverserial":
+            assert search_space is not None, "search_space should not be None"
+
+            assert data is not None, "data should not be None"
+
+        if search_space is not None:
+            self.model = search_space
+        if data is not None:
+            self.X, self.target = data
+        self.steps = steps
+        self.random_start = random_start
+
+        if loss_criterion is None:
+            self.loss_criterion = torch.nn.CrossEntropyLoss()
+        else:
+            self.loss_criterion = loss_criterion
+
+    def sample_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
+        if self.attack_type == "random":
             sampled_alphas = []
             for alpha in arch_parameters:
-                sampled_alphas.append(self.sample_random(alpha.clone(), epsilon))
+                sampled_alphas.append(self.sample_random(alpha.clone(), self.epsilon))
 
             self.clip(sampled_alphas)
             return sampled_alphas
 
         return self.sample_linf_pgd_alpha(
-            model,
-            loss_criterion,
-            X,
-            target,
+            self.model,
+            self.loss_criterion,
+            self.X,
+            self.target,
             arch_parameters,
-            epsilon,
-            steps,
-            random_start,
+            self.epsilon,
+            self.steps,
+            self.random_start,
         )
 
     def sample_random(self, alpha: torch.Tensor, epsilon: float) -> torch.Tensor:
@@ -176,6 +193,6 @@ class LinfSGD(Optimizer):
                         buf.mul_(momentum).add_(1 - dampening, d_p)
                     d_p = d_p.add(momentum, buf) if nesterov else buf
 
-                p.data.add_(-group["lr"], d_p)
+                p.data.add_(d_p, alpha=-group["lr"])
 
         return loss
