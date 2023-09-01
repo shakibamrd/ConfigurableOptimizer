@@ -4,15 +4,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
-import pickle
 import sys
 from typing import Any
 
 import numpy as np
 from PIL import Image
 from torch.utils import data
-from torch.utils.transforms import Compose
+from torchvision.transforms import Compose
 
 
 def calculate_md5(fpath: str, chunk_size: int = 1024 * 1024) -> str:
@@ -80,9 +80,9 @@ class ImageNet16(data.Dataset):
 
             with open(file_path, "rb") as f:
                 if sys.version_info[0] == 2:
-                    entry = pickle.load(f)
+                    entry = json.load(f)
                 else:
-                    entry = pickle.load(f, encoding="latin1")
+                    entry = json.load(f, encoding="latin1")
                 self.data.append(entry["data"])
                 self.targets.extend(entry["labels"])
         self.data = np.vstack(self.data).reshape(-1, 3, 16, 16)  # type: ignore

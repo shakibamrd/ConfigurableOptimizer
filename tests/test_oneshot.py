@@ -17,11 +17,9 @@ from confopt.searchspace import NASBench201SearchSpace
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class TestArchSamplers(unittest.TestCase):
-
-    def _sampler_new_step_or_epoch(self,
-        sampler: BaseSampler,
-        sample_frequency: str,
-        ) -> None:
+    def _sampler_new_step_or_epoch(
+        self, sampler: BaseSampler, sample_frequency: str
+    ) -> None:
         if sample_frequency == "epoch":
             sampler.new_epoch()
         elif sample_frequency == "step":
@@ -49,7 +47,7 @@ class TestArchSamplers(unittest.TestCase):
         searchspace = NASBench201SearchSpace(N=1)
         sampler = DARTSSampler(
             arch_parameters=searchspace.arch_parameters,
-            sample_frequency=sample_frequency
+            sample_frequency=sample_frequency,
         )
 
         alphas_before = searchspace.arch_parameters
@@ -61,7 +59,7 @@ class TestArchSamplers(unittest.TestCase):
             assert torch.allclose(arch_param_before, arch_param_after)
 
     def test_darts_sampler_new_step(self) -> None:
-       self._test_darts_sampler_new_step_epoch(sample_frequency="step")
+        self._test_darts_sampler_new_step_epoch(sample_frequency="step")
 
     def test_darts_sampler_new_epoch(self) -> None:
         self._test_darts_sampler_new_step_epoch(sample_frequency="epoch")
@@ -81,7 +79,7 @@ class TestArchSamplers(unittest.TestCase):
         searchspace = NASBench201SearchSpace(N=1)
         sampler = GDASSampler(
             arch_parameters=searchspace.arch_parameters,
-            sample_frequency=sample_frequency
+            sample_frequency=sample_frequency,
         )
 
         alphas_before = searchspace.arch_parameters
@@ -115,7 +113,7 @@ class TestArchSamplers(unittest.TestCase):
         searchspace = NASBench201SearchSpace(N=1)
         sampler = DRNASSampler(
             arch_parameters=searchspace.arch_parameters,
-            sample_frequency=sample_frequency
+            sample_frequency=sample_frequency,
         )
 
         alphas_before = searchspace.arch_parameters
@@ -204,7 +202,7 @@ class TestArchSamplers(unittest.TestCase):
         searchspace = NASBench201SearchSpace(N=1)
         sampler = SNASSampler(
             arch_parameters=searchspace.arch_parameters,
-            sample_frequency=sample_frequency
+            sample_frequency=sample_frequency,
         )
 
         alphas_before = searchspace.arch_parameters
@@ -227,7 +225,7 @@ class TestArchSamplers(unittest.TestCase):
             SNASSampler(
                 arch_parameters=arch_parameters,
                 temp_init=temp_init,
-                temp_min=temp_min
+                temp_min=temp_min,
             )
 
     def test_snas_temperature_lower_bound(self) -> None:
@@ -242,34 +240,25 @@ class TestArchSamplers(unittest.TestCase):
     def test_illegal_sample_frequency(self) -> None:
         arch_parameters = [torch.randn(5, 5)]
         with self.assertRaises(AssertionError):
-            DARTSSampler(
-                arch_parameters=arch_parameters,
-                sample_frequency="illegal"
-            )
+            DARTSSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
 
         with self.assertRaises(AssertionError):
-            GDASSampler(
-                arch_parameters=arch_parameters,
-                sample_frequency="illegal"
-            )
+            GDASSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
 
         with self.assertRaises(AssertionError):
-            DRNASSampler(
-                arch_parameters=arch_parameters,
-                sample_frequency="illegal"
-            )
+            DRNASSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
 
         with self.assertRaises(AssertionError):
             SDARTSSampler(
                 arch_parameters=arch_parameters,
-                sample_frequency="illegal", 
+                sample_frequency="illegal",
                 epsilon=0.03,
             )
 
         with self.assertRaises(AssertionError):
             SNASSampler(
                 arch_parameters=arch_parameters,
-                sample_frequency="illegal"
+                sample_frequency="illegal",
             )
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+
 __all__ = ["OPS", "ResNetBasicblock", "SearchSpaceNames", "ReLUConvBN"]
 
 OPS = {
@@ -143,6 +145,11 @@ class ReLUConvBN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        # TODO: make this change dynamic
+        self.op[1] = reduce_conv_channels(self.op[1], k)
+        self.op[2] = reduce_bn_features(self.op[2], k)
+
 
 class SepConv(nn.Module):
     def __init__(
@@ -178,6 +185,11 @@ class SepConv(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        self.op[1] = reduce_conv_channels(self.op[1], k)
+        self.op[2] = reduce_conv_channels(self.op[2], k)
+        self.op[3] = reduce_bn_features(self.op[3], k)
+
 
 class DualSepConv(nn.Module):
     def __init__(
@@ -210,6 +222,10 @@ class DualSepConv(nn.Module):
         x = self.op_a(x)
         x = self.op_b(x)
         return x
+
+    def change_channel_size(self, k: int) -> None:
+        self.op_b.change_channel_size(k)
+        self.op_b.change_channel_size(k)
 
 
 class ResNetBasicblock(nn.Module):
@@ -260,6 +276,9 @@ class ResNetBasicblock(nn.Module):
         residual = self.downsample(inputs) if self.downsample is not None else inputs
         return residual + basicblock  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        pass
+
 
 class Pooling(nn.Module):
     def __init__(
@@ -289,6 +308,10 @@ class Pooling(nn.Module):
         x = self.preprocess(inputs) if self.preprocess else inputs
         return self.op(x)  # type: ignore
 
+    def change_channel_size(self, k: int) -> None:
+        if self.preprocess:
+            self.preprocess.change_channel_size(k)
+
 
 class Identity(nn.Module):
     def __init__(self) -> None:
@@ -296,6 +319,9 @@ class Identity(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
 
 class Zero(nn.Module):
@@ -316,6 +342,9 @@ class Zero(nn.Module):
         shape[1] = self.C_out
         zeros = x.new_zeros(shape, dtype=x.dtype, device=x.device)
         return zeros
+
+    def change_channel_size(self, k: int) -> None:
+        pass
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
@@ -365,6 +394,17 @@ class FactorizedReduce(nn.Module):
             out = self.conv(x)
         out = self.bn(out)
         return out
+
+    def change_channel_size(self, k: int) -> None:
+        if self.stride == 2:
+            for i in range(2):
+                self.convs[i] = reduce_conv_channels(self.convs[i], k)
+        elif self.stride == 1:
+            self.conv = reduce_conv_channels(self.conv, k)
+        else:
+            raise ValueError(f"Invalid stride : {self.stride}")
+
+        self.bn = reduce_bn_features(self.bn, k)
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
