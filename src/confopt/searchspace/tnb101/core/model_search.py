@@ -7,6 +7,7 @@ from torch import nn
 
 from confopt.searchspace.common import OperationChoices
 
+from . import operations as ops
 from .operations import OPS, TRANS_NAS_BENCH_101
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -22,6 +23,7 @@ class TNB101SearchModel(nn.Module):
         op_names: list[str] = TRANS_NAS_BENCH_101,
         affine: bool = False,
         track_running_stats: bool = False,
+        dataset: str = "class_object",
     ):
         """Initialize a TransNasBench-101 network consisting of one cell
         Args:
@@ -40,10 +42,6 @@ class TNB101SearchModel(nn.Module):
         self.C = C
         self.stride = stride
 
-        self.stem = nn.Sequential(
-            nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(C),
-        )
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
 
@@ -53,15 +51,35 @@ class TNB101SearchModel(nn.Module):
         C_prev = C
         for _index, C_curr in enumerate(layer_channels):
             cell = TNB101SearchCell(
-                C_prev, C_curr, stride, max_nodes, op_names, affine, track_running_stats
+                C_prev,
+                C_curr,
+                stride,
+                max_nodes,
+                op_names,
+                affine,
+                track_running_stats,
             ).to(DEVICE)
             self.cells.append(cell)
             C_prev = cell.C_out
         self.num_edge = len(self.cells[0].edges)
 
-        self.lastact = nn.Sequential(nn.BatchNorm2d(C_prev), nn.ReLU())
+        if dataset == "jigsaw":
+            self.num_classes = 1000
+        elif dataset == "class_object":
+            self.num_classes = 100
+        elif dataset == "class_scene":
+            self.num_classes = 63
+        else:
+            self.num_classes = num_classes
+
+        self.stem = self._get_stem_for_task(dataset)
+        self.decoder = self._get_decoder_for_task(dataset, layer_channels[-1])
+        self.op_names = deepcopy(op_names)
+        self.max_nodes = max_nodes
+
+        self.lastact = nn.Sequential(nn.BatchNorm2d(num_classes), nn.ReLU())
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
-        self.classifier = nn.Linear(C_prev, num_classes)
+        self.classifier = nn.Linear(num_classes, num_classes)
 
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
@@ -77,12 +95,47 @@ class TNB101SearchModel(nn.Module):
         for cell in self.cells:
             feature = cell(feature, alphas)
 
-        out = self.lastact(feature)
+        out = self.decoder(feature)
+
+        out = self.lastact(out)
         out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
         logits = self.classifier(out)
 
         return out, logits
+
+    def _get_stem_for_task(self, task: str) -> nn.Module:
+        if task == "jigsaw":
+            return ops.StemJigsaw(C_out=self.C)
+        if task in ["class_object", "class_scene"]:
+            return ops.Stem(C_out=self.C)
+        if task == "autoencoder":
+            return ops.Stem(C_out=self.C)
+        return ops.Stem(C_in=3, C_out=self.C)
+
+    def _get_decoder_for_task(self, task: str, n_channels: int) -> nn.Module:
+        if task == "jigsaw":
+            return ops.SequentialJigsaw(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Flatten(),
+                nn.Linear(n_channels * 9, self.num_classes),
+            )
+        if task in ["class_object", "class_scene"]:
+            return ops.Sequential(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Flatten(),
+                nn.Linear(n_channels, self.num_classes),
+            )
+        if task == "autoencoder":
+            if self.use_small_model:
+                return ops.GenerativeDecoder((64, 32), (256, 2048))  # Short
+            return ops.GenerativeDecoder((512, 32), (512, 2048))  # Full TNB
+
+        return ops.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(n_channels, self.num_classes),
+        )
 
 
 class TNB101SearchCell(nn.Module):
