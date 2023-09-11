@@ -44,23 +44,36 @@ class TNB101SearchModel(nn.Module):
 
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
+        self.n_modules = 5
+        self.blocks_per_module = [2] * self.n_modules
 
-        layer_channels = [C * 2, C * 2, C * 4, C * 4, C * 8]
+        self.module_stages = [
+            "r_stage_1",
+            "n_stage_1",
+            "r_stage_2",
+            "n_stage_2",
+            "r_stage_3",
+        ]
 
         self.cells = nn.ModuleList()
-        C_prev = C
-        for _index, C_curr in enumerate(layer_channels):
-            cell = TNB101SearchCell(
-                C_prev,
-                C_curr,
-                stride,
-                max_nodes,
-                op_names,
-                affine,
-                track_running_stats,
-            ).to(DEVICE)
-            self.cells.append(cell)
-            C_prev = cell.C_out
+        C_in, C_out = C, C
+        for idx, stage in enumerate(self.module_stages):
+            for i in range(self.blocks_per_module[idx]):
+                downsample = self._is_reduction_stage(stage) and i % 2 == 0
+                if downsample:
+                    C_out *= 2
+                cell = TNB101SearchCell(
+                    C_in,
+                    C_out,
+                    stride,
+                    max_nodes,
+                    op_names,
+                    affine,
+                    track_running_stats,
+                    downsample,
+                ).to(DEVICE)
+                self.cells.append(cell)
+                C_in = C_out
         self.num_edge = len(self.cells[0].edges)
 
         if dataset == "jigsaw":
@@ -73,7 +86,7 @@ class TNB101SearchModel(nn.Module):
             self.num_classes = num_classes
 
         self.stem = self._get_stem_for_task(dataset)
-        self.decoder = self._get_decoder_for_task(dataset, layer_channels[-1])
+        self.decoder = self._get_decoder_for_task(dataset, C_out)
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
 
@@ -137,6 +150,9 @@ class TNB101SearchModel(nn.Module):
             nn.Linear(n_channels, self.num_classes),
         )
 
+    def _is_reduction_stage(self, stage: str) -> bool:
+        return "r_stage" in stage
+
 
 class TNB101SearchCell(nn.Module):
     expansion = 1
@@ -144,12 +160,13 @@ class TNB101SearchCell(nn.Module):
     def __init__(
         self,
         C_in: int = 16,
-        C_out: int = 8,
-        stride: int = 2,
+        C_out: int = 16,
+        stride: int = 1,
         max_nodes: int = 4,
         op_names: list[str] = TRANS_NAS_BENCH_101,
         affine: bool = True,
         track_running_stats: bool = True,
+        downsample: bool = True,
     ):
         """Initialize a TransNasBench-101 cell
         Args:
@@ -164,10 +181,6 @@ class TNB101SearchCell(nn.Module):
         super().__init__()
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
 
-        self.C_in = C_in
-        self.C_out = C_out
-        self.stride = stride
-
         self.op_names = deepcopy(op_names)
         self.edges = nn.ModuleDict()
         self.max_nodes = max_nodes
@@ -175,6 +188,9 @@ class TNB101SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 if j == 0:
+                    if downsample:
+                        stride = 2
+                    stride = 1
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
@@ -187,7 +203,7 @@ class TNB101SearchCell(nn.Module):
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
-                                C_in, C_out, 1, affine, track_running_stats
+                                C_out, C_out, 1, affine, track_running_stats
                             )  # type: ignore
                             for op_name in op_names
                         ]

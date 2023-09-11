@@ -115,25 +115,35 @@ class FactorizedReduce(nn.Module):
         self.C_in = C_in
         self.C_out = C_out
         self.relu = nn.ReLU(inplace=False)
-        assert C_out % 2 == 0, f"C_out : {C_out}"
-        C_outs = [C_out // 2, C_out - C_out // 2]
-        self.convs = nn.ModuleList()
-        for i in range(2):
-            self.convs.append(
-                nn.Conv2d(C_in, C_outs[i], 1, stride=stride, padding=0, bias=False)
+        if stride == 2:
+            # assert C_out % 2 == 0, 'C_out : {:}'.format(C_out)
+            C_outs = [C_out // 2, C_out - C_out // 2]
+            self.convs = nn.ModuleList()
+            for i in range(2):
+                self.convs.append(
+                    nn.Conv2d(
+                        C_in, C_outs[i], 1, stride=stride, padding=0, bias=not affine
+                    )
+                )
+            self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)
+        elif stride == 1:
+            self.conv = nn.Conv2d(
+                C_in, C_out, 1, stride=stride, padding=0, bias=not affine
             )
+        else:
+            raise ValueError(f"Invalid stride : {stride}")
         self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)
         self.bn = nn.BatchNorm2d(
             C_out, affine=affine, track_running_stats=track_running_stats
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.relu(x)
-        y = self.pad(x)
-        out = torch.cat([self.convs[0](x), self.convs[1](y[:, :, 1:, 1:])], dim=1)
-        # print(self.convs[0](x).shape, self.convs[1](y[:,:,1:,1:]).shape)
-        # print(out.shape)
-
+        if self.stride == 2:
+            x = self.relu(x)
+            y = self.pad(x)
+            out = torch.cat([self.convs[0](x), self.convs[1](y[:, :, 1:, 1:])], dim=1)
+        else:
+            out = self.conv(x)
         out = self.bn(out)
         return out
 
