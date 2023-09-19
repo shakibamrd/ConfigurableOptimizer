@@ -5,9 +5,9 @@ import wandb
 
 from confopt.dataset import CIFAR10Data
 from confopt.oneshot.archsampler import DARTSSampler
-from confopt.searchspace import DARTSSearchSpace
-from confopt.train import ConfigurableTrainer
-from confopt.utils import BaseProfile, prepare_logger
+from confopt.searchspace import NASBench201SearchSpace
+from confopt.train import ConfigurableTrainer, Profile
+from confopt.utils import prepare_logger
 
 
 def get_hyperparameters() -> dict:
@@ -37,13 +37,12 @@ logger = prepare_logger(
 def run_experiment() -> None:
     wandb.init(                            # type: ignore
         project="Configurable_Optimizers",
-        name="DARTS",
         config=get_hyperparameters()
         )
 
     config = wandb.config # type: ignore
     data = CIFAR10Data("datasets", 0, 0.5)
-    search_space = DARTSSearchSpace()
+    search_space = NASBench201SearchSpace()
     sampler = DARTSSampler(search_space.arch_parameters)
     # TODO Add pertubration and partial connections into this
     model_optimizer = optim.SGD(search_space.arch_parameters,
@@ -60,7 +59,7 @@ def run_experiment() -> None:
                                                         T_max=config["epochs"]
                                                     )
     criterion = nn.CrossEntropyLoss()
-    profile = BaseProfile(sampler)
+    profile = Profile(sampler)
 
     trainer = ConfigurableTrainer(
                                 model=search_space,
