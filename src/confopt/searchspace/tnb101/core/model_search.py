@@ -112,11 +112,19 @@ class TNB101SearchModel(nn.Module):
 
         feature = self.stem(inputs)
         for cell in self.cells:
+            betas = torch.empty((0,))
             if self.edge_normalization:
-                # TODO: find out how to structure beta
-                betas = torch.ones(self.num_edge)
-
-                feature = self.cell(feature, alphas, betas)
+                if self.edge_normalization:
+                    for v in range(1, self.max_nodes):
+                        idx_nodes = []
+                        for u in range(v):
+                            node_str = f"{v}<-{u}"
+                            idx_nodes.append(cell.edge2index[node_str])
+                        beta_node_v = nn.functional.softmax(
+                            self._beta_parameters[idx_nodes], dim=-1
+                        )
+                        betas = torch.cat([betas, beta_node_v], dim=0)
+                feature = cell(feature, alphas, betas)
             else:
                 feature = cell(feature, alphas)
 
