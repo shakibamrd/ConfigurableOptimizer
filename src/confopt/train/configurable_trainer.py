@@ -8,8 +8,10 @@ from torch import nn
 from typing_extensions import TypeAlias
 
 from confopt.dataset import AbstractData
+from confopt.oneshot.archsampler.base_sampler import BaseSampler
 from confopt.searchspace import SearchSpace
-from confopt.utils import AverageMeter, BaseProfile, Logger, calc_accuracy
+from confopt.train import Profile
+from confopt.utils import AverageMeter, Logger, calc_accuracy
 
 TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
@@ -52,9 +54,7 @@ class ConfigurableTrainer:
         self.load_saved_model = load_saved_model
         self.drop_path_prob = drop_path_prob
 
-    def train(
-        self, profile: BaseProfile, epochs: int, is_wandb_log: bool = True
-    ) -> None:
+    def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
@@ -75,16 +75,21 @@ class ConfigurableTrainer:
         search_time, epoch_time = AverageMeter(), AverageMeter()
 
         train_loader, val_loader, _ = self.data.get_dataloaders(
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            n_workers=0,
         )
 
         for epoch in range(epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
-            profile.sampler.new_epoch()
 
-            # TODO Add functionality for profile.partial_connector
-            # if profile.pertubration is not None:
-            #     profile.pertubration.new_epoch()
+            self._sampler_new_step_or_epoch(
+                sampler=profile.sampler, sample_frequency="epoch"
+            )
+
+            if profile.pertubration is not None:
+                self._sampler_new_step_or_epoch(
+                    sampler=profile.pertubration, sample_frequency="epoch"
+                )
 
             base_metrics, arch_metrics = self.train_func(
                 profile,
@@ -158,7 +163,7 @@ class ConfigurableTrainer:
 
     def train_func(
         self,
-        profile: BaseProfile,
+        profile: Profile,
         train_loader: DataLoaderType,
         valid_loader: DataLoaderType,
         network: SearchSpace,
@@ -188,23 +193,22 @@ class ConfigurableTrainer:
             # FIXME: What was the point of this? and is it safe to remove?
             # scheduler.update(None, 1.0 * step / len(xloader))
 
-            profile.sampler.new_step()
+            self._sampler_new_step_or_epoch(
+                sampler=profile.sampler, sample_frequency="step"
+            )
 
             if profile.pertubration is not None:
-                profile.pertubration.new_step()
-
-            # TODO  Add functionality for profile.partial_connector
-            # if profile.partial_connector is not None:
-            #     profile.partial_connector.new_step()
+                self._sampler_new_step_or_epoch(
+                    sampler=profile.pertubration, sample_frequency="step"
+                )
 
             arch_inputs, arch_targets = next(iter(valid_loader))
 
-            base_targets, arch_targets = base_targets.to(self.device), arch_targets.to(
+            base_inputs, arch_inputs = base_inputs.to(self.device), arch_inputs.to(
                 self.device
             )
-            arch_inputs, base_inputs = arch_inputs.to(self.device), base_inputs.to(
-                self.device
-            )
+            base_targets = base_targets.to(self.device, non_blocking=True)
+            arch_targets = arch_targets.to(self.device, non_blocking=True)
 
             # measure data loading time
             data_time.update(time.time() - end)
@@ -293,7 +297,7 @@ class ConfigurableTrainer:
 
                 # prediction
                 arch_inputs = arch_inputs.to(self.device)
-                arch_targets = arch_targets.to(self.device)
+                arch_targets = arch_targets.to(self.device, non_blocking=True)
 
                 _, logits = network(arch_inputs)
                 arch_loss = criterion(logits, arch_targets)
@@ -349,6 +353,16 @@ class ConfigurableTrainer:
 
         self.logger.log(f"=> did not find the last-info file : {last_info}")
         return False
+
+    def _sampler_new_step_or_epoch(
+        self, sampler: BaseSampler, sample_frequency: str
+    ) -> None:
+        assert sample_frequency in ["epoch", "step"]
+        if sampler.sample_frequency == sample_frequency:
+            if sample_frequency == "epoch":
+                sampler.new_epoch()
+            elif sample_frequency == "step":
+                sampler.new_step()
 
     def _init_empty_model_state_info(self) -> None:
         self.start_epoch = 0

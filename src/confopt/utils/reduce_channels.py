@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import torch
 from torch import nn
 
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-def reduce_conv_channels(conv2d_layer: nn.Conv2d, k: int) -> nn.Conv2d:
+
+def reduce_conv_channels(
+    conv2d_layer: nn.Conv2d, k: int, device: torch.device = DEVICE
+) -> nn.Conv2d:
     if not isinstance(conv2d_layer, nn.Conv2d):
         raise ValueError("Input must be a nn.Conv2d layer.")
 
@@ -24,7 +29,7 @@ def reduce_conv_channels(conv2d_layer: nn.Conv2d, k: int) -> nn.Conv2d:
         conv2d_layer.dilation,
         conv2d_layer.groups,
         conv2d_layer.bias is not None,
-    )
+    ).to(device)
 
     # Copy the weights and biases from the original conv2d to the new one
     reduced_conv2d.weight.data[:new_out_channels, :, :, :] = conv2d_layer.weight.data[
@@ -38,7 +43,9 @@ def reduce_conv_channels(conv2d_layer: nn.Conv2d, k: int) -> nn.Conv2d:
     return reduced_conv2d
 
 
-def reduce_bn_features(batchnorm_layer: nn.BatchNorm2d, k: int) -> nn.BatchNorm2d:
+def reduce_bn_features(
+    batchnorm_layer: nn.BatchNorm2d, k: int, device: torch.device = DEVICE
+) -> nn.BatchNorm2d:
     if not isinstance(batchnorm_layer, nn.BatchNorm2d):
         raise ValueError("Input must be a nn.BatchNorm2d layer.")
 
@@ -55,7 +62,7 @@ def reduce_bn_features(batchnorm_layer: nn.BatchNorm2d, k: int) -> nn.BatchNorm2
         momentum=batchnorm_layer.momentum,
         affine=batchnorm_layer.affine,
         track_running_stats=batchnorm_layer.track_running_stats,
-    )
+    ).to(device)
 
     # Copy the weight and bias from the original BatchNorm2d to the new one
     if batchnorm_layer.affine:
