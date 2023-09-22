@@ -138,12 +138,12 @@ class NB201SearchModel(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = nn.functional.softmax(self.arch_parameters, dim=-1)
-        betas = torch.empty((0,))
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
                 if self.edge_normalization:
+                    betas = torch.empty((0,))
                     for v in range(1, self.max_nodes):
                         idx_nodes = []
                         for u in range(v):
