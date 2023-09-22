@@ -10,6 +10,7 @@ from confopt.searchspace import (
     TransNASBench101SearchSpace,
 )
 from confopt.searchspace.darts.core.model_search import Cell as DARTSSearchCell
+from confopt.searchspace.tnb101.core.model_search import TNB101SearchCell
 from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
@@ -221,6 +222,20 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 16])
         assert out[1].shape == torch.Size([2, 10])
+
+    def test_supernet_init(self) -> None:
+        C = 32
+        num_classes = 11
+        search_space = TransNASBench101SearchSpace(C=C, num_classes=num_classes)
+
+        search_cells = get_modules_of_type(search_space.model, TNB101SearchCell)
+        assert len(search_cells) == 10
+
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = search_space(x)
+
+        assert logits.shape == torch.Size([2, num_classes])
 
 
 if __name__ == "__main__":

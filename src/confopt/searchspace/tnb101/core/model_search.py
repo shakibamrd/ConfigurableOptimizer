@@ -23,7 +23,7 @@ class TNB101SearchModel(nn.Module):
         op_names: list[str] = TRANS_NAS_BENCH_101,
         affine: bool = False,
         track_running_stats: bool = False,
-        dataset: str = "class_object",
+        dataset: str = "cifar10",
         edge_normalization: bool = False,
     ):
         """Initialize a TransNasBench-101 network consisting of one cell
@@ -94,7 +94,7 @@ class TNB101SearchModel(nn.Module):
 
         self.lastact = nn.Sequential(nn.BatchNorm2d(num_classes), nn.ReLU())
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
-        self.classifier = nn.Linear(num_classes, num_classes)
+        self.classifier = nn.Linear(self.num_classes, self.num_classes)
 
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
@@ -130,8 +130,8 @@ class TNB101SearchModel(nn.Module):
 
         out = self.decoder(feature)
 
-        out = self.lastact(out)
-        out = self.global_pooling(out)
+        # out = self.lastact(out)
+        # out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
         logits = self.classifier(out)
 
