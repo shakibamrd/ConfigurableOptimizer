@@ -130,7 +130,7 @@ class TNB101SearchModel(nn.Module):
 
         out = self.decoder(feature)
 
-        out = self.global_pooling(out)
+        # out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
         logits = self.classifier(out)
 
