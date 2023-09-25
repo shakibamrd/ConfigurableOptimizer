@@ -18,3 +18,7 @@ class NASBench201SearchSpace(SearchSpace):
     @property
     def arch_parameters(self) -> list[nn.Parameter]:
         return [self.model.arch_parameters]  # type: ignore
+
+    @property
+    def beta_parameters(self) -> list[nn.Parameter]:
+        return [self.model.beta_parameters]

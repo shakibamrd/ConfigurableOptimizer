@@ -63,4 +63,5 @@ __all__ = [
     "get_time_as_string",
     "prepare_logger",
     "Logger",
+    "BaseProfile",
 ]

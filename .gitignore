@@ -86,3 +86,7 @@ prof/
 
 # Mypy
 .mypy_cache/
+
+# Data
+data/
+
