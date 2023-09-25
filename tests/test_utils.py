@@ -18,7 +18,8 @@ class TestUtils(unittest.TestCase):
         assert os.path.exists(save_dir / "checkpoint" / exp_name)
         assert os.path.exists(logger.logger_path)
 
-        shutil.rmtree(save_dir)
+        shutil.rmtree(save_dir, ignore_errors=True)
+        logger.close()
 
     def test_channel_shuffle(self) -> None:
         k = 4
