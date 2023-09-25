@@ -231,7 +231,6 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         search_cells = get_modules_of_type(search_space.model, TNB101SearchCell)
         assert len(search_cells) == 10
 
-
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
         out, logits = search_space(x)
 
