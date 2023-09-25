@@ -43,6 +43,7 @@ class OperationBlock(nn.Module):
         self.arch_sampler = arch_sampler
         self.arch_modifier = arch_modifier
         self.partial_connector = partial_connector
+        self.partial_connector.is_reduction_cell = self.is_reduction_cell
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
         alphas_index = 1 if self.is_reduction_cell else 0
