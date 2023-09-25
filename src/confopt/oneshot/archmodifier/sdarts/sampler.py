@@ -13,7 +13,7 @@ class SDARTSSampler(BaseSampler):
     def __init__(
         self,
         arch_parameters: list[torch.Tensor],
-        epsilon: float,
+        epsilon: float = 0.03,
         search_space: SearchSpace | None = None,
         data: tuple[torch.Tensor, torch.Tensor] | None = None,
         loss_criterion: torch.nn.modules.loss._Loss | None = None,
