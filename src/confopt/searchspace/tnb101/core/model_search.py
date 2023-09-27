@@ -6,6 +6,7 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common import OperationChoices
+from confopt.utils import get_device
 
 from . import operations as ops
 from .operations import OPS, TRANS_NAS_BENCH_101
@@ -98,7 +99,7 @@ class TNB101SearchModel(nn.Module):
 
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
-        ).to(DEVICE)
+        )
         self._beta_parameters = nn.Parameter(1e-3 * torch.randn(self.num_edge))
 
     def arch_parameters(self) -> nn.Parameter:
@@ -112,18 +113,17 @@ class TNB101SearchModel(nn.Module):
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            betas = torch.empty((0,))
+            betas = torch.empty((0,)).to(get_device(self))
             if self.edge_normalization:
-                if self.edge_normalization:
-                    for v in range(1, self.max_nodes):
-                        idx_nodes = []
-                        for u in range(v):
-                            node_str = f"{v}<-{u}"
-                            idx_nodes.append(cell.edge2index[node_str])
-                        beta_node_v = nn.functional.softmax(
-                            self._beta_parameters[idx_nodes], dim=-1
-                        )
-                        betas = torch.cat([betas, beta_node_v], dim=0)
+                for v in range(1, self.max_nodes):
+                    idx_nodes = []
+                    for u in range(v):
+                        node_str = f"{v}<-{u}"
+                        idx_nodes.append(cell.edge2index[node_str])
+                    beta_node_v = nn.functional.softmax(
+                        self._beta_parameters[idx_nodes], dim=-1
+                    )
+                    betas = torch.cat([betas, beta_node_v], dim=0)
                 feature = cell(feature, alphas, betas)
             else:
                 feature = cell(feature, alphas)
