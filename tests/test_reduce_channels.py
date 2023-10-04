@@ -15,11 +15,13 @@ class TestReduceChannels(unittest.TestCase):
 
         reduced_conv2d = reduce_conv_channels(original_conv2d, k=2, device=DEVICE)
 
+        assert reduced_conv2d.in_channels == 3
         assert reduced_conv2d.out_channels == 6
 
         assert torch.all(
             torch.eq(
-                reduced_conv2d.weight[:6, :, :, :], original_conv2d.weight[:6, :, :, :]
+                reduced_conv2d.weight[:6, :3, :, :],
+                original_conv2d.weight[:6, :3, :, :]
             )
         )
         if original_conv2d.bias is not None:
