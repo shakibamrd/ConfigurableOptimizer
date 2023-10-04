@@ -23,6 +23,9 @@ class TransNASBench101SearchSpace(SearchSpace):
     def beta_parameters(self) -> list[nn.Parameter]:
         return [self.model.beta_parameters]
 
+    def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
+        self.model._arch_parameters.data = arch_parameters[0]
+
 
 if __name__ == "__main__":
     searchspace = TransNASBench101SearchSpace()

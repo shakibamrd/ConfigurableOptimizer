@@ -143,7 +143,7 @@ class NB201SearchModel(nn.Module):
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
                 if self.edge_normalization:
-                    betas = torch.empty((0,))
+                    betas = torch.empty((0,)).to(alphas.device)
                     for v in range(1, self.max_nodes):
                         idx_nodes = []
                         for u in range(v):
