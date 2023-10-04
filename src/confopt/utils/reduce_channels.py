@@ -17,24 +17,25 @@ def reduce_conv_channels(
     out_channels = conv2d_layer.out_channels
 
     # Calculate the new number of output channels
+    new_in_channels = max(1, in_channels // k)
     new_out_channels = max(1, out_channels // k)
-
+    new_groups = new_in_channels if conv2d_layer.groups != 1 else 1
     # Create a new conv2d layer with the reduced number of channels
     reduced_conv2d = nn.Conv2d(
-        in_channels,
+        new_in_channels,
         new_out_channels,
         conv2d_layer.kernel_size,
         conv2d_layer.stride,
         conv2d_layer.padding,
         conv2d_layer.dilation,
-        conv2d_layer.groups,
+        new_groups,
         conv2d_layer.bias is not None,
     ).to(device)
 
     # Copy the weights and biases from the original conv2d to the new one
-    reduced_conv2d.weight.data[:new_out_channels, :, :, :] = conv2d_layer.weight.data[
-        :new_out_channels, :, :, :
-    ].clone()
+    reduced_conv2d.weight.data[
+        :new_out_channels, :new_in_channels, :, :
+    ] = conv2d_layer.weight.data[:new_out_channels, :new_in_channels, :, :].clone()
     if conv2d_layer.bias is not None:
         reduced_conv2d.bias.data[:new_out_channels] = conv2d_layer.bias.data[
             :new_out_channels

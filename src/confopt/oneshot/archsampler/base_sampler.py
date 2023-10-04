@@ -30,6 +30,10 @@ class BaseSampler(OneShotComponent):
     ) -> list[torch.Tensor] | None:
         pass
 
+    def set_arch_parameters_from_sample(self) -> None:
+        assert self.sampled_alphas is not None
+        self.arch_parameters = self.sampled_alphas
+
     def _sample_and_update_alphas(self) -> None:  # type: ignore
         sampled_alphas = self.sample_alphas(self.arch_parameters)
         # print(sampled_alphas)
