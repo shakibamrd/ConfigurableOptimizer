@@ -105,11 +105,14 @@ class Zero(nn.Module):
 
         shape = list(x.shape)
         shape[1] = self.C_out
-        zeros = x.new_zeros(shape, dtype=x.dtype, device=x.device)
-        return zeros
+        return x.new_zeros(shape, dtype=x.dtype, device=x.device)[
+            :, :, :: self.stride, :: self.stride
+        ]
 
     def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
-        pass
+        self.C_in = self.C_in // k
+        self.C_out = self.C_out // k
+        self.device = device
 
     def extra_repr(self) -> str:
         return "C_in={C_in}, C_out={C_out}, stride={stride}".format(**self.__dict__)
@@ -162,8 +165,13 @@ class FactorizedReduce(nn.Module):
         return out
 
     def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
-        for i in range(2):
-            self.convs[i] = reduce_conv_channels(self.convs[i], k, device)
+        if self.stride == 2:
+            for i in range(2):
+                self.convs[i] = reduce_conv_channels(self.convs[i], k, device)
+        elif self.stride == 1:
+            self.conv = reduce_conv_channels(self.conv, k, device)
+        else:
+            raise ValueError(f"Invalid stride : {self.stride}")
 
         self.bn = reduce_bn_features(self.bn, k)
 

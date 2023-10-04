@@ -98,7 +98,7 @@ class TNB101SearchModel(nn.Module):
 
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
-        ).to(DEVICE)
+        )
         self._beta_parameters = nn.Parameter(1e-3 * torch.randn(self.num_edge))
 
     def arch_parameters(self) -> nn.Parameter:
@@ -112,18 +112,17 @@ class TNB101SearchModel(nn.Module):
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            betas = torch.empty((0,))
+            betas = torch.empty((0,)).to(alphas.device)
             if self.edge_normalization:
-                if self.edge_normalization:
-                    for v in range(1, self.max_nodes):
-                        idx_nodes = []
-                        for u in range(v):
-                            node_str = f"{v}<-{u}"
-                            idx_nodes.append(cell.edge2index[node_str])
-                        beta_node_v = nn.functional.softmax(
-                            self._beta_parameters[idx_nodes], dim=-1
-                        )
-                        betas = torch.cat([betas, beta_node_v], dim=0)
+                for v in range(1, self.max_nodes):
+                    idx_nodes = []
+                    for u in range(v):
+                        node_str = f"{v}<-{u}"
+                        idx_nodes.append(cell.edge2index[node_str])
+                    beta_node_v = nn.functional.softmax(
+                        self._beta_parameters[idx_nodes], dim=-1
+                    )
+                    betas = torch.cat([betas, beta_node_v], dim=0)
                 feature = cell(feature, alphas, betas)
             else:
                 feature = cell(feature, alphas)
@@ -132,9 +131,9 @@ class TNB101SearchModel(nn.Module):
 
         # out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
-        logits = self.classifier(out)
+        # logits = self.classifier(out)
 
-        return out, logits
+        return out, out
 
     def _get_stem_for_task(self, task: str) -> nn.Module:
         if task == "jigsaw":
@@ -207,9 +206,7 @@ class TNB101SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 if j == 0:
-                    if downsample:
-                        stride = 2
-                    stride = 1
+                    stride = 2 if downsample else 1
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
@@ -227,7 +224,9 @@ class TNB101SearchCell(nn.Module):
                             for op_name in op_names
                         ]
                     )
-                self.edges[node_str] = OperationChoices(ops=xlists)
+                self.edges[node_str] = OperationChoices(
+                    ops=xlists, is_reduction_cell=downsample
+                )
         self.edge_keys = sorted(self.edges.keys())
         self.edge2index = {key: i for i, key in enumerate(self.edge_keys)}
         self.num_edges: int = len(self.edges)
