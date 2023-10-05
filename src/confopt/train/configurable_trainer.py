@@ -9,8 +9,9 @@ from typing_extensions import TypeAlias
 
 from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
-from confopt.train import Profile
 from confopt.utils import AverageMeter, Logger, calc_accuracy
+
+from .profile import Profile
 
 TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
