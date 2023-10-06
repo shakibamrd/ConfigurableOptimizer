@@ -7,6 +7,7 @@ from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channe
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
 class TestReduceChannels(unittest.TestCase):
     def test_reduce_conv_channels(self) -> None:
         original_conv2d = nn.Conv2d(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import namedtuple
 import time
 
+from fvcore.common.checkpoint import Checkpointer, PeriodicCheckpointer
 import torch
 from torch import nn
 from typing_extensions import TypeAlias
@@ -35,6 +36,10 @@ class ConfigurableTrainer:
         print_freq: int = 20,
         drop_path_prob: float = 0.1,
         load_saved_model: bool = False,
+        load_best_model: bool = False,
+        start_epoch: int = 0,
+        checkpointing_freq: int = 3,
+        epochs: int = 100,
     ) -> None:
         self.model = model
         self.model_optimizer = model_optimizer
@@ -50,10 +55,16 @@ class ConfigurableTrainer:
         self.use_data_parallel = use_data_parallel
         self.print_freq = print_freq
         self.batch_size = batchsize
-        self.load_saved_model = load_saved_model
         self.drop_path_prob = drop_path_prob
+        self.load_saved_model = load_saved_model
+        self.load_best_model = load_best_model
+        self.start_epoch = start_epoch
+        self.checkpointing_freq = checkpointing_freq
+        self.epochs = epochs
+        self.best_model_path = ""
 
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
+        self.epochs = epochs
         profile.adapt_search_space(self.model)
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
@@ -63,12 +74,9 @@ class ConfigurableTrainer:
             network: nn.Module = self.model  # type: ignore
             criterion = self.criterion
 
-        if self.load_saved_model:
-            load_model = self._load_model_state_if_exists()
+        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
+            self._load_model_state_if_exists()
         else:
-            load_model = False
-
-        if not load_model:
             self._init_empty_model_state_info()
 
         start_time = time.time()
@@ -79,7 +87,7 @@ class ConfigurableTrainer:
             n_workers=0,
         )
 
-        for epoch in range(epochs):
+        for epoch in range(self.start_epoch, epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
 
             self._component_new_step_or_epoch(network, sample_frequency="step")
@@ -129,18 +137,24 @@ class ConfigurableTrainer:
                 self.search_accs_top5[epoch],
             ) = base_metrics
 
+            checkpoitables = self._get_checkpointables(epoch=epoch)
+            self.periodic_checkpointer.step(
+                iteration=epoch, checkpoitables=checkpoitables
+            )
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
                     f"<<<--->>> The {epoch_str}-th epoch : found the highest "
                     + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
                 )
-            #     is_best = True
-            # else:
-            #     is_best = False
+                self.best_model_checkpointer.save(
+                    name=self.best_model_path, checkpoitables=checkpoitables
+                )
+            else:
+                pass
 
-            # save checkpoint
             # self._save_checkpoint(epoch, is_best)
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             with torch.no_grad():
                 for i, alpha in enumerate(self.model.arch_parameters):
@@ -307,36 +321,124 @@ class ConfigurableTrainer:
             )
 
         return network, criterion
+        # # todo: why do these get assigned here?
+        # self.start_epoch = 0
+        # self.valid_losses: dict[int, float] = {}
+        # self.search_losses: dict[int, float] = {}
+        # self.search_accs_top1: dict[int, float] = {}
+        # self.search_accs_top5: dict[int, float] = {}
+        # self.valid_accs_top1: dict[int | str, float | int] = {"best": -1}
+        # self.valid_accs_top5: dict[int, float] = {}
+        # return None
 
-    def _load_model_state_if_exists(self) -> bool:
+    def _init_empty_model_state_info(self) -> None:
+        self.start_epoch = 0
+        self.search_losses: dict[int, float] = {}
+        self.search_accs_top1: dict[int, float] = {}
+        self.search_accs_top5: dict[int, float] = {}
+        self.valid_losses: dict[int, float] = {}
+        self.valid_accs_top1: dict[int | str, float | int] = {"best": -1}
+        self.valid_accs_top5: dict[int, float] = {}
+
+        self._init_periodic_checkpointer()
+        self.best_model_checkpointer = self._set_up_checkpointer(mode="best")
+
+    def _set_up_checkpointer(self, mode: str) -> Checkpointer:
+        checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
+        checkpointables = self._get_checkpointables(self.start_epoch)
+        return Checkpointer(
+            model=self.model,
+            save_dir=checkpoint_dir,
+            save_to_disk=True,
+            checkpointables=checkpointables,
+        )
+
+    def _init_periodic_checkpointer(self) -> None:
+        self.checkpointer = self._set_up_checkpointer(mode="info")
+        self.periodic_checkpointer = PeriodicCheckpointer(
+            checkpointer=self.checkpointer,
+            period=self.checkpointing_freq,
+            max_iter=self.epochs,
+        )
+
+    def _get_checkpointables(self, epoch: int) -> dict:
+        return {
+            "epoch": epoch,
+            "search_losses": self.search_losses,
+            "search_accs_top1": self.search_accs_top1,
+            "search_accs_top5": self.search_accs_top5,
+            "valid_losses": self.valid_losses,
+            "valid_accs_top1": self.valid_accs_top1,
+            "valid_accs_top5": self.valid_accs_top5,
+            # todo: could this be empty?
+            "w_scheduler": self.scheduler,
+            # todo: should i save these or the state_dict()
+            "w_optimizer": self.model_optimizer,
+        }
+
+    def _set_checkpointer_info(self, last_checkpoint: dict) -> None:
+        self.start_epoch = last_checkpoint["epoch"]
+        self.search_losses = last_checkpoint["search_losses"]
+        self.search_accs_top1 = last_checkpoint["search_accs_top1"]
+        self.search_accs_top5 = last_checkpoint["search_accs_top5"]
+        self.valid_losses = last_checkpoint["valid_losses"]
+        self.valid_accs_top1 = last_checkpoint["valid_accs_top1"]
+        self.valid_accs_top5 = last_checkpoint["valid_accs_top5"]
+        self.model.load_state_dict(last_checkpoint["model"])
+        self.scheduler.load_state_dict(last_checkpoint["w_scheduler"])
+        self.model_optimizer.load_state_dict(last_checkpoint["w_optimizer"])
+        self.logger.log(
+            f"=> loading checkpoint of the last-info {last_checkpoint}"
+            + f"start with {self.start_epoch}-th epoch."
+        )
+
+    def _load_model_state_if_exists(self) -> None:
         last_info = self.logger.path("info")
 
-        if last_info.exists():  # automatically resume from previous checkpoint
-            self.logger.log(
-                f"=> loading checkpoint of the last-info '{last_info}' start"
-            )
-            last_info = torch.load(last_info)
-            self.start_epoch = last_info["epoch"]
-            checkpoint = torch.load(last_info["last_checkpoint"])
-            self.test_accs_top1 = checkpoint["test_accs_top1"]
-            self.test_losses = checkpoint["test_losses"]
-            self.test_accs_top5 = checkpoint["test_accs_top5"]
-            self.train_losses = checkpoint["train_losses"]
-            self.train_accs_top1 = checkpoint["train_accs_top1"]
-            self.train_accs_top5 = checkpoint["train_accs_top5"]
+        self.best_model_checkpointer = self._set_up_checkpointer(mode="best")
+        self._init_periodic_checkpointer()
 
-            self.model.load_state_dict(checkpoint["model"])
-            self.scheduler.load_state_dict(checkpoint["w_scheduler"])
-            self.model_optimizer.load_state_dict(checkpoint["w_optimizer"])
+        if self.load_best_model:
+            last_info = self.logger.path("best")
+            self.logger.log(
+                f"=> loading checkpoint of the best-model '{last_info}' start"
+            )
+            # load model from the best checkpoint
+            info = self.best_model_checkpointer.load(path=last_info)
+        elif self.load_saved_model:
+            # load from specific epoch or load the last checkpointed epoch
+            last_info = self.logger.path(mode="info")
+            info = self.checkpointer.resume_or_load(
+                path=last_info
+            )  # returns a dictionary
             self.logger.log(
                 f"=> loading checkpoint of the last-info {last_info}"
-                + f"start with {self.start_epoch}-th epoch."
+                # + f"start with {self.start_epoch}-th epoch."
             )
+        else:
+            self.logger.log(f"=> did not find the last-info file : {last_info}")
 
-            return True
+        self._set_checkpointer_info(info)
+        self.logger.log(
+            f"=> loading checkpoint {info}" + f"start with {self.start_epoch}-th epoch."
+        )
 
-        self.logger.log(f"=> did not find the last-info file : {last_info}")
-        return False
+        # Then put checkpoint data into the self and model
+
+    def _update_meters(
+        self,
+        inputs: torch.Tensor,
+        logits: torch.Tensor,
+        targets: torch.Tensor,
+        loss: torch.Tensor,
+        loss_meter: AverageMeter,
+        top1_meter: AverageMeter,
+        top5_meter: AverageMeter,
+    ) -> None:
+        base_prec1, base_prec5 = calc_accuracy(logits.data, targets.data, topk=(1, 5))
+        loss_meter.update(loss.item(), inputs.size(0))
+        top1_meter.update(base_prec1.item(), inputs.size(0))
+        top5_meter.update(base_prec5.item(), inputs.size(0))
 
     def _component_new_step_or_epoch(
         self, model: SearchSpace, sample_frequency: str
@@ -357,27 +459,3 @@ class ConfigurableTrainer:
                 model.new_epoch()
             elif sample_frequency == "step":
                 model.new_step()
-
-    def _init_empty_model_state_info(self) -> None:
-        self.start_epoch = 0
-        self.valid_losses: dict[int, float] = {}
-        self.search_losses: dict[int, float] = {}
-        self.search_accs_top1: dict[int, float] = {}
-        self.search_accs_top5: dict[int, float] = {}
-        self.valid_accs_top1: dict[int | str, float | int] = {"best": -1}
-        self.valid_accs_top5: dict[int, float] = {}
-
-    def _update_meters(
-        self,
-        inputs: torch.Tensor,
-        logits: torch.Tensor,
-        targets: torch.Tensor,
-        loss: torch.Tensor,
-        loss_meter: AverageMeter,
-        top1_meter: AverageMeter,
-        top5_meter: AverageMeter,
-    ) -> None:
-        base_prec1, base_prec5 = calc_accuracy(logits.data, targets.data, topk=(1, 5))
-        loss_meter.update(loss.item(), inputs.size(0))
-        top1_meter.update(base_prec1.item(), inputs.size(0))
-        top5_meter.update(base_prec5.item(), inputs.size(0))
