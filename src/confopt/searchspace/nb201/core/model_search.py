@@ -10,8 +10,6 @@ from copy import deepcopy
 import torch
 from torch import nn
 
-from confopt.utils import get_device
-
 from .cells import NAS201SearchCell as SearchCell
 from .genotypes import Structure
 from .operations import NAS_BENCH_201, ResNetBasicblock
@@ -145,7 +143,7 @@ class NB201SearchModel(nn.Module):
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
                 if self.edge_normalization:
-                    betas = torch.empty((0,)).to(get_device(self))
+                    betas = torch.empty((0,)).to(alphas.device)
                     for v in range(1, self.max_nodes):
                         idx_nodes = []
                         for u in range(v):

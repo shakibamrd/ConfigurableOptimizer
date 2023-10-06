@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common import OperationChoices
-from confopt.utils import get_device
 
 from . import operations as ops
 from .operations import OPS, TRANS_NAS_BENCH_101
@@ -113,7 +112,7 @@ class TNB101SearchModel(nn.Module):
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            betas = torch.empty((0,)).to(get_device(self))
+            betas = torch.empty((0,)).to(alphas.device)
             if self.edge_normalization:
                 for v in range(1, self.max_nodes):
                     idx_nodes = []
@@ -132,9 +131,9 @@ class TNB101SearchModel(nn.Module):
 
         # out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
-        logits = self.classifier(out)
+        # logits = self.classifier(out)
 
-        return out, logits
+        return out, out
 
     def _get_stem_for_task(self, task: str) -> nn.Module:
         if task == "jigsaw":
@@ -207,9 +206,7 @@ class TNB101SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 if j == 0:
-                    if downsample:
-                        stride = 2
-                    stride = 1
+                    stride = 2 if downsample else 1
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
@@ -227,7 +224,9 @@ class TNB101SearchCell(nn.Module):
                             for op_name in op_names
                         ]
                     )
-                self.edges[node_str] = OperationChoices(ops=xlists)
+                self.edges[node_str] = OperationChoices(
+                    ops=xlists, is_reduction_cell=downsample
+                )
         self.edge_keys = sorted(self.edges.keys())
         self.edge2index = {key: i for i, key in enumerate(self.edge_keys)}
         self.num_edges: int = len(self.edges)

@@ -26,11 +26,13 @@ class Profile:
         if hasattr(search_space.model, "edge_normalization"):
             search_space.model.edge_normalization = self.edge_normalization
 
-        for _, module in search_space.named_modules(remove_duplicate=False):
+        for name, module in search_space.named_modules(remove_duplicate=False):
             if isinstance(module, OperationChoices):
-                module = self._initialize_operation_block(
+                new_module = self._initialize_operation_block(
                     module.ops, module.is_reduction_cell
                 )
+                parent_name, attribute_name = self.get_parent_and_attribute(name)
+                setattr(eval("search_space" + parent_name), attribute_name, new_module)
         search_space.components.append(self.sampler)
         if self.perturbation:
             search_space.components.append(self.perturbation)
@@ -41,11 +43,34 @@ class Profile:
         op_block = OperationBlock(
             ops,
             is_reduction_cell,
-            self.sampler,
-            self.perturbation,
             self.partial_connector,
         )
         return op_block
+
+    def get_parent_and_attribute(self, module_name: str) -> tuple[str, str]:
+        split_index = module_name.rfind(".")
+        if split_index != -1:
+            parent_name = module_name[:split_index]
+            attribute_name = module_name[split_index + 1 :]
+        else:
+            parent_name = ""
+            attribute_name = module_name
+            return parent_name, attribute_name
+        parent_name_list = parent_name.split(".")
+        for idx, comp in enumerate(parent_name_list):
+            try:
+                if isinstance(eval(comp), int):
+                    parent_name_list[idx] = "[" + comp + "]"
+            except:  # noqa: E722, S112
+                continue
+
+        parent_name = ""
+        for comp in parent_name_list:
+            if "[" in comp:
+                parent_name += comp
+            else:
+                parent_name += "." + comp
+        return parent_name, attribute_name
 
 
 if __name__ == "__main__":
