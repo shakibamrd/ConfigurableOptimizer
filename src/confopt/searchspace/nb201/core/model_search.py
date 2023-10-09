@@ -16,6 +16,39 @@ from .operations import NAS_BENCH_201, ResNetBasicblock
 
 
 class NB201SearchModel(nn.Module):
+    """Implementation of Nasbench201 search space.
+
+    Args:
+        C (int, optional): Number of channels. Defaults to 16.
+        N (int, optional): Number of layers. Defaults to 5.
+        max_nodes (int, optional): Maximum number of nodes in a cell. Defaults to 4.
+        num_classes (int, optional): Number of classes of the dataset. Defaults to 10.
+        steps (int, optional): Number of steps. Defaults to 3.
+        search_space (list[str], optional): List of search space options. Defaults to
+        NAS_BENCH_201.
+        affine (bool, optional): Whether to use affine transformations in BatchNorm in
+        cells. Defaults to False.
+        track_running_stats (bool, optional): Whether to track running statistics in
+        BatchNorm in cells. Defaults to False.
+        edge_normalization (bool, optional): Whether to enable edge normalization for
+        partial connection. Defaults to False.
+
+    Attributes:
+        stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
+        cells (nn.ModuleList): List of cells in the search space.
+        op_names (list[str]): List of operation names.
+        edge2index (dict[str, int]): Dictionary mapping edge names to indices.
+        lastact (nn.Sequential): Sequential layer consisting of BatchNorm2d and ReLU.
+        global_pooling (nn.AdaptiveAvgPool2d): Global pooling layer.
+        classifier (nn.Linear): Linear classifier layer.
+        arch_parameters (nn.Parameter): Parameter for architecture alpha values.
+        beta_parameters (nn.Parameter): Parameter for beta values.
+
+    Note:
+        This is a custom neural network model with various hyperparameters and
+        architectural choices.
+    """
+
     def __init__(
         self,
         C: int = 16,
@@ -35,7 +68,8 @@ class NB201SearchModel(nn.Module):
         self._steps = steps
         self.edge_normalization = edge_normalization
         self.stem = nn.Sequential(
-            nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False), nn.BatchNorm2d(C)
+            nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(C),
         )
 
         layer_channels = [C] * N + [C * 2] + [C * 2] * N + [C * 4] + [C * 4] * N
@@ -84,6 +118,13 @@ class NB201SearchModel(nn.Module):
         )
 
     def get_weights(self) -> list[nn.Parameter]:
+        """Get a list of learnable parameters in the model. (does not include alpha or
+        beta parameters).
+
+        Returns:
+            list[nn.Parameter]: A list of learnable parameters in the model, including
+            stem, cells, lastact, global_pooling, and classifier parameters.
+        """
         xlist = list(self.stem.parameters()) + list(self.cells.parameters())
         xlist += list(self.lastact.parameters()) + list(
             self.global_pooling.parameters()
@@ -92,24 +133,53 @@ class NB201SearchModel(nn.Module):
         return xlist
 
     def get_alphas(self) -> list[torch.Tensor]:
+        """Get a list containing the architecture parameters or alphas.
+
+        Returns:
+            list[torch.Tensor]: A list containing the architecture parameters, such as
+            alpha values.
+        """
         return [self.arch_parameters]
 
     def get_betas(self) -> list[torch.Tensor]:
+        """Get a list containing the beta parameters of partial connection used for
+        edge normalization.
+
+        Returns:
+            list[torch.Tensor]: A list containing the beta parameters for the model.
+        """
         return [self.beta_parameters]
 
     def show_alphas(self) -> str:
+        """Get a human-readable string representation of the architecture parameters
+        (alphas).
+
+        Returns:
+            str: A string representing the architecture parameters after softmax
+            operation.
+        """
         with torch.no_grad():
             return "arch-parameters :\n{:}".format(
                 nn.functional.softmax(self.arch_parameters, dim=-1).cpu()
             )
 
     def show_betas(self) -> str:
+        """Get a human-readable string representation of the beta parameters.
+
+        Returns:
+            str: A string representing the beta parameters after softmax operation.
+        """
         with torch.no_grad():
             return "beta-parameters:\n{:}".format(
                 nn.functional.softmax(self.beta_parameters, dim=-1).cpu()
             )
 
     def get_message(self) -> str:
+        """Get a human-readable message describing the model and its cells.
+
+        Returns:
+            str: A string message containing information about the model and its cells.
+        """
         string = self.extra_repr()
         for i, cell in enumerate(self.cells):
             string += "\n {:02d}/{:02d} :: {:}".format(
@@ -118,11 +188,25 @@ class NB201SearchModel(nn.Module):
         return string
 
     def extra_repr(self) -> str:
+        """Return a string containing extra information about the model.
+
+        Returns:
+            str: A string representation containing information about the model's class
+            name, number of channels (C), maximum nodes (Max-Nodes), number of layers
+            (N), and number of cells (L).
+        """
         return "{name}(C={_C}, Max-Nodes={max_nodes}, N={_layerN}, L={_Layer})".format(
             name=self.__class__.__name__, **self.__dict__
         )
 
     def genotype(self) -> Structure:
+        """Get the genotype of the model, representing the architecture.
+
+        Returns:
+            Structure: An object representing the genotype of the model, which describes
+            the architectural choices in terms of operations and connections between
+            nodes.
+        """
         genotypes = []
         for i in range(1, self.max_nodes):
             xlist = []
@@ -137,6 +221,16 @@ class NB201SearchModel(nn.Module):
         return Structure(genotypes)
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass of the model.
+
+        Args:
+            inputs (torch.Tensor): Input tensor to the model.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: A tuple containing two tensors:
+            - The output tensor after the forward pass.
+            - The logits tensor produced by the model.
+        """
         alphas = nn.functional.softmax(self.arch_parameters, dim=-1)
 
         feature = self.stem(inputs)

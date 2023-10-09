@@ -3,7 +3,10 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+from confopt.utils.reduce_channels import (
+    reduce_bn_features,
+    reduce_conv_channels,
+)
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 OPS = {
@@ -61,13 +64,23 @@ class ConvBnRelu(nn.Module):
     """
 
     def __init__(
-        self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int = 1
+        self,
+        C_in: int,
+        C_out: int,
+        kernel_size: int,
+        stride: int,
+        padding: int = 1,
     ):
         super().__init__()
         self.op = nn.Sequential(
             # Padding = 1 is for a 3x3 kernel equivalent to tensorflow padding = same
             nn.Conv2d(
-                C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False
+                C_in,
+                C_out,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
             ),
             # affine is equivalent to scale in original tensorflow code
             nn.BatchNorm2d(C_out, affine=True, momentum=BN_MOMENTUM, eps=BN_EPSILON),
@@ -108,7 +121,11 @@ class Conv1x1BnRelu(nn.Module):
     def __init__(self, channels: int, stride: int):
         super().__init__()
         self.op = ConvBnRelu(
-            C_in=channels, C_out=channels, kernel_size=1, stride=stride, padding=0
+            C_in=channels,
+            C_out=channels,
+            kernel_size=1,
+            stride=stride,
+            padding=0,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -135,7 +152,12 @@ class ReLUConvBN(nn.Module):
         self.op = nn.Sequential(
             nn.ReLU(inplace=False),
             nn.Conv2d(
-                C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False
+                C_in,
+                C_out,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
             ),
             nn.BatchNorm2d(C_out, affine=affine),
         )

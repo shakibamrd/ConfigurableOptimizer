@@ -67,7 +67,10 @@ class Model:
         self.budget: int | None = None
 
     def update_data(
-        self, arch: Any, nasbench_data: dict[str, int], budget: int | None = None
+        self,
+        arch: Any,
+        nasbench_data: dict[str, int],
+        budget: int | None = None,
     ) -> None:
         self.arch = arch
         self.validation_accuracy = nasbench_data["validation_accuracy"]
@@ -76,7 +79,10 @@ class Model:
         self.budget = budget
 
     def query_nasbench(
-        self, search_space_object: SearchSpace, nasbench: api.NASBench, sample: bool
+        self,
+        search_space_object: SearchSpace,
+        nasbench: api.NASBench,
+        sample: bool,
     ) -> None:
         config = ConfigSpace.Configuration(
             search_space_object.get_configuration_space(), vector=sample
@@ -106,7 +112,10 @@ class NasbenchWrapper(api.NASBench):
     """
 
     def query(
-        self, model_spec: api.ModelSpec, epochs: int = 108, stop_halfway: bool = False
+        self,
+        model_spec: api.ModelSpec,
+        epochs: int = 108,
+        stop_halfway: bool = False,
     ) -> list:
         """Fetch one of the evaluations for this model spec.
 
@@ -191,7 +200,8 @@ def parent_combinations(
         # index, because of the upper triangular adjacency matrix and because the index
         # is also a topological ordering in our case.
         return itertools.combinations(
-            np.argwhere(adjacency_matrix[:node, node] == 0).flatten(), n_parents
+            np.argwhere(adjacency_matrix[:node, node] == 0).flatten(),
+            n_parents,
         )
         # (e.g. (0, 1),(0, 2),(1, 2)...
     else:  # noqa: RET505

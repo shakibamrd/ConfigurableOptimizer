@@ -3,7 +3,10 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+from confopt.utils.reduce_channels import (
+    reduce_bn_features,
+    reduce_conv_channels,
+)
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 OPS = {
@@ -48,7 +51,12 @@ class ReLUConvBN(nn.Module):
         self.op = nn.Sequential(
             nn.ReLU(inplace=False),
             nn.Conv2d(
-                C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False
+                C_in,
+                C_out,
+                kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
             ),
             nn.BatchNorm2d(C_out, affine=affine),
         )

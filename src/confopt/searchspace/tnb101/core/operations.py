@@ -5,7 +5,10 @@ from math import log2
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+from confopt.utils.reduce_channels import (
+    reduce_bn_features,
+    reduce_conv_channels,
+)
 
 TRANS_NAS_BENCH_101 = ["none", "nor_conv_1x1", "skip_connect", "nor_conv_3x3"]
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -16,13 +19,27 @@ OPS = {
         C_in, C_out, stride  # type: ignore
     ),
     "nor_conv_1x1": lambda C_in, C_out, stride, affine, track_running_stats: ReLUConvBN(
-        C_in, C_out, (1, 1), stride, (0, 0), (1, 1), affine, track_running_stats
+        C_in,
+        C_out,
+        (1, 1),
+        stride,
+        (0, 0),
+        (1, 1),
+        affine,
+        track_running_stats,
     ),
     "skip_connect": lambda C_in, C_out, stride, affine, track_running_stats: Identity()
     if (stride == 1 and C_in == C_out)
     else FactorizedReduce(C_in, C_out, stride, affine, track_running_stats),
     "nor_conv_3x3": lambda C_in, C_out, stride, affine, track_running_stats: ReLUConvBN(
-        C_in, C_out, (3, 3), stride, (1, 1), (1, 1), affine, track_running_stats
+        C_in,
+        C_out,
+        (3, 3),
+        stride,
+        (1, 1),
+        (1, 1),
+        affine,
+        track_running_stats,
     ),
 }
 
@@ -139,7 +156,12 @@ class FactorizedReduce(nn.Module):
             for i in range(2):
                 self.convs.append(
                     nn.Conv2d(
-                        C_in, C_outs[i], 1, stride=stride, padding=0, bias=not affine
+                        C_in,
+                        C_outs[i],
+                        1,
+                        stride=stride,
+                        padding=0,
+                        bias=not affine,
                     )
                 )
             self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)
@@ -256,7 +278,8 @@ class Stem(nn.Module):
     def __init__(self, C_in: int = 3, C_out: int = 64):
         super().__init__()
         self.seq = nn.Sequential(
-            nn.Conv2d(C_in, C_out, 3, padding=1, bias=False), nn.BatchNorm2d(C_out)
+            nn.Conv2d(C_in, C_out, 3, padding=1, bias=False),
+            nn.BatchNorm2d(C_out),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -271,7 +294,8 @@ class StemJigsaw(nn.Module):
     def __init__(self, C_in: int = 3, C_out: int = 64):
         super().__init__(locals())
         self.seq = nn.Sequential(
-            nn.Conv2d(C_in, C_out, 3, padding=1, bias=False), nn.BatchNorm2d(C_out)
+            nn.Conv2d(C_in, C_out, 3, padding=1, bias=False),
+            nn.BatchNorm2d(C_out),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -327,7 +351,13 @@ class GenerativeDecoder(nn.Module):
         in_channel, in_width = in_dim[0], in_dim[1]
         out_width = target_dim[0]
         num_upsample = int(log2(out_width / in_width))
-        assert num_upsample in [2, 3, 4, 5, 6], f"invalid num_upsample: {num_upsample}"
+        assert num_upsample in [
+            2,
+            3,
+            4,
+            5,
+            6,
+        ], f"invalid num_upsample: {num_upsample}"
 
         self.conv1 = ConvLayer(in_channel, 1024, 3, 1, 1, nn.LeakyReLU(0.2), norm)
         self.conv2 = ConvLayer(1024, 1024, 3, 2, 1, nn.LeakyReLU(0.2), norm)

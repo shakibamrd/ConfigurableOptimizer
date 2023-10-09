@@ -11,7 +11,12 @@ import torch
 from torch.backends import cudnn
 import wandb
 
-from confopt.dataset import CIFAR10Data, CIFAR100Data, ImageNet16Data, ImageNet16120Data
+from confopt.dataset import (
+    CIFAR10Data,
+    CIFAR100Data,
+    ImageNet16Data,
+    ImageNet16120Data,
+)
 from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
     DARTSSampler,

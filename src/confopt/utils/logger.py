@@ -15,7 +15,10 @@ import wandb
 
 
 def prepare_logger(
-    save_dir: str, seed: int, exp_name: str, xargs: argparse.Namespace | None = None
+    save_dir: str,
+    seed: int,
+    exp_name: str,
+    xargs: argparse.Namespace | None = None,
 ) -> Logger:
     logger = Logger(save_dir, seed, exp_name=exp_name)
     logger.log(f"Main Function with logger : {logger}")
@@ -61,7 +64,8 @@ class Logger:
         )
 
         self.logger_path = self.log_dir / "seed-{:}-T-{:}.log".format(
-            self.seed, time.strftime("%d-%h-at-%H-%M-%S", time.gmtime(time.time()))
+            self.seed,
+            time.strftime("%d-%h-at-%H-%M-%S", time.gmtime(time.time())),
         )
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
 

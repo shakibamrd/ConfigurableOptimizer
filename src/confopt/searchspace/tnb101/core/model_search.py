@@ -210,7 +210,11 @@ class TNB101SearchCell(nn.Module):
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
-                                C_in, C_out, stride, affine, track_running_stats
+                                C_in,
+                                C_out,
+                                stride,
+                                affine,
+                                track_running_stats,
                             )  # type: ignore
                             for op_name in op_names
                         ]

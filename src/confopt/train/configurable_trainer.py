@@ -109,7 +109,10 @@ class ConfigurableTrainer:
             # Logging
             search_time.update(time.time() - start_time)
             self.logger.log_metrics(
-                "Search: Model metrics ", base_metrics, epoch_str, search_time.sum
+                "Search: Model metrics ",
+                base_metrics,
+                epoch_str,
+                search_time.sum,
             )
 
             self.logger.log_metrics(

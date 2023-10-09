@@ -3,7 +3,10 @@ import unittest
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+from confopt.utils.reduce_channels import (
+    reduce_bn_features,
+    reduce_conv_channels,
+)
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 

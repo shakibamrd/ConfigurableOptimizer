@@ -6,7 +6,11 @@ from confopt.oneshot import BaseSampler
 from confopt.oneshot.archsampler.darts.sampler import DARTSSampler
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.searchspace import DARTSSearchSpace
-from confopt.searchspace.common import OperationBlock, OperationChoices, SearchSpace
+from confopt.searchspace.common import (
+    OperationBlock,
+    OperationChoices,
+    SearchSpace,
+)
 
 
 class Profile:
@@ -32,7 +36,11 @@ class Profile:
                     module.ops, module.is_reduction_cell
                 )
                 parent_name, attribute_name = self.get_parent_and_attribute(name)
-                setattr(eval("search_space" + parent_name), attribute_name, new_module)
+                setattr(
+                    eval("search_space" + parent_name),
+                    attribute_name,
+                    new_module,
+                )
         search_space.components.append(self.sampler)
         if self.perturbation:
             search_space.components.append(self.perturbation)

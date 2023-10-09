@@ -14,7 +14,10 @@ from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell
-from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
+from confopt.searchspace.nb201.core.operations import (
+    ReLUConvBN,
+    ResNetBasicblock,
+)
 from confopt.searchspace.tnb101.core.model_search import TNB101SearchCell
 from utils import get_modules_of_type
 
@@ -248,6 +251,7 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
+
 
 if __name__ == "__main__":
     unittest.main()
