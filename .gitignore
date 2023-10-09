@@ -90,3 +90,6 @@ prof/
 # Data
 data/
 
+# Datasets
+src/confopt/train/datasets/
+

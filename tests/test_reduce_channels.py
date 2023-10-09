@@ -22,7 +22,7 @@ class TestReduceChannels(unittest.TestCase):
         assert torch.all(
             torch.eq(
                 reduced_conv2d.weight[:6, :3, :, :],
-                original_conv2d.weight[:6, :3, :, :]
+                original_conv2d.weight[:6, :3, :, :],
             )
         )
         if original_conv2d.bias is not None:

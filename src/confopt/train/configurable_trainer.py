@@ -346,12 +346,13 @@ class ConfigurableTrainer:
 
     def _set_up_checkpointer(self, mode: str) -> Checkpointer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
-        checkpointables = self._get_checkpointables(self.start_epoch)
+        # checkpointables = self._get_checkpointables(self.start_epoch)
+        # todo: return scheduler and optimizers that do have state_dict()
         return Checkpointer(
             model=self.model,
             save_dir=checkpoint_dir,
             save_to_disk=True,
-            checkpointables=checkpointables,
+            # checkpointables=checkpointables,
         )
 
     def _init_periodic_checkpointer(self) -> None:
