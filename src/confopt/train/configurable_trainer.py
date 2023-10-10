@@ -141,9 +141,9 @@ class ConfigurableTrainer:
                 self.search_accs_top5[epoch],
             ) = base_metrics
 
-            checkpoitables = self._get_checkpointables(epoch=epoch)
+            checkpointables = self._get_checkpointables(epoch=epoch)
             self.periodic_checkpointer.step(
-                iteration=epoch, checkpoitables=checkpoitables
+                iteration=epoch, checkpointables=checkpointables
             )
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
@@ -152,7 +152,7 @@ class ConfigurableTrainer:
                     + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
                 )
                 self.best_model_checkpointer.save(
-                    name=self.best_model_path, checkpoitables=checkpoitables
+                    name=self.best_model_path, checkpointables=checkpointables
                 )
             else:
                 pass
@@ -351,12 +351,16 @@ class ConfigurableTrainer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
         # checkpointables = self._get_checkpointables(self.start_epoch)
         # todo: return scheduler and optimizers that do have state_dict()
-        return Checkpointer(
+        checkpointer = Checkpointer(
             model=self.model,
             save_dir=checkpoint_dir,
             save_to_disk=True,
             # checkpointables=checkpointables,
         )
+        checkpointer.add_checkpointable("w_scheduler", self.scheduler)
+        checkpointer.add_checkpointable("w_optimizer", self.model_optimizer)
+        checkpointer.add_checkpointable("arch_optimizer", self.arch_optimizer)
+        return checkpointer
 
     def _init_periodic_checkpointer(self) -> None:
         self.checkpointer = self._set_up_checkpointer(mode="info")
@@ -376,9 +380,9 @@ class ConfigurableTrainer:
             "valid_accs_top1": self.valid_accs_top1,
             "valid_accs_top5": self.valid_accs_top5,
             # todo: could this be empty?
-            "w_scheduler": self.scheduler,
+            # "w_scheduler": self.scheduler,
             # todo: should i save these or the state_dict()
-            "w_optimizer": self.model_optimizer,
+            # "w_optimizer": self.model_optimizer,
         }
 
     def _set_checkpointer_info(self, last_checkpoint: dict) -> None:
@@ -392,6 +396,7 @@ class ConfigurableTrainer:
         self.model.load_state_dict(last_checkpoint["model"])
         self.scheduler.load_state_dict(last_checkpoint["w_scheduler"])
         self.model_optimizer.load_state_dict(last_checkpoint["w_optimizer"])
+        self.arch_optimizer.load_state_dict(last_checkpoint["arch_optimizer"])
         self.logger.log(
             f"=> loading checkpoint of the last-info {last_checkpoint}"
             + f"start with {self.start_epoch}-th epoch."
@@ -410,11 +415,13 @@ class ConfigurableTrainer:
             )
             # load model from the best checkpoint
             info = self.best_model_checkpointer.load(path=last_info)
+        elif self.start_epoch != 0:
+            last_info += str(self.start_epoch)  # "path depending on epoch"
+            info = self.checkpointer.load(path=last_info)
         elif self.load_saved_model:
             # load from specific epoch or load the last checkpointed epoch
-            last_info = self.logger.path(mode="info")
             info = self.checkpointer.resume_or_load(
-                path=last_info
+                path=last_info, resume=True  # path to the  checkpoint
             )  # returns a dictionary
             self.logger.log(
                 f"=> loading checkpoint of the last-info {last_info}"
