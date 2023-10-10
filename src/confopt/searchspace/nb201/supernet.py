@@ -61,3 +61,7 @@ class NASBench201SearchSpace(SearchSpace):
             values.
         """
         self.model.arch_parameters.data = arch_parameters[0]
+
+    def discretize(self) -> None:
+        sparcity = 0.2
+        self.model._discretize(sparcity)

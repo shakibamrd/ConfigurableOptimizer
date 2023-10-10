@@ -32,6 +32,8 @@ class NB201SearchModel(nn.Module):
         BatchNorm in cells. Defaults to False.
         edge_normalization (bool, optional): Whether to enable edge normalization for
         partial connection. Defaults to False.
+        discretized (int): shows if we have a supernet or a discretized search space
+        with one operation on each edge
 
     Attributes:
         stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
@@ -60,6 +62,7 @@ class NB201SearchModel(nn.Module):
         affine: bool = False,
         track_running_stats: bool = False,
         edge_normalization: bool = False,
+        discretized: bool = False,
     ):
         super().__init__()
         self._C = C
@@ -67,6 +70,7 @@ class NB201SearchModel(nn.Module):
         self.max_nodes = max_nodes
         self._steps = steps
         self.edge_normalization = edge_normalization
+        self.discretized = discretized
         self.stem = nn.Sequential(
             nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(C),
@@ -231,7 +235,10 @@ class NB201SearchModel(nn.Module):
             - The output tensor after the forward pass.
             - The logits tensor produced by the model.
         """
-        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)
+        if self.discretized:
+            alphas = self.arch_parameters
+        else:
+            alphas = nn.functional.softmax(self.arch_parameters, dim=-1)
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
@@ -260,3 +267,29 @@ class NB201SearchModel(nn.Module):
         logits = self.classifier(out)
 
         return out, logits
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        self.edge_normalization = False
+        self.discretized = True
+        sorted_arch_params, _ = torch.sort(self.arch_parameters, dim=1, descending=True)
+        top_k = int(op_sparsity * len(self.op_names))
+        thresholds = sorted_arch_params[:, :top_k]
+        mask = self.arch_parameters >= thresholds
+
+        self.arch_parameters.data *= mask.float()
+        self.arch_parameters.data[~mask].requires_grad = False
+        if self.arch_parameters.data[~mask].grad:
+            self.arch_parameters.data[~mask].grad.zero_()
