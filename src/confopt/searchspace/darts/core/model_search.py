@@ -94,6 +94,7 @@ class Network(nn.Module):
         multiplier: int = 4,
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
+        discretized: bool = False,
     ) -> None:
         super().__init__()
         self._C = C
@@ -103,6 +104,7 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
         self.edge_normalization = edge_normalization
+        self.discretized = discretized
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
@@ -175,7 +177,12 @@ class Network(nn.Module):
                 s0, s1 = s1, cell(s0, s1, weights, weights2)
             else:
                 if cell.reduction:
-                    weights = F.softmax(self.alphas_reduce, dim=-1)
+                    if self.discretized:
+                        weights = self.alphas_reduce
+                    else:
+                        weights = F.softmax(self.alphas_reduce, dim=-1)
+                elif self.discretized:
+                    weights = self.alphas_normal
                 else:
                     weights = F.softmax(self.alphas_normal, dim=-1)
                 s0, s1 = s1, cell(s0, s1, weights)
@@ -250,3 +257,30 @@ class Network(nn.Module):
             reduce_concat=concat,
         )
         return genotype
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        self.edge_normalization = False
+        self.discretized = True
+        top_k = int(op_sparsity * len(PRIMITIVES))
+        for p in self._arch_parameters:
+            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
+            thresholds = sorted_arch_params[:, :top_k]
+            mask = p.data >= thresholds
+
+            p.data *= mask.float()
+            p.data[~mask].requires_grad = False
+            if p.data[~mask].grad:
+                p.data[~mask].grad.zero_()

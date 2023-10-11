@@ -163,6 +163,24 @@ class TestDARTSSearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
+    def test_discretize(self) -> None:
+        search_space = DARTSSearchSpace(edge_normalization=True)
+        x = torch.randn(2, 3, 64, 64).to(DEVICE)
+        search_space.discretize()
+        arch_params = search_space.arch_parameters
+        for p in arch_params:
+            assert torch.count_nonzero(p) == len(p)
+            assert torch.equal(torch.count_nonzero(p, dim=-1), torch.ones(len(p)))
+
+        out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 256])
+        assert out[1].shape == torch.Size([2, 10])
+
 
 class TestNASBench1Shot1SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:

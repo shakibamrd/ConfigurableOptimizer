@@ -34,3 +34,7 @@ class DARTSSearchSpace(SearchSpace):
             self.model.alphas_normal,
             self.model.alphas_reduce,
         ]
+
+    def discretize(self) -> None:
+        sparcity = 0.125
+        self.model._discretize(sparcity)
