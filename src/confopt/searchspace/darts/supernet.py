@@ -36,5 +36,5 @@ class DARTSSearchSpace(SearchSpace):
         ]
 
     def discretize(self) -> None:
-        sparcity = 0.125
-        self.model._discretize(sparcity)
+        sparsity = 0.125
+        self.model._discretize(sparsity)

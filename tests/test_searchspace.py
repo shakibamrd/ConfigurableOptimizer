@@ -288,6 +288,24 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
 
+    def test_discretize(self) -> None:
+        search_space = TransNASBench101SearchSpace(edge_normalization=True)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        search_space.discretize()
+        arch_params = search_space.arch_parameters[0]
+        assert torch.count_nonzero(arch_params) == len(arch_params)
+        assert torch.equal(
+            torch.count_nonzero(arch_params, dim=-1), torch.ones(len(arch_params))
+        )
+        out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 10])
+        assert out[1].shape == torch.Size([2, 10])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,6 +25,7 @@ class TNB101SearchModel(nn.Module):
         track_running_stats: bool = False,
         dataset: str = "cifar10",
         edge_normalization: bool = False,
+        discretized: bool = False,
     ):
         """Initialize a TransNasBench-101 network consisting of one cell
         Args:
@@ -43,6 +44,7 @@ class TNB101SearchModel(nn.Module):
         self.C = C
         self.stride = stride
         self.edge_normalization = edge_normalization
+        self.discretized = discretized
 
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
@@ -108,11 +110,14 @@ class TNB101SearchModel(nn.Module):
         return self._beta_parameters
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
+        if self.discretized:
+            alphas = self._arch_parameters
+        else:
+            alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            betas = torch.empty((0,)).to(alphas.device)
+            betas = torch.empty((0,)).to(self._arch_parameters.device)
             if self.edge_normalization:
                 for v in range(1, self.max_nodes):
                     idx_nodes = []
@@ -170,6 +175,34 @@ class TNB101SearchModel(nn.Module):
 
     def _is_reduction_stage(self, stage: str) -> bool:
         return "r_stage" in stage
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        self.edge_normalization = False
+        self.discretized = True
+        sorted_arch_params, _ = torch.sort(
+            self._arch_parameters, dim=1, descending=True
+        )
+        top_k = int(op_sparsity * len(self.op_names))
+        thresholds = sorted_arch_params[:, :top_k]
+        mask = self._arch_parameters >= thresholds
+
+        self._arch_parameters.data *= mask.float()
+        self._arch_parameters.data[~mask].requires_grad = False
+        if self._arch_parameters.data[~mask].grad:
+            self._arch_parameters.data[~mask].grad.zero_()
 
 
 class TNB101SearchCell(nn.Module):
