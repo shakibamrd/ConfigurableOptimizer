@@ -492,3 +492,14 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             nasbench_data["validation_accuracy"],
             nasbench_data["training_time"],
         )
+
+    def discretize(self) -> None:
+        """Discretize the model's architecture parameters to enforce sparsity.
+
+        Note:
+            This method discretizes the model's architecture parameters to enforce
+            sparsity. It sets the sparsity level to 0.2 (20% of operations will be kept)
+            and calls the `_discretize` method to apply the discretization.
+        """
+        sparsity = 0.2
+        self.model._discretize(sparsity)

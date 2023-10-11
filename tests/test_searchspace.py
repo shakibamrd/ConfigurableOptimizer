@@ -241,6 +241,18 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
         assert logits.shape == torch.Size([2, num_classes])
         assert out.shape == torch.Size([2, 64])
 
+    def test_discretize(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4, search_space_type="S2"
+        )  # edge_normalization=True
+        search_space.discretize()
+        arch_params = search_space.arch_parameters
+        for p in arch_params:
+            assert torch.count_nonzero(p) == len(p)
+            assert torch.equal(torch.count_nonzero(p, dim=-1), torch.ones(len(p)))
+
+        self._test_forward_pass(search_space)
+
 
 class TestTransNASBench101SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:

@@ -230,7 +230,7 @@ class Network(nn.Module):
             raise ValueError("architecture can't be discrete and normalized")
         # If using discrete architecture from random_ws search with weight sharing
         # then pass through architecture weights directly.
-        if discrete:
+        if discrete or self.discretized:
             return x
         elif normalize:  # noqa: RET505
             arch_sum = torch.sum(x, dim=-1)
@@ -320,3 +320,31 @@ class Network(nn.Module):
 
     def arch_parameters(self) -> list[nn.Parameter]:
         return self._arch_parameters
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        # self.edge_normalization = False
+        self.discretized = True
+
+        for p in self._arch_parameters:
+            top_k = max(int(op_sparsity * p.data.shape[-1]), 1)
+            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
+            thresholds = sorted_arch_params[:, :top_k]
+            mask = p.data >= thresholds
+
+            p.data *= mask.float()
+            p.data[~mask].requires_grad = False
+            if p.data[~mask].grad:
+                p.data[~mask].grad.zero_()
