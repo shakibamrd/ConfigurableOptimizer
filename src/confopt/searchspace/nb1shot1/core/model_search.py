@@ -230,7 +230,7 @@ class Network(nn.Module):
             raise ValueError("architecture can't be discrete and normalized")
         # If using discrete architecture from random_ws search with weight sharing
         # then pass through architecture weights directly.
-        if discrete or self.discretized:
+        if discrete or (hasattr(self, "discretized") and self.discretized):
             return x
         elif normalize:  # noqa: RET505
             arch_sum = torch.sum(x, dim=-1)
