@@ -25,6 +25,7 @@ from confopt.oneshot.archsampler import (
     SNASSampler,
 )
 from confopt.oneshot.partial_connector import PartialConnector
+from confopt.profiles import DartsProfile, ProfileConfig
 from confopt.searchspace import (
     DARTSSearchSpace,
     NASBench1Shot1SearchSpace,
@@ -116,9 +117,9 @@ class Experiment:
         cudnn.enabled = True
         torch.cuda.manual_seed(rand_seed)
 
-    def run_with_profile(self, profile: Profile) -> ConfigurableTrainer:
-        # TODO Run with profile
-        # config = profile.get_config()
+    def run_with_profile(self, profile: ProfileConfig) -> ConfigurableTrainer:
+        config = profile.get_config()
+        self.run(config=config)
         pass
 
     def run(self, config: dict | None = None) -> ConfigurableTrainer:
@@ -144,7 +145,6 @@ class Experiment:
                 "affine": False,
                 "track_running_stats": False,
             }
-            nb201_config = {}
 
             train_config = {
                 "lr": 0.025,
@@ -191,17 +191,18 @@ class Experiment:
                 "logger": {"project_name": "Configurable_Optimizer"},
             }
 
-            self._enum_to_objects(
-                self.search_space_str,
-                self.sampler_str,
-                self.perturbator_str,
-                confopt_config,
-            )
-
+        self._enum_to_objects(
+            self.search_space_str,
+            self.sampler_str,
+            self.perturbator_str,
+            config=config if config is not None else confopt_config,
+        )
         if self.is_wandb_log:
             wandb.init(  # type: ignore
-                project=confopt_config["logger"]["project_name"],  # type: ignore
-                config=confopt_config,  # type: ignore
+                project=config.get("project_name", "Configurable_Optimizer")
+                if config is not None
+                else "Configurable_Optimizer",
+                config=config if config is not None else confopt_config,  # type: ignore
             )
 
         if config is None:
@@ -219,7 +220,6 @@ class Experiment:
             criterion_str=arg_config.criterion  # type: ignore
         )
 
-        # TODO replace data with data getter function
         data = self._get_dataset(self.dataset_str)(
             root="datasets",
             cutout=arg_config.cutout,  # type: ignore
@@ -228,7 +228,6 @@ class Experiment:
 
         model = self.search_space
 
-        # TODO replace optimizers with optimizer getter function
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
             model.parameters(),
             arg_config.lr,  # type: ignore
@@ -381,7 +380,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sampler",
         default="darts",
-        help="search space in (darts, nb201, nats)",
+        help="samplers in (darts, drnas, gdas, snas)",
         type=str,
     )
     parser.add_argument(
@@ -394,7 +393,7 @@ if __name__ == "__main__":
         "--is_partial_connector",
         action="store_true",
         default=True,
-        help="partial connection",
+        help="Enable/Disable partial connection",
     )
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
@@ -427,4 +426,8 @@ if __name__ == "__main__":
         is_partial_connection=True,
     )
 
-    trainer = experiment.run()
+    # trainer = experiment.run()
+    profile = DartsProfile(
+        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
+    )
+    experiment.run_with_profile(profile)
