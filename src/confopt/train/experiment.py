@@ -60,9 +60,11 @@ class Samplers(Enum):
 class Perturbator(Enum):
     RANDOM = "random"
     ADVERSERIAL = "adverserial"
+    NONE = "none"
 
 
 PERTUB_DEFAULT_EPSILON = 0.03
+PERTUBRATOR_NONE = Perturbator("none")
 
 
 class DatasetType(Enum):
@@ -95,7 +97,7 @@ class Experiment:
         dataset: DatasetType,
         sampler: Samplers,
         seed: int,
-        perturbator: Perturbator | None = None,
+        perturbator: Perturbator = PERTUBRATOR_NONE,
         edge_normalization: bool = False,
         is_partial_connection: bool = False,
         is_wandb_log: bool = False,
@@ -291,17 +293,16 @@ class Experiment:
         self,
         search_space_enum: SearchSpace,
         sampler_enum: Samplers,
-        perturbator_enum: Perturbator | None = None,
+        perturbator_enum: Perturbator,
         config: dict | None = None,
     ) -> None:
         if config is None:
             config = {}  # type : ignore
         self.set_search_space(search_space_enum, config.get("search_space", {}))
         self.set_sampler(sampler_enum, config.get("sampler", {}))
-        if perturbator_enum is not None:
-            self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
-        else:
-            self.perturbator = None
+
+        self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
+
         self.set_partial_connector(config.get("partial_connector", {}))
         self.set_profile()
 
@@ -339,12 +340,15 @@ class Experiment:
         petubrator_enum: Perturbator,
         pertub_config: dict,
     ) -> None:
-        self.perturbator = SDARTSSampler(
-            **pertub_config,
-            search_space=self.search_space,
-            arch_parameters=self.search_space.arch_parameters,
-            attack_type=petubrator_enum.value,
-        )
+        if petubrator_enum != Perturbator.NONE:
+            self.perturbator = SDARTSSampler(
+                **pertub_config,
+                search_space=self.search_space,
+                arch_parameters=self.search_space.arch_parameters,
+                attack_type=petubrator_enum.value,
+            )
+        else:
+            self.perturbator = None
 
     def set_partial_connector(self, config: dict) -> None:
         if self.is_partial_connection:
