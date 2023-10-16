@@ -16,7 +16,7 @@ class ProfileConfig:
         self.config_type = config_type
 
     def set_perturb(self, perturb_type: str | None = None) -> None:
-        assert perturb_type in ["adverserial", "random", None]
+        assert perturb_type in ["adverserial", "random", "none", None]
         self.perturb_type = perturb_type
 
     def set_partial_connector(self, is_partial_connection: bool = False) -> None:
@@ -52,7 +52,10 @@ class ProfileConfig:
                 "sample_frequency": "epoch",
             }
         elif self.perturb_type == "random":
-            perturb_config = {"epsilon": 0.03}
+            perturb_config = {
+                "epsilon": 0.03,
+                "sample_frequency": "epoch",
+            }
         else:
             return None
         return perturb_config
