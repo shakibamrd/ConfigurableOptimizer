@@ -120,7 +120,7 @@ class Experiment:
     def run_with_profile(self, profile: ProfileConfig) -> ConfigurableTrainer:
         config = profile.get_config()
         self.run(
-            config=config, load_best_model=False, load_saved_model=False, start_epoch=2
+            config=config, load_best_model=False, load_saved_model=False, start_epoch=0
         )
         pass
 
@@ -406,29 +406,36 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--perturbator",
-        default="adverserial",
-        help="Type of perturbation in (random, adverserial)",
+        default="none",
+        help="Type of perturbation in (none, random, adverserial)",
         type=str,
     )
     parser.add_argument(
         "--is_partial_connector",
         action="store_true",
-        default=True,
+        default=False,
         help="Enable/Disable partial connection",
     )
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
     parser.add_argument("--seed", default=444, type=int)
     parser.add_argument(
-        "--model_path",
-        default="/path/to/model.pth",
-        type=str,
+        "--load_best_model",
+        action="store_true",
+        default=False,
+        help="Load the best model found from the previous run",
     )
     parser.add_argument(
         "--load_saved_model",
         action="store_true",
         default=False,
-        help="Load the saved models before training them",
+        help="Load the last saved model in the last run of training them",
+    )
+    parser.add_argument(
+        "--start_epoch",
+        default=0,
+        help="Specify the start epoch to continue the training of the model from the \
+        previous run",
     )
     args = parser.parse_args()
 
