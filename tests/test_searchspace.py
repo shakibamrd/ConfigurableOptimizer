@@ -1,3 +1,4 @@
+import copy
 import unittest
 
 import torch
@@ -105,6 +106,28 @@ class TestNASBench201SearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 64])
         assert out[1].shape == torch.Size([2, 10])
 
+    def test_optim_forward_pass(self) -> None:
+        search_space = NASBench201SearchSpace(edge_normalization=True)
+        loss_fn = torch.nn.CrossEntropyLoss().to(DEVICE)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
+        arch_optim = torch.optim.Adam(
+            [*search_space.arch_parameters, *search_space.beta_parameters]
+        )  # noqa: E501
+        arch_optim.zero_grad()
+        out = search_space(x)
+        loss = loss_fn(out[1], y)
+        loss.backward()
+        alphas_before = copy.deepcopy(search_space.arch_parameters)
+        betas_before = copy.deepcopy(search_space.beta_parameters)
+        arch_optim.step()
+        alphas_after = search_space.arch_parameters
+        betas_after = search_space.beta_parameters
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+        for beta_param_before, beta_param_after in zip(betas_before, betas_after):
+            assert not torch.allclose(beta_param_before, beta_param_after)
+
 
 class TestDARTSSearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -184,6 +207,28 @@ class TestDARTSSearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 256])
         assert out[1].shape == torch.Size([2, 10])
 
+    def test_optim_forward_pass(self) -> None:
+        search_space = DARTSSearchSpace(edge_normalization=True)
+        loss_fn = torch.nn.CrossEntropyLoss().to(DEVICE)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
+        arch_optim = torch.optim.Adam(
+            [*search_space.arch_parameters, *search_space.beta_parameters]
+        )  # noqa: E501
+        arch_optim.zero_grad()
+        out = search_space(x)
+        loss = loss_fn(out[1], y)
+        loss.backward()
+        alphas_before = copy.deepcopy(search_space.arch_parameters)
+        betas_before = copy.deepcopy(search_space.beta_parameters)
+        arch_optim.step()
+        alphas_after = search_space.arch_parameters
+        betas_after = search_space.beta_parameters
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+        for beta_param_before, beta_param_after in zip(betas_before, betas_after):
+            assert not torch.allclose(beta_param_before, beta_param_after)
+
 
 class TestNASBench1Shot1SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -194,7 +239,6 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
 
     def _test_forward_pass(self, model: nn.Module) -> None:
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-
         out = model(x)
 
         assert isinstance(out, tuple)
@@ -258,6 +302,22 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
 
         self._test_forward_pass(search_space)
 
+    def test_optim_forward_pass(self) -> None:
+        search_space = NASBench1Shot1SearchSpace()
+        loss_fn = torch.nn.CrossEntropyLoss().to(DEVICE)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
+        arch_optim = torch.optim.Adam(search_space.arch_parameters)
+        arch_optim.zero_grad()
+        out = search_space(x)
+        loss = loss_fn(out[1], y)
+        loss.backward()
+        alphas_before = copy.deepcopy(search_space.arch_parameters)
+        arch_optim.step()
+        alphas_after = search_space.arch_parameters
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+
 
 class TestTransNASBench101SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -265,6 +325,12 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         arch_params = search_space.arch_parameters
         assert len(arch_params) == 1
         assert isinstance(arch_params[0], (nn.Parameter, torch.Tensor))
+
+    def test_beta_parameters(self) -> None:
+        search_space = TransNASBench101SearchSpace()
+        beta_params = search_space.arch_parameters
+        assert len(beta_params) == 1
+        assert isinstance(beta_params[0], nn.Parameter)
 
     def test_forward_pass(self) -> None:
         search_space = TransNASBench101SearchSpace()
@@ -323,6 +389,28 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
+
+    def test_optim_forward_pass(self) -> None:
+        search_space = TransNASBench101SearchSpace(edge_normalization=True)
+        loss_fn = torch.nn.CrossEntropyLoss().to(DEVICE)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
+        arch_optim = torch.optim.Adam(
+            [*search_space.arch_parameters, *search_space.beta_parameters]
+        )  # noqa: E501
+        arch_optim.zero_grad()
+        out = search_space(x)
+        loss = loss_fn(out[1], y)
+        loss.backward()
+        alphas_before = copy.deepcopy(search_space.arch_parameters)
+        betas_before = copy.deepcopy(search_space.beta_parameters)
+        arch_optim.step()
+        alphas_after = search_space.arch_parameters
+        betas_after = search_space.beta_parameters
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+        for beta_param_before, beta_param_after in zip(betas_before, betas_after):
+            assert not torch.allclose(beta_param_before, beta_param_after)
 
 
 if __name__ == "__main__":
