@@ -436,6 +436,7 @@ if __name__ == "__main__":
         default=0,
         help="Specify the start epoch to continue the training of the model from the \
         previous run",
+        type=int,
     )
     args = parser.parse_args()
 
