@@ -85,5 +85,6 @@ class ProfileConfig:
             "cutout_length": 16,
             "train_portion": 0.7,
             "use_data_parallel": 0,
+            "checkpointing_freq": 1,
         }
         return default_train_config

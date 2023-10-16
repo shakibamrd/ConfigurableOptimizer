@@ -39,7 +39,7 @@ class ConfigurableTrainer:
         load_saved_model: bool = False,
         load_best_model: bool = False,
         start_epoch: int = 0,
-        checkpointing_freq: int = 3,
+        checkpointing_freq: int = 1,
         epochs: int = 100,
     ) -> None:
         self.model = model
@@ -62,7 +62,6 @@ class ConfigurableTrainer:
         self.start_epoch = start_epoch
         self.checkpointing_freq = checkpointing_freq
         self.epochs = epochs
-        self.best_model_path = ""
 
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
@@ -151,14 +150,10 @@ class ConfigurableTrainer:
                     f"<<<--->>> The {epoch_str}-th epoch : found the highest "
                     + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
                 )
-                self.best_model_checkpointer.save(
-                    name=self.best_model_path, checkpointables=checkpointables
-                )
-            else:
-                pass
 
-            # self._save_checkpoint(epoch, is_best)
-            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                self.best_model_checkpointer.save(
+                    name="best_model", checkpointables=checkpointables
+                )
 
             with torch.no_grad():
                 for i, alpha in enumerate(self.model.arch_parameters):
@@ -325,15 +320,6 @@ class ConfigurableTrainer:
             )
 
         return network, criterion
-        # # todo: why do these get assigned here?
-        # self.start_epoch = 0
-        # self.valid_losses: dict[int, float] = {}
-        # self.search_losses: dict[int, float] = {}
-        # self.search_accs_top1: dict[int, float] = {}
-        # self.search_accs_top5: dict[int, float] = {}
-        # self.valid_accs_top1: dict[int | str, float | int] = {"best": -1}
-        # self.valid_accs_top5: dict[int, float] = {}
-        # return None
 
     def _init_empty_model_state_info(self) -> None:
         self.start_epoch = 0
@@ -345,9 +331,9 @@ class ConfigurableTrainer:
         self.valid_accs_top5: dict[int, float] = {}
 
         self._init_periodic_checkpointer()
-        self.best_model_checkpointer = self._set_up_checkpointer(mode="best")
+        self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
 
-    def _set_up_checkpointer(self, mode: str) -> Checkpointer:
+    def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
         # checkpointables = self._get_checkpointables(self.start_epoch)
         # todo: return scheduler and optimizers that do have state_dict()
@@ -363,7 +349,7 @@ class ConfigurableTrainer:
         return checkpointer
 
     def _init_periodic_checkpointer(self) -> None:
-        self.checkpointer = self._set_up_checkpointer(mode="info")
+        self.checkpointer = self._set_up_checkpointer(mode="checkpoints")
         self.periodic_checkpointer = PeriodicCheckpointer(
             checkpointer=self.checkpointer,
             period=self.checkpointing_freq,
@@ -379,13 +365,15 @@ class ConfigurableTrainer:
             "valid_losses": self.valid_losses,
             "valid_accs_top1": self.valid_accs_top1,
             "valid_accs_top5": self.valid_accs_top5,
-            # todo: could this be empty?
-            # "w_scheduler": self.scheduler,
-            # todo: should i save these or the state_dict()
-            # "w_optimizer": self.model_optimizer,
         }
 
     def _set_checkpointer_info(self, last_checkpoint: dict) -> None:
+        self.model.load_state_dict(last_checkpoint["model"])
+        self.scheduler.load_state_dict(last_checkpoint["w_scheduler"])
+        self.model_optimizer.load_state_dict(last_checkpoint["w_optimizer"])
+        self.arch_optimizer.load_state_dict(last_checkpoint["arch_optimizer"])
+
+        last_checkpoint = last_checkpoint["checkpointables"]
         self.start_epoch = last_checkpoint["epoch"]
         self.search_losses = last_checkpoint["search_losses"]
         self.search_accs_top1 = last_checkpoint["search_accs_top1"]
@@ -393,46 +381,37 @@ class ConfigurableTrainer:
         self.valid_losses = last_checkpoint["valid_losses"]
         self.valid_accs_top1 = last_checkpoint["valid_accs_top1"]
         self.valid_accs_top5 = last_checkpoint["valid_accs_top5"]
-        self.model.load_state_dict(last_checkpoint["model"])
-        self.scheduler.load_state_dict(last_checkpoint["w_scheduler"])
-        self.model_optimizer.load_state_dict(last_checkpoint["w_optimizer"])
-        self.arch_optimizer.load_state_dict(last_checkpoint["arch_optimizer"])
-        self.logger.log(
-            f"=> loading checkpoint of the last-info {last_checkpoint}"
-            + f"start with {self.start_epoch}-th epoch."
-        )
+        self.logger.log(f"start with {self.start_epoch}-th epoch.")
 
     def _load_model_state_if_exists(self) -> None:
-        last_info = self.logger.path("info")
-
-        self.best_model_checkpointer = self._set_up_checkpointer(mode="best")
+        self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
         self._init_periodic_checkpointer()
 
         if self.load_best_model:
-            last_info = self.logger.path("best")
+            last_info = self.logger.path("best_model")
             self.logger.log(
                 f"=> loading checkpoint of the best-model '{last_info}' start"
             )
-            # load model from the best checkpoint
-            info = self.best_model_checkpointer.load(path=last_info)
+            info = self.best_model_checkpointer._load_file(f=last_info)
         elif self.start_epoch != 0:
-            last_info += str(self.start_epoch)  # "path depending on epoch"
-            info = self.checkpointer.load(path=last_info)
+            last_info = self.logger.path("checkpoints")
+            last_info = last_info / "{}_{:07d}.pth".format("model", self.start_epoch)
+            info = self.checkpointer._load_file(f=last_info)
         elif self.load_saved_model:
-            # load from specific epoch or load the last checkpointed epoch
-            info = self.checkpointer.resume_or_load(
-                path=last_info, resume=True  # path to the  checkpoint
-            )  # returns a dictionary
-            self.logger.log(
-                f"=> loading checkpoint of the last-info {last_info}"
-                # + f"start with {self.start_epoch}-th epoch."
-            )
+            last_info = self.logger.path("last_checkpoint")
+            info = self.checkpointer._load_file(f=last_info)
+            self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
         else:
-            self.logger.log(f"=> did not find the last-info file : {last_info}")
+            self.logger.log("=> did not find the any file")
+            return
 
+        self.logger.set_up_new_run()
+        self.best_model_checkpointer.save_dir = self.logger.path(mode=None)
+        self.checkpointer.save_dir = self.logger.path(mode="checkpoints")
         self._set_checkpointer_info(info)
+
         self.logger.log(
-            f"=> loading checkpoint {info}" + f"start with {self.start_epoch}-th epoch."
+            "=> loading checkpoint " + f"start with {self.start_epoch}-th epoch."
         )
 
         # Then put checkpoint data into the self and model

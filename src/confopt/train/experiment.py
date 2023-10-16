@@ -119,13 +119,28 @@ class Experiment:
 
     def run_with_profile(self, profile: ProfileConfig) -> ConfigurableTrainer:
         config = profile.get_config()
-        self.run(config=config)
+        self.run(
+            config=config, load_best_model=False, load_saved_model=False, start_epoch=2
+        )
         pass
 
-    def run(self, config: dict | None = None) -> ConfigurableTrainer:
+    def run(
+        self,
+        config: dict | None = None,
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> ConfigurableTrainer:
         self.set_seed(self.seed)
 
-        self.logger = Logger(log_dir="logs", seed=self.seed, exp_name="test")
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+
+        if load_saved_model or load_best_model or start_epoch > 0:
+            self.logger = Logger(
+                log_dir="logs", seed=self.seed, exp_name="test", last_run=True
+            )
+        else:
+            self.logger = Logger(log_dir="logs", seed=self.seed, exp_name="test")
 
         if config is None:
             assert (
@@ -165,6 +180,7 @@ class Experiment:
                 "cutout_length": 16,
                 "train_portion": 0.7,
                 "use_data_parallel": 0,
+                "checkpointing_freq": 1,
             }
 
             darts_sampler_config = {"sample_frequency": "epoch"}
@@ -256,6 +272,11 @@ class Experiment:
             logger=self.logger,
             batchsize=arg_config.batch_size,  # type: ignore
             use_data_parallel=arg_config.use_data_parallel,  # type: ignore
+            load_saved_model=load_saved_model,
+            load_best_model=load_best_model,
+            start_epoch=start_epoch,
+            checkpointing_freq=arg_config.checkpointing_freq,  # type: ignore
+            epochs=arg_config.epochs,  # type: ignore
         )
 
         trainer.train(
