@@ -260,9 +260,14 @@ class Experiment:
             eta_min=arg_config.learning_rate_min,  # type: ignore
         )
 
-        arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
-            model.arch_parameters
-        )
+        if self.edge_normalization and hasattr(model, "beta_parameters"):
+            arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
+                [*model.arch_parameters, *model.beta_parameters]
+            )
+        else:
+            arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
+                model.arch_parameters,
+            )
 
         trainer = ConfigurableTrainer(
             model=model,
