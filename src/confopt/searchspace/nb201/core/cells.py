@@ -17,6 +17,34 @@ __all__ = ["NAS201SearchCell", "InferCell"]
 
 
 class NAS201SearchCell(nn.Module):
+    """NAS-Bench-201 Search Cell Class.
+
+    Args:
+        C_in (int): Number of input channels.
+        C_out (int): Number of output channels.
+        stride (int): Stride for convolutional operations.
+        max_nodes (int): Maximum number of nodes in the cell.
+        op_names (list[str]): List of operation names to choose from.
+        affine (bool, optional): Whether to use affine transformations in BatchNorm.
+        Defaults to False.
+        track_running_stats (bool, optional): Whether to track running statistics in
+        BatchNorm. Defaults to True.
+
+    Attributes:
+        op_names (list[str]): List of operation names.
+        edges (nn.ModuleDict): Module dictionary representing edges between nodes.
+        max_nodes (int): Maximum number of nodes in the cell.
+        in_dim (int): Number of input channels.
+        out_dim (int): Number of output channels.
+        edge_keys (list[str]): Sorted list of edge keys.
+        edge2index (dict[str, int]): Mapping of edge keys to their indices.
+        num_edges (int): Number of edges in the cell.
+
+    Note:
+        This class represents a search cell for NAS-Bench-201 with customizable
+        architecture choices.
+    """
+
     def __init__(
         self,
         C_in: int,
@@ -41,7 +69,11 @@ class NAS201SearchCell(nn.Module):
                     xlists = nn.ModuleList(
                         [
                             OPS[op_name](
-                                C_in, C_out, stride, affine, track_running_stats
+                                C_in,
+                                C_out,
+                                stride,
+                                affine,
+                                track_running_stats,
                             )
                             for op_name in op_names
                         ]
@@ -61,6 +93,16 @@ class NAS201SearchCell(nn.Module):
         self.num_edges: int = len(self.edges)
 
     def extra_repr(self) -> str:
+        """Return an informative string representation of the NAS201SearchCell.
+
+        Returns:
+            str: A string containing information about the cell's number of nodes, input
+            and output dimensions.
+
+        Note:
+            This method constructs a human-readable string that includes details about
+            the cell's architecture.
+        """
         string = "info :: {max_nodes} nodes, inC={in_dim}, outC={out_dim}".format(
             **self.__dict__
         )
@@ -72,6 +114,24 @@ class NAS201SearchCell(nn.Module):
         weightss: list[torch.Tensor],
         beta_weightss: list[torch.Tensor] | None = None,
     ) -> torch.Tensor:
+        """Forward pass through the NAS201SearchCell.
+
+        Args:
+            inputs (torch.Tensor): Input tensor to the cell.
+            weightss (list[torch.Tensor]): List of weights tensors for the cell's edges.
+            (alphas)
+            beta_weightss (list[torch.Tensor] | None, optional): List of beta weights
+            tensors for the cell's edges. Defaults to None assuming we do not have
+            partial connection.
+
+        Returns:
+            torch.Tensor: The output tensor of the forward pass.
+
+        Note:
+            This method performs a forward pass through the NAS201SearchCell, applying
+            operations to input tensors based on the provided weights and beta weights
+            (if available) for each edge.
+        """
         nodes = [inputs]
         for i in range(1, self.max_nodes):
             inter_nodes = []
@@ -90,6 +150,33 @@ class NAS201SearchCell(nn.Module):
 
 
 class InferCell(nn.Module):
+    """Inference Cell Class.
+
+    Args:
+        genotype (Structure): Genotype structure describing the architecture.
+        C_in (int): Number of input channels.
+        C_out (int): Number of output channels.
+        stride (int): Stride for convolutional operations.
+        affine (bool, optional): Whether to use affine transformations in BatchNorm.
+        Defaults to True.
+        track_running_stats (bool, optional): Whether to track running statistics in
+        BatchNorm. Defaults to True.
+
+    Attributes:
+        layers (nn.ModuleList): List of layers in the cell.
+        node_IN (list[list[int]]): List of input nodes for each node in the cell.
+        node_IX (list[list[int]]): List of indices of layers connected to each node
+        in the cell.
+        genotype (Structure): Genotype structure describing the cell's architecture.
+        nodes (int): Number of nodes in the cell.
+        in_dim (int): Number of input channels.
+        out_dim (int): Number of output channels.
+
+    Note:
+        This class represents an inference cell with a specified architecture defined by
+         the genotype.
+    """
+
     def __init__(
         self,
         genotype: Structure,
@@ -126,6 +213,16 @@ class InferCell(nn.Module):
         self.out_dim = C_out
 
     def extra_repr(self) -> str:
+        """Return an informative string representation of the custom search model.
+
+        Returns:
+            str: A string containing information about the model's nodes, input and
+            output dimensions, and genotype.
+
+        Note:
+            This method constructs a human-readable string that includes details about
+            the model's nodes, input and output dimensions, and genotype.
+        """
         string = "info :: nodes={nodes}, inC={in_dim}, outC={out_dim}".format(
             **self.__dict__
         )
@@ -139,6 +236,19 @@ class InferCell(nn.Module):
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the InferCell of custom search model NB201SearchModel.
+
+        Args:
+            inputs (torch.Tensor): Input tensor to the model.
+
+        Returns:
+            torch.Tensor: The output tensor of the forward pass.
+
+        Note:
+            This method performs a forward pass through the custom search model. It
+            processes the input tensor through the model's nodes and layers and
+            returns the final output tensor.
+        """
         nodes = [inputs]
         for _i, (node_layers, node_innods) in enumerate(
             zip(self.node_IX, self.node_IN)

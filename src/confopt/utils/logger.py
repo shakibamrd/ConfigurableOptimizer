@@ -15,7 +15,10 @@ import wandb
 
 
 def prepare_logger(
-    save_dir: str, seed: int, exp_name: str, xargs: argparse.Namespace | None = None
+    save_dir: str,
+    seed: int,
+    exp_name: str,
+    xargs: argparse.Namespace | None = None,
 ) -> Logger:
     logger = Logger(save_dir, seed, exp_name=exp_name)
     logger.log(f"Main Function with logger : {logger}")
@@ -45,45 +48,85 @@ class Logger:
         self,
         log_dir: str,
         seed: str | int,
-        create_model_dir: bool = True,
+        # create_model_dir: bool = True,
         exp_name: str = "",
+        run_time: str | None = None,
+        last_run: bool = False,
     ) -> None:
         """Create a summary writer logging to log_dir."""
+        if last_run:
+            run_time = self.load_last_run(log_dir, exp_name)
+        elif run_time is None:
+            run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
+        else:
+            print("is format correct")
+
+        # self.save_last_run(run_time, log_dir, exp_name)
+
+        self.log_dir = Path(log_dir) / exp_name / run_time / str(seed)
         self.seed = int(seed)
-        self.log_dir = Path(log_dir) / exp_name
-        self.model_dir = Path(log_dir) / ("checkpoint/" + exp_name)
+
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        if create_model_dir:
-            self.model_dir.mkdir(parents=True, exist_ok=True)
 
         self.tensorboard_dir = self.log_dir / (
             "tensorboard-{:}".format(time.strftime("%d-%h", time.gmtime(time.time())))
         )
 
-        self.logger_path = self.log_dir / "seed-{:}-T-{:}.log".format(
-            self.seed, time.strftime("%d-%h-at-%H-%M-%S", time.gmtime(time.time()))
-        )
+        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
+
+        self.logger_path = self.log_dir / "log"
+
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
 
         self.writer = None
+
+    def set_up_new_run(self) -> None:
+        log_dir, exp_name, run_time, seed = self.log_dir.parts
+        run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
+        self.save_last_run(run_time=run_time, log_dir=log_dir, exp_name=exp_name)
+        self.log_dir = Path(log_dir) / exp_name / run_time / seed
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.tensorboard_dir = self.log_dir / (
+            "tensorboard-{:}".format(time.strftime("%d-%h", time.gmtime(time.time())))
+        )
+        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
+        self.logger_path = self.log_dir / "log"
+        self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
+
+    def load_last_run(self, log_dir: str, exp_name: str) -> str:
+        file_path = Path(log_dir) / exp_name / "last_run"
+        with open(file_path) as f:
+            run_time = f.read().strip()
+        return run_time
+
+    def save_last_run(self, run_time: str, log_dir: str, exp_name: str) -> str:
+        file_path = Path(log_dir) / exp_name / "last_run"
+        with open(file_path, "w") as f:
+            f.write(run_time)
+        return run_time
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(dir={self.log_dir}, writer={self.writer})"
 
     def path(self, mode: str | None) -> Path:
-        valids = ("model", "best", "info", "log", None)
+        valids = (
+            "best_model",  # checkpoint containing the best model
+            "checkpoints",  # checkpoint of all the checkpoints (periodic)
+            "log",  # path to the logger file
+            "last_checkpoint",  # return the last checkpoint in the checkpoints folder
+            None,
+        )
+        if mode not in valids:
+            raise TypeError(f"Unknow mode = {mode}, valid modes = {valids}")
+        if mode == "best_model":
+            return self.log_dir / (mode + ".pth")
+        if mode == "last_checkpoint":
+            last_checkpoint_path = self.log_dir / "checkpoints" / "last_checkpoint"
+            with open(last_checkpoint_path) as f:
+                return self.log_dir / "checkpoints" / f.read().strip()
         if mode is None:
             return self.log_dir
-        if mode == "model":  # typ
-            return self.model_dir / f"seed-{self.seed}-basic.pth"
-        if mode == "best":
-            return self.model_dir / f"seed-{self.seed}-best.pth"
-        if mode == "info":
-            return self.log_dir / f"seed-{self.seed}-last-info.pth"
-        if mode == "log":
-            return self.log_dir
-
-        raise TypeError(f"Unknow mode = {mode}, valid modes = {valids}")
+        return self.log_dir / mode
 
     def extract_log(self) -> IO[Any]:
         return self.logger_file

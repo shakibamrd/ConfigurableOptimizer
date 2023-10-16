@@ -108,7 +108,9 @@ class Trainer:
 
         if is_best is True:
             copy_checkpoint(
-                self.logger.path("model"), self.logger.path("best"), self.logger
+                self.logger.path("model"),
+                self.logger.path("best"),
+                self.logger,
             )
 
     def _init_empty_model_state_info(self) -> None:
@@ -194,7 +196,10 @@ class Trainer:
 
             search_time.update(time.time() - start_time)
             self.logger.log_metrics(
-                "Search: Model metrics", base_metrics, epoch_str, search_time.sum
+                "Search: Model metrics",
+                base_metrics,
+                epoch_str,
+                search_time.sum,
             )
             self.logger.log_metrics(
                 "Search: Architecture metrics", arch_metrics, epoch_str

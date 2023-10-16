@@ -37,6 +37,26 @@ class Cell(nn.Module):
         reduction: bool,
         reduction_prev: bool,
     ):
+        """Neural Cell for DARTS.
+
+        Represents a neural cell used in DARTS.
+
+        Args:
+            steps (int): Number of steps in the cell.
+            multiplier (int): Multiplier for channels in the cell.
+            C_prev_prev (int): Number of channels in the previous-previous cell.
+            C_prev (int): Number of channels in the previous cell.
+            C (int): Number of channels in the current cell.
+            reduction (bool): Whether the cell is a reduction cell.
+            reduction_prev (bool): Whether the previous cell is a reduction cell.
+
+        Attributes:
+            preprocess0(nn.Module): Preprocess for input from previous-previous cell.
+            preprocess1(nn.Module): Preprocess for input from previous cell.
+            _ops(nn.ModuleList): List of operations in the cell.
+            reduction(bool): Whether the cell is a reduction cell (True) or
+                             a normal cell (False).
+        """
         super().__init__()
         self.reduction = reduction
 
@@ -66,6 +86,17 @@ class Cell(nn.Module):
         weights: list[torch.Tensor],
         beta_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        """Forward pass of the cell.
+
+        Args:
+            s0 (torch.Tensor): First input tensor to the model.
+            s1 (torch.Tensor): Second input tensor to the model.
+            weights (list[torch.Tensor]): Alpha weights to the edges.
+            beta_weights (torch.Tensor): Beta weights for the edge.
+
+        Returns:
+            torch.Tensor: state ouptut from the cell
+        """
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
 
@@ -95,6 +126,35 @@ class Network(nn.Module):
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
     ) -> None:
+        """Implementation of DARTS search space's network model.
+
+        Args:
+            C (int): Number of channels. Defaults to 16.
+            num_classes (int): Number of output classes. Defaults to 10.
+            layers (int): Number of layers in the network. Defaults to 8.
+            criterion (nn.modules.loss._Loss): Loss function. Defaults to nn.CrossEntropyLoss.
+            steps (int): Number of steps in the search space cell. Defaults to 4.
+            multiplier (int): Multiplier for channels in the cells. Defaults to 4.
+            stem_multiplier (int): Stem multiplier for channels. Defaults to 3.
+            edge_normalization (bool): Whether to use edge normalization. Defaults to False.
+
+        Attributes:
+            stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
+            cells (nn.ModuleList): List of cells in the search space.
+            global_pooling (nn.AdaptiveAvgPool2d): Global pooling layer.
+            classifier (nn.Linear): Linear classifier layer.
+            alphas_normal (nn.Parameter): Parameter for normal cells' alpha values.
+            alphas_reduce (nn.Parameter): Parameter for reduction cells' alpha values.
+            arch_parameters (list[nn.Parameter]): List of parameter for architecture alpha values.
+            betas_normal (nn.Parameter): Parameter for normal cells' beta values.
+            betas_reduce (nn.Parameter): Parameter for normal cells' beta values.
+            beta_parameters (list[nn.Parameter]): List of parameter for architecture alpha values.
+            discretized (bool): Whether the network is dicretized or not
+
+        Note:
+            This is a custom neural network model with various hyperparameters and
+            architectural choices.
+        """  # noqa: E501
         super().__init__()
         self._C = C
         self._num_classes = num_classes
@@ -103,9 +163,11 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
         self.edge_normalization = edge_normalization
+        self.discretized = False
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
-            nn.Conv2d(3, C_curr, 3, padding=1, bias=False), nn.BatchNorm2d(C_curr)
+            nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
+            nn.BatchNorm2d(C_curr),
         )
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
@@ -136,6 +198,11 @@ class Network(nn.Module):
         self._initialize_parameters()
 
     def new(self) -> Network:
+        """Get a new object with same arch and beta parameters.
+
+        Return:
+            Network: A torch module with same arch and beta parameters as this model.
+        """
         model_new = Network(
             self._C, self._num_classes, self._layers, self._criterion
         ).to(DEVICE)
@@ -145,7 +212,17 @@ class Network(nn.Module):
             x.data.copy_(y.data)
         return model_new
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass of the network model.
+
+        Args:
+            x (torch.Tensor): Input x tensor to the model.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: A tuple containing two tensors:
+            - The output tensor after the forward pass.
+            - The logits tensor produced by the model.
+        """
         s0 = s1 = self.stem(x)
         for _i, cell in enumerate(self.cells):
             if self.edge_normalization:
@@ -174,19 +251,39 @@ class Network(nn.Module):
                 s0, s1 = s1, cell(s0, s1, weights, weights2)
             else:
                 if cell.reduction:
-                    weights = F.softmax(self.alphas_reduce, dim=-1)
+                    if self.discretized:
+                        weights = self.alphas_reduce
+                    else:
+                        weights = F.softmax(self.alphas_reduce, dim=-1)
+                elif self.discretized:
+                    weights = self.alphas_normal
                 else:
                     weights = F.softmax(self.alphas_normal, dim=-1)
                 s0, s1 = s1, cell(s0, s1, weights)
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
-        return torch.squeeze(out, dim=(-1, -2)), logits  # type: ignore
+        return torch.squeeze(out, dim=(-1, -2)), logits
 
     def _loss(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Compute the loss for the given input data and target.
+
+        Args:
+            x (torch.Tensor): Input data.
+            target (torch.Tensor): Target data.
+
+        Returns:
+            torch.Tensor: Computed loss value.
+
+        """
         logits = self(x)
         return self._criterion(logits, target)  # type: ignore
 
     def _initialize_parameters(self) -> None:
+        """Initialize architectural and beta parameters for the cell.
+
+        This function initializes the architectural and beta parameters required for
+        the neural cell.
+        """
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
         num_ops = len(PRIMITIVES)
 
@@ -205,12 +302,32 @@ class Network(nn.Module):
         ]
 
     def arch_parameters(self) -> list[torch.nn.Parameter]:
+        """Get a list containing the architecture parameters or alphas.
+
+        Returns:
+            list[torch.Tensor]: A list containing the architecture parameters, such as
+            alpha values.
+        """
         return self._arch_parameters  # type: ignore
 
     def beta_parameters(self) -> list[torch.nn.Parameter]:
+        """Get a list containing the beta parameters of partial connection used for
+        edge normalization.
+
+        Returns:
+            list[torch.Tensor]: A list containing the beta parameters for the model.
+        """
         return self._betas
 
     def genotype(self) -> Genotype:
+        """Get the genotype of the model, representing the architecture.
+
+        Returns:
+            Structure: An object representing the genotype of the model, which describes
+            the architectural choices in terms of operations and connections between
+            nodes.
+        """
+
         def _parse(weights: list[torch.Tensor]) -> list[tuple[str, int]]:
             gene = []
             n = 2
@@ -249,3 +366,30 @@ class Network(nn.Module):
             reduce_concat=concat,
         )
         return genotype
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        self.edge_normalization = False
+        self.discretized = True
+        top_k = int(op_sparsity * len(PRIMITIVES))
+        for p in self._arch_parameters:
+            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
+            thresholds = sorted_arch_params[:, :top_k]
+            mask = p.data >= thresholds
+
+            p.data *= mask.float()
+            p.data[~mask].requires_grad = False
+            if p.data[~mask].grad:
+                p.data[~mask].grad.zero_()

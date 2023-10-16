@@ -121,7 +121,9 @@ class Structure:
 
     def __repr__(self) -> str:
         return "{name}({node_num} nodes with {node_info})".format(
-            name=self.__class__.__name__, node_info=self.tostr(), **self.__dict__
+            name=self.__class__.__name__,
+            node_info=self.tostr(),
+            **self.__dict__,
         )
 
     def __len__(self) -> int:
@@ -134,17 +136,13 @@ class Structure:
     def str2structure(xstr: Structure | str) -> Structure:
         if isinstance(xstr, Structure):
             return xstr
-        assert isinstance(xstr, str), "must take string (not {:}) as input".format(
-            type(xstr)
-        )
+        assert isinstance(xstr, str), f"must take string (not {type(xstr)}) as input"
         nodestrs = xstr.split("+")
         genotypes = []
         for _i, node_str in enumerate(nodestrs):
             inputs = list(filter(lambda x: x != "", node_str.split("|")))
             for xinput in inputs:
-                assert len(xinput.split("~")) == 2, "invalid input length : {:}".format(
-                    xinput
-                )
+                assert len(xinput.split("~")) == 2, f"invalid input length : {xinput}"
             inputs: list[str] = (xi.split("~") for xi in inputs)  # type: ignore
             input_infos = tuple((op, int(IDX)) for (op, IDX) in inputs)  # type: ignore
             genotypes.append(input_infos)
@@ -152,17 +150,13 @@ class Structure:
 
     @staticmethod
     def str2fullstructure(xstr: str, default_name: str = "none") -> Structure:
-        assert isinstance(xstr, str), "must take string (not {:}) as input".format(
-            type(xstr)
-        )
+        assert isinstance(xstr, str), f"must take string (not {type(xstr)}) as input"
         nodestrs = xstr.split("+")
         genotypes = []
         for i, node_str in enumerate(nodestrs):
             inputs = list(filter(lambda x: x != "", node_str.split("|")))
             for xinput in inputs:
-                assert len(xinput.split("~")) == 2, "invalid input length : {:}".format(
-                    xinput
-                )
+                assert len(xinput.split("~")) == 2, f"invalid input length : {xinput}"
             inputs = (xi.split("~") for xi in inputs)  # type: ignore
             input_infos = [(op, int(IDX)) for (op, IDX) in inputs]  # type: ignore
             all_in_nodes = [x[1] for x in input_infos]

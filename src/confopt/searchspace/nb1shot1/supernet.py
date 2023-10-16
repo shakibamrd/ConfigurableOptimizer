@@ -68,7 +68,14 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             self.valid_min_error = 0.049278855323791504
 
         elif self.search_space_type == "S2":
-            self.num_parents_per_node = {"0": 0, "1": 1, "2": 1, "3": 2, "4": 2, "5": 3}
+            self.num_parents_per_node = {
+                "0": 0,
+                "1": 1,
+                "2": 1,
+                "3": 2,
+                "4": 2,
+                "5": 3,
+            }
             if sum(self.num_parents_per_node.values()) > 9:
                 raise ValueError("Each nasbench cell has at most 9 edges.")
 
@@ -128,7 +135,9 @@ class NASBench1Shot1SearchSpace(SearchSpace):
         """
         if self.search_space_type == "S1" or self.search_space_type == "S2":
             adjacency_matrix = self._create_adjacency_matrix(
-                parents, adjacency_matrix=np.zeros([6, 6]), node=OUTPUT_NODE - 1
+                parents,
+                adjacency_matrix=np.zeros([6, 6]),
+                node=OUTPUT_NODE - 1,
             )
             # Create nasbench compatible adjacency matrix
             return upscale_to_nasbench_format(adjacency_matrix)
@@ -154,7 +163,10 @@ class NASBench1Shot1SearchSpace(SearchSpace):
         else:
             adjacency_matrix_sample = self._sample_adjacency_matrix_without_loose_ends(
                 adjacency_matrix=np.zeros(
-                    [self.num_intermediate_nodes + 2, self.num_intermediate_nodes + 2]
+                    [
+                        self.num_intermediate_nodes + 2,
+                        self.num_intermediate_nodes + 2,
+                    ]
                 ),
                 node=self.num_intermediate_nodes + 1,
             )
@@ -173,7 +185,8 @@ class NASBench1Shot1SearchSpace(SearchSpace):
     def _sample_adjacency_matrix_with_loose_ends(self) -> np.ndarray:
         parents_per_node = [
             random.sample(
-                list(itertools.combinations(list(range(int(node))), num_parents)), 1
+                list(itertools.combinations(list(range(int(node))), num_parents)),
+                1,
             )
             for node, num_parents in self.num_parents_per_node.items()
         ][2:]
@@ -329,7 +342,9 @@ class NASBench1Shot1SearchSpace(SearchSpace):
                 adjacency_matrix[parent, node] = 1
                 if parent != 0:
                     adjacency_matrix = self._create_adjacency_matrix(
-                        parents=parents, adjacency_matrix=adjacency_matrix, node=parent
+                        parents=parents,
+                        adjacency_matrix=adjacency_matrix,
+                        node=parent,
                     )
             return adjacency_matrix
 
@@ -473,4 +488,18 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             architecture.update_data(arch, nasbench_data, budget)
             self.run_history.append(architecture)
 
-        return nasbench_data["validation_accuracy"], nasbench_data["training_time"]
+        return (
+            nasbench_data["validation_accuracy"],
+            nasbench_data["training_time"],
+        )
+
+    def discretize(self) -> None:
+        """Discretize the model's architecture parameters to enforce sparsity.
+
+        Note:
+            This method discretizes the model's architecture parameters to enforce
+            sparsity. It sets the sparsity level to 0.2 (20% of operations will be kept)
+            and calls the `_discretize` method to apply the discretization.
+        """
+        sparsity = 0.2
+        self.model._discretize(sparsity)

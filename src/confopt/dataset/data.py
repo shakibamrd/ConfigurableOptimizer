@@ -93,7 +93,10 @@ class AbstractData(ABC):
             valid_queue = None
 
         test_queue = torch.utils.data.DataLoader(
-            test_data, batch_size=batch_size, pin_memory=True, num_workers=n_workers
+            test_data,
+            batch_size=batch_size,
+            pin_memory=True,
+            num_workers=n_workers,
         )
 
         return train_queue, valid_queue, test_queue
@@ -141,7 +144,11 @@ class CIFARData(AbstractData):
             val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
                 indices[split:num_train]
             )
-            return (train_data, train_sampler), (train_data, val_sampler), test_data
+            return (
+                (train_data, train_sampler),
+                (train_data, val_sampler),
+                test_data,
+            )
 
         return (train_data, None), (None, None), test_data
 
@@ -185,7 +192,11 @@ class ImageNetData(AbstractData):
             val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
                 indices[split:num_train]
             )
-            return (train_data, train_sampler), (train_data, val_sampler), test_data
+            return (
+                (train_data, train_sampler),
+                (train_data, val_sampler),
+                test_data,
+            )
 
         return (train_data, None), (None, None), test_data
 

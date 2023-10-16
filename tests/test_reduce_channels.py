@@ -3,9 +3,13 @@ import unittest
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import reduce_bn_features, reduce_conv_channels
+from confopt.utils.reduce_channels import (
+    reduce_bn_features,
+    reduce_conv_channels,
+)
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 
 class TestReduceChannels(unittest.TestCase):
     def test_reduce_conv_channels(self) -> None:
@@ -21,7 +25,7 @@ class TestReduceChannels(unittest.TestCase):
         assert torch.all(
             torch.eq(
                 reduced_conv2d.weight[:6, :3, :, :],
-                original_conv2d.weight[:6, :3, :, :]
+                original_conv2d.weight[:6, :3, :, :],
             )
         )
         if original_conv2d.bias is not None:

@@ -54,6 +54,10 @@ def calc_accuracy(
     return res
 
 
+def get_device(model: torch.nn.Module) -> torch.device:
+    return next(model.parameters()).device
+
+
 __all__ = [
     "calc_accuracy",
     "save_checkpoint",
@@ -64,4 +68,5 @@ __all__ = [
     "prepare_logger",
     "Logger",
     "BaseProfile",
+    "get_device",
 ]

@@ -42,7 +42,10 @@ class ChoiceBlock(nn.Module):
         self.mixed_op = OperationChoices(ops)
 
     def forward(
-        self, inputs: list, input_weights: torch.Tensor, weights: list[torch.Tensor]
+        self,
+        inputs: list,
+        input_weights: torch.Tensor,
+        weights: list[torch.Tensor],
     ) -> torch.Tensor:
         if input_weights is not None:
             # Weigh the input to the choice block
@@ -59,7 +62,12 @@ class ChoiceBlock(nn.Module):
 
 class Cell(nn.Module):
     def __init__(
-        self, steps: int, C_prev: int, C: int, layer: int, search_space_info: dict
+        self,
+        steps: int,
+        C_prev: int,
+        C: int,
+        layer: int,
+        search_space_info: dict,
     ):
         super().__init__()
         # All cells are normal cells in NASBench case.
@@ -86,12 +94,20 @@ class Cell(nn.Module):
         # Add one more input preprocessing for edge from input to output of the cell
         self._input_projections.append(
             ConvBnRelu(
-                C_in=C_in, C_out=C * self._steps, kernel_size=1, stride=1, padding=0
+                C_in=C_in,
+                C_out=C * self._steps,
+                kernel_size=1,
+                stride=1,
+                padding=0,
             )
         )
 
     def forward(
-        self, s0: torch.Tensor, weights: list, output_weights: list, input_weights: list
+        self,
+        s0: torch.Tensor,
+        weights: list,
+        output_weights: list,
+        input_weights: list,
     ) -> torch.Tensor:
         # Adaption to NASBench
         # Only use a single input, from the previous cell
@@ -114,7 +130,10 @@ class Cell(nn.Module):
             # Apply 1x1 projection only to edges from input of the cell
             # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L289
             s = self._choice_blocks[choice_block_idx](
-                inputs=[self._input_projections[choice_block_idx](s0), *states],
+                inputs=[
+                    self._input_projections[choice_block_idx](s0),
+                    *states,
+                ],
                 input_weights=input_weight,
                 weights=weights[choice_block_idx],
             )
@@ -211,7 +230,7 @@ class Network(nn.Module):
             raise ValueError("architecture can't be discrete and normalized")
         # If using discrete architecture from random_ws search with weight sharing
         # then pass through architecture weights directly.
-        if discrete:
+        if discrete or (hasattr(self, "discretized") and self.discretized):
             return x
         elif normalize:  # noqa: RET505
             arch_sum = torch.sum(x, dim=-1)
@@ -274,13 +293,15 @@ class Network(nn.Module):
         # Initializes the weights for the mixed ops.
         num_ops = len(PRIMITIVES)
         self.alphas_mixed_op = nn.Parameter(
-            1e-3 * torch.randn(self._steps, num_ops).to(DEVICE), requires_grad=True
+            1e-3 * torch.randn(self._steps, num_ops).to(DEVICE),
+            requires_grad=True,
         )
 
         # For the alphas on the output node initialize a weighting vector for all choice
         # blocks and the input edge.
         self.alphas_output = nn.Parameter(
-            1e-3 * torch.randn(1, self._steps + 1).to(DEVICE), requires_grad=True
+            1e-3 * torch.randn(1, self._steps + 1).to(DEVICE),
+            requires_grad=True,
         )
 
         begin = 3 if self.search_space_info["search_space_type"] == "S1" else 2
@@ -299,3 +320,31 @@ class Network(nn.Module):
 
     def arch_parameters(self) -> list[nn.Parameter]:
         return self._arch_parameters
+
+    def _discretize(self, op_sparsity: float) -> None:
+        """Discretize architecture parameters to enforce sparsity.
+
+        Args:
+            op_sparsity (float): The desired sparsity level, represented as a
+            fraction of operations to keep.
+
+        Note:
+            This method enforces sparsity in the architecture parameters by zeroing out
+            a fraction of the smallest values, as specified by the `op_sparsity`
+            parameter.
+            It modifies the architecture parameters in-place to achieve the desired
+            sparsity.
+        """
+        # self.edge_normalization = False
+        self.discretized = True
+
+        for p in self._arch_parameters:
+            top_k = max(int(op_sparsity * p.data.shape[-1]), 1)
+            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
+            thresholds = sorted_arch_params[:, :top_k]
+            mask = p.data >= thresholds
+
+            p.data *= mask.float()
+            p.data[~mask].requires_grad = False
+            if p.data[~mask].grad:
+                p.data[~mask].grad.zero_()

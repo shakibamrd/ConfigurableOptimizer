@@ -14,7 +14,10 @@ from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell
-from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
+from confopt.searchspace.nb201.core.operations import (
+    ReLUConvBN,
+    ResNetBasicblock,
+)
 from confopt.searchspace.tnb101.core.model_search import TNB101SearchCell
 from utils import get_modules_of_type
 
@@ -83,6 +86,25 @@ class TestNASBench201SearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
+    def test_discretize(self) -> None:
+        search_space = NASBench201SearchSpace(edge_normalization=True)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        search_space.discretize()
+        arch_params = search_space.arch_parameters[0]
+        assert torch.count_nonzero(arch_params) == len(arch_params)
+        assert torch.equal(
+            torch.count_nonzero(arch_params, dim=-1),
+            torch.ones(len(arch_params)).to(DEVICE),
+        )
+        out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 64])
+        assert out[1].shape == torch.Size([2, 10])
+
 
 class TestDARTSSearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -141,6 +163,26 @@ class TestDARTSSearchSpace(unittest.TestCase):
         out, logits = search_space(x)
 
         assert logits.shape == torch.Size([2, num_classes])
+
+    def test_discretize(self) -> None:
+        search_space = DARTSSearchSpace(edge_normalization=True)
+        x = torch.randn(2, 3, 64, 64).to(DEVICE)
+        search_space.discretize()
+        arch_params = search_space.arch_parameters
+        for p in arch_params:
+            assert torch.count_nonzero(p) == len(p)
+            assert torch.equal(
+                torch.count_nonzero(p, dim=-1), torch.ones(len(p)).to(DEVICE)
+            )
+
+        out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 256])
+        assert out[1].shape == torch.Size([2, 10])
 
 
 class TestNASBench1Shot1SearchSpace(unittest.TestCase):
@@ -202,6 +244,20 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
         assert logits.shape == torch.Size([2, num_classes])
         assert out.shape == torch.Size([2, 64])
 
+    def test_discretize(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4, search_space_type="S2"
+        )  # edge_normalization=True
+        search_space.discretize()
+        arch_params = search_space.arch_parameters
+        for p in arch_params:
+            assert torch.count_nonzero(p) == len(p)
+            assert torch.equal(
+                torch.count_nonzero(p, dim=-1), torch.ones(len(p)).to(DEVICE)
+            )
+
+        self._test_forward_pass(search_space)
+
 
 class TestTransNASBench101SearchSpace(unittest.TestCase):
     def test_arch_parameters(self) -> None:
@@ -248,6 +304,26 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
+
+    def test_discretize(self) -> None:
+        search_space = TransNASBench101SearchSpace(edge_normalization=True)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        search_space.discretize()
+        arch_params = search_space.arch_parameters[0]
+        assert torch.count_nonzero(arch_params) == len(arch_params)
+        assert torch.equal(
+            torch.count_nonzero(arch_params, dim=-1),
+            torch.ones(len(arch_params)).to(DEVICE),
+        )
+        out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 10])
+        assert out[1].shape == torch.Size([2, 10])
+
 
 if __name__ == "__main__":
     unittest.main()
