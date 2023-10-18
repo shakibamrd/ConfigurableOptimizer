@@ -28,7 +28,7 @@ class OperationBlock(nn.Module):
         self,
         ops: list[nn.Module],
         is_reduction_cell: bool,
-        partial_connector: PartialConnector = None,
+        partial_connector: PartialConnector | None = None,
         device: torch.device = DEVICE,
     ) -> None:
         super().__init__()
@@ -41,7 +41,8 @@ class OperationBlock(nn.Module):
         self.is_reduction_cell = is_reduction_cell
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
-        self.partial_connector.is_reduction_cell = self.is_reduction_cell
+        if self.partial_connector is not None:
+            self.partial_connector.is_reduction_cell = self.is_reduction_cell
         if self.partial_connector:
             return self.partial_connector(x, alphas, self.ops)
         states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
