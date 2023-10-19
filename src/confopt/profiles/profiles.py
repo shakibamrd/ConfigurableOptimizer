@@ -54,7 +54,7 @@ class SNASProfile(ProfileConfig):
         return snas_config
 
 
-class DRNAS(ProfileConfig):
+class DRNASProfile(ProfileConfig):
     def __init__(
         self, is_partial_connection: bool = False, perturbation: str | None = None
     ) -> None:
