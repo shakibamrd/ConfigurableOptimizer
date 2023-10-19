@@ -7,7 +7,7 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 
 def reduce_conv_channels(
-    conv2d_layer: nn.Conv2d, k: int, device: torch.device = DEVICE
+    conv2d_layer: nn.Conv2d, k: float, device: torch.device = DEVICE
 ) -> nn.Conv2d:
     if not isinstance(conv2d_layer, nn.Conv2d):
         raise ValueError("Input must be a nn.Conv2d layer.")
@@ -17,8 +17,8 @@ def reduce_conv_channels(
     out_channels = conv2d_layer.out_channels
 
     # Calculate the new number of output channels
-    new_in_channels = max(1, in_channels // k)
-    new_out_channels = max(1, out_channels // k)
+    new_in_channels = int(max(1, in_channels // k))
+    new_out_channels = int(max(1, out_channels // k))
     new_groups = new_in_channels if conv2d_layer.groups != 1 else 1
     # Create a new conv2d layer with the reduced number of channels
     reduced_conv2d = nn.Conv2d(
@@ -45,7 +45,7 @@ def reduce_conv_channels(
 
 
 def reduce_bn_features(
-    batchnorm_layer: nn.BatchNorm2d, k: int, device: torch.device = DEVICE
+    batchnorm_layer: nn.BatchNorm2d, k: float, device: torch.device = DEVICE
 ) -> nn.BatchNorm2d:
     if not isinstance(batchnorm_layer, nn.BatchNorm2d):
         raise ValueError("Input must be a nn.BatchNorm2d layer.")
@@ -54,7 +54,7 @@ def reduce_bn_features(
     num_features = batchnorm_layer.num_features
 
     # Calculate the new number of features
-    new_num_features = max(1, num_features // k)
+    new_num_features = int(max(1, num_features // k))
 
     # Create a new BatchNorm2d layer with the reduced number of features
     reduced_batchnorm = nn.BatchNorm2d(
