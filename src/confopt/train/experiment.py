@@ -25,7 +25,10 @@ from confopt.oneshot.archsampler import (
     SNASSampler,
 )
 from confopt.oneshot.partial_connector import PartialConnector
-from confopt.profiles import DartsProfile, ProfileConfig
+from confopt.profiles import (
+    GDASProfile,
+    ProfileConfig,
+)
 from confopt.searchspace import (
     DARTSSearchSpace,
     NASBench1Shot1SearchSpace,
@@ -139,10 +142,15 @@ class Experiment:
 
         if load_saved_model or load_best_model or start_epoch > 0:
             self.logger = Logger(
-                log_dir="logs", seed=self.seed, exp_name="test", last_run=True
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.search_space_str.value,
+                last_run=True,
             )
         else:
-            self.logger = Logger(log_dir="logs", seed=self.seed, exp_name="test")
+            self.logger = Logger(
+                log_dir="logs", seed=self.seed, exp_name=self.search_space_str.value
+            )
 
         if config is None:
             assert (
@@ -454,6 +462,13 @@ if __name__ == "__main__":
     perturbator = Perturbator(args.perturbator)
     dataset = DatasetType(args.dataset)
 
+    profile = GDASProfile(
+        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
+    )
+
+    config = profile.get_config()
+    wandb.init(project="Configurable_Optimizers", config=config)  # type: ignore
+
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
@@ -462,10 +477,9 @@ if __name__ == "__main__":
         perturbator=perturbator,
         edge_normalization=True,
         is_partial_connection=True,
+        is_wandb_log=True,
     )
 
     # trainer = experiment.run()
-    profile = DartsProfile(
-        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
-    )
     experiment.run_with_profile(profile)
+    wandb.finish()  # type: ignore
