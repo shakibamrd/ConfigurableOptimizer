@@ -190,7 +190,7 @@ class ReLUConvBN(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the ReLUConvBN block.
 
         Args:
@@ -276,7 +276,7 @@ class SepConv(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the SepConv block.
 
         Args:
@@ -367,7 +367,7 @@ class DualSepConv(nn.Module):
         x = self.op_b(x)
         return x
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the DualSepConv block.
 
         Args:
@@ -482,7 +482,7 @@ class ResNetBasicblock(nn.Module):
         residual = self.downsample(inputs) if self.downsample is not None else inputs
         return residual + basicblock  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the ResNetBasicblock
         (no operation performed).
 
@@ -563,7 +563,7 @@ class Pooling(nn.Module):
         x = self.preprocess(inputs) if self.preprocess else inputs
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Pooling block's
         preprocessing (if used).
 
@@ -610,7 +610,7 @@ class Identity(nn.Module):
         """
         return x
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Identity block
         (no operation performed).
 
@@ -677,7 +677,7 @@ class Zero(nn.Module):
         zeros = x.new_zeros(shape, dtype=x.dtype, device=x.device)
         return zeros
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Zero block
         (no operation performed).
 
@@ -793,7 +793,7 @@ class FactorizedReduce(nn.Module):
         out = self.bn(out)
         return out
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Factorized Reduce
         block.
 

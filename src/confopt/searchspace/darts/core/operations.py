@@ -95,7 +95,7 @@ class ReLUConvBN(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the ReLUConvBN block.
 
         Args:
@@ -160,7 +160,7 @@ class Pooling(nn.Module):
         """
         return self.op(inputs)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Pooling block's batch
         norm features.
 
@@ -231,7 +231,7 @@ class DilConv(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the DilConv's ops.
 
         Args:
@@ -314,7 +314,7 @@ class SepConv(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the SepConv's ops.
 
         Args:
@@ -359,7 +359,7 @@ class Identity(nn.Module):
         """
         return x
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Identity block
         (no operation performed).
 
@@ -411,7 +411,7 @@ class Zero(nn.Module):
             return x.mul(0.0)
         return x[:, :, :: self.stride, :: self.stride].mul(0.0)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Zero block
         (no operation performed).
 
@@ -463,7 +463,7 @@ class FactorizedReduce(nn.Module):
         out = self.bn(out)
         return out
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Change the number of input and output channels in the Factorized Reduce
         block.
 
@@ -520,7 +520,7 @@ class Conv7x1Conv1x7BN(nn.Module):
         """
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         """Modify the channel sizes of the operation by reducing them to 'k' channels.
 
         Args:

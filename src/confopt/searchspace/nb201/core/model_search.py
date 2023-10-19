@@ -10,6 +10,8 @@ from copy import deepcopy
 import torch
 from torch import nn
 
+from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+
 from .cells import NAS201SearchCell as SearchCell
 from .genotypes import Structure
 from .operations import NAS_BENCH_201, ResNetBasicblock
@@ -268,12 +270,14 @@ class NB201SearchModel(nn.Module):
 
         return out, logits
 
-    def _discretize(self, op_sparsity: float) -> None:
+    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
             op_sparsity (float): The desired sparsity level, represented as a
             fraction of operations to keep.
+            wider (int): If provided, this parameter determines how much wider the
+            search space should be by multiplying the number of channels by this factor.
 
         Note:
             This method enforces sparsity in the architecture parameters by zeroing out
@@ -283,6 +287,9 @@ class NB201SearchModel(nn.Module):
             sparsity.
         """
         self.edge_normalization = False
+        for _name, module in self.named_modules():
+            if isinstance(module, (OperationBlock, OperationChoices)):
+                module.change_op_channel_size(wider)
         self.discretized = True
         sorted_arch_params, _ = torch.sort(self.arch_parameters, dim=1, descending=True)
         top_k = int(op_sparsity * len(self.op_names))

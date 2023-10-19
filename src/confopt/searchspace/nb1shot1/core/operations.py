@@ -90,7 +90,7 @@ class ConvBnRelu(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op[0] = reduce_conv_channels(self.op[0], k, device)
         self.op[1] = reduce_bn_features(self.op[1], k, device)
 
@@ -109,7 +109,7 @@ class Conv3x3BnRelu(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op.change_channel_size(k, device)
 
 
@@ -131,7 +131,7 @@ class Conv1x1BnRelu(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op.change_channel_size(k, device)
 
 
@@ -165,7 +165,7 @@ class ReLUConvBN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         # TODO: make this change dynamic
         self.op[1] = reduce_conv_channels(self.op[1], k, device)
         self.op[2] = reduce_bn_features(self.op[2], k, device)
@@ -191,7 +191,7 @@ class Pooling(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.op(inputs)  # type: ignore
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op[1] = reduce_bn_features(self.op[1], k, device)
 
 
@@ -226,7 +226,7 @@ class DilConv(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op[1] = reduce_conv_channels(self.op[1], k, device)
         self.op[2] = reduce_conv_channels(self.op[2], k, device)
         self.op[3] = reduce_bn_features(self.op[3], k, device)
@@ -273,7 +273,7 @@ class SepConv(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.op[1] = reduce_conv_channels(self.op[1], k, device)
         self.op[2] = reduce_conv_channels(self.op[2], k, device)
         self.op[3] = reduce_bn_features(self.op[3], k, device)
@@ -289,7 +289,7 @@ class Identity(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         pass
 
 
@@ -303,7 +303,7 @@ class Zero(nn.Module):
             return x.mul(0.0)
         return x[:, :, :: self.stride, :: self.stride].mul(0.0)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         pass
 
 
@@ -322,7 +322,7 @@ class FactorizedReduce(nn.Module):
         out = self.bn(out)
         return out
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         self.conv_1 = reduce_conv_channels(self.conv_1, k, device)
         self.conv_2 = reduce_conv_channels(self.conv_2, k, device)
         self.bn = reduce_bn_features(self.bn, k, device)
@@ -346,7 +346,7 @@ class Conv7x1Conv1x7BN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
-    def change_channel_size(self, k: int, device: torch.device = DEVICE) -> None:
+    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
         # TODO: make this change dynamic
         self.op[1] = reduce_conv_channels(self.op[1], k, device)
         self.op[2] = reduce_conv_channels(self.op[2], k, device)

@@ -4,7 +4,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
-from confopt.searchspace.common.mixop import OperationChoices
+from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 
 from .genotypes import PRIMITIVES
 from .operations import OPS, ConvBnRelu, ReLUConvBN
@@ -321,12 +321,14 @@ class Network(nn.Module):
     def arch_parameters(self) -> list[nn.Parameter]:
         return self._arch_parameters
 
-    def _discretize(self, op_sparsity: float) -> None:
+    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
             op_sparsity (float): The desired sparsity level, represented as a
             fraction of operations to keep.
+            wider (int): If provided, this parameter determines how much wider the
+            search space should be by multiplying the number of channels by this factor.
 
         Note:
             This method enforces sparsity in the architecture parameters by zeroing out
@@ -337,6 +339,9 @@ class Network(nn.Module):
         """
         # self.edge_normalization = False
         self.discretized = True
+        for _name, module in self.named_modules():
+            if isinstance(module, (OperationBlock, OperationChoices)):
+                module.change_op_channel_size(wider)
 
         for p in self._arch_parameters:
             top_k = max(int(op_sparsity * p.data.shape[-1]), 1)

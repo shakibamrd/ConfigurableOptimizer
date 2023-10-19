@@ -5,7 +5,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 
-from confopt.searchspace.common import OperationChoices
+from confopt.searchspace.common import OperationBlock, OperationChoices
 
 from . import operations as ops
 from .operations import OPS, TRANS_NAS_BENCH_101
@@ -176,12 +176,14 @@ class TNB101SearchModel(nn.Module):
     def _is_reduction_stage(self, stage: str) -> bool:
         return "r_stage" in stage
 
-    def _discretize(self, op_sparsity: float) -> None:
+    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
             op_sparsity (float): The desired sparsity level, represented as a
             fraction of operations to keep.
+            wider (int): If provided, this parameter determines how much wider the
+            search space should be by multiplying the number of channels by this factor.
 
         Note:
             This method enforces sparsity in the architecture parameters by zeroing out
@@ -191,6 +193,9 @@ class TNB101SearchModel(nn.Module):
             sparsity.
         """
         self.edge_normalization = False
+        for _name, module in self.named_modules():
+            if isinstance(module, (OperationBlock, OperationChoices)):
+                module.change_op_channel_size(wider)
         self.discretized = True
         sorted_arch_params, _ = torch.sort(
             self._arch_parameters, dim=1, descending=True

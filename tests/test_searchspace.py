@@ -90,7 +90,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
     def test_discretize(self) -> None:
         search_space = NASBench201SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize()
+        search_space.discretize(wider=2)
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
@@ -113,7 +113,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
         y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
         arch_optim = torch.optim.Adam(
             [*search_space.arch_parameters, *search_space.beta_parameters]
-        )  # noqa: E501
+        )
         arch_optim.zero_grad()
         out = search_space(x)
         loss = loss_fn(out[1], y)
@@ -214,7 +214,7 @@ class TestDARTSSearchSpace(unittest.TestCase):
         y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
         arch_optim = torch.optim.Adam(
             [*search_space.arch_parameters, *search_space.beta_parameters]
-        )  # noqa: E501
+        )
         arch_optim.zero_grad()
         out = search_space(x)
         loss = loss_fn(out[1], y)
@@ -397,7 +397,7 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
         arch_optim = torch.optim.Adam(
             [*search_space.arch_parameters, *search_space.beta_parameters]
-        )  # noqa: E501
+        )
         arch_optim.zero_grad()
         out = search_space(x)
         loss = loss_fn(out[1], y)
