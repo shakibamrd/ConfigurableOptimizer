@@ -90,7 +90,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
     def test_discretize(self) -> None:
         search_space = NASBench201SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize(wider=2)
+        search_space.discretize()
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
