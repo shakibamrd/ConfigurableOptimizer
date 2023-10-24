@@ -432,12 +432,14 @@ class ConfigurableTrainer:
         top5_meter.update(base_prec5.item(), inputs.size(0))
 
     def _component_new_step_or_epoch(
-        self, model: SearchSpace, sample_frequency: str
+        self, model: SearchSpace | torch.nn.DataParallel, sample_frequency: str
     ) -> None:
         assert sample_frequency in [
             "epoch",
             "step",
         ], "Sample Frequency should be either epoch or step"
+        if isinstance(model, torch.nn.DataParallel):
+            model = model.module
         assert (
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
