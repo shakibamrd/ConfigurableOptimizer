@@ -35,8 +35,10 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, Profile
+from confopt.train import ConfigurableTrainer
 from confopt.utils import Logger
+
+from .profile import Profile
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -46,28 +48,28 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 )
 
 
-class SearchSpace(Enum):
+class SearchSpaceEnum(Enum):
     DARTS = "darts"
     NB201 = "nb201"
     NB1SHOT1 = "nb1shot1"
     TNB101 = "tnb101"
 
 
-class Samplers(Enum):
+class SamplersEnum(Enum):
     DARTS = "darts"
     DRNAS = "drnas"
     GDAS = "gdas"
     SNAS = "snas"
 
 
-class Perturbator(Enum):
+class PerturbatorEnum(Enum):
     RANDOM = "random"
     ADVERSERIAL = "adverserial"
     NONE = "none"
 
 
 PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = Perturbator("none")
+PERTUBRATOR_NONE = PerturbatorEnum("none")
 
 
 class DatasetType(Enum):
@@ -96,11 +98,11 @@ class Optimizers(Enum):
 class Experiment:
     def __init__(
         self,
-        search_space: SearchSpace,
+        search_space: SearchSpaceEnum,
         dataset: DatasetType,
-        sampler: Samplers,
+        sampler: SamplersEnum,
         seed: int,
-        perturbator: Perturbator = PERTUBRATOR_NONE,
+        perturbator: PerturbatorEnum = PERTUBRATOR_NONE,
         edge_normalization: bool = False,
         is_partial_connection: bool = False,
         is_wandb_log: bool = False,
@@ -154,11 +156,11 @@ class Experiment:
 
         if config is None:
             assert (
-                self.search_space_str == SearchSpace.NB201
+                self.search_space_str == SearchSpaceEnum.NB201
             ), "Default config only works with nb201, Please initialize Experiment \
                     with SearchSpace of type NB201"
             assert (
-                self.sampler_str == Samplers.DARTS
+                self.sampler_str == SamplersEnum.DARTS
             ), "Default config only works with darts sampler, Please initialize \
                     Experiment with sampler of type darts"
             nb201_config = {
@@ -304,9 +306,9 @@ class Experiment:
 
     def _enum_to_objects(
         self,
-        search_space_enum: SearchSpace,
-        sampler_enum: Samplers,
-        perturbator_enum: Perturbator,
+        search_space_enum: SearchSpaceEnum,
+        sampler_enum: SamplersEnum,
+        perturbator_enum: PerturbatorEnum,
         config: dict | None = None,
     ) -> None:
         if config is None:
@@ -321,39 +323,39 @@ class Experiment:
 
     def set_search_space(
         self,
-        search_space: SearchSpace,
+        search_space: SearchSpaceEnum,
         config: dict,
     ) -> None:
-        if search_space == SearchSpace.NB201:
+        if search_space == SearchSpaceEnum.NB201:
             self.search_space = NASBench201SearchSpace(**config)
-        elif search_space == SearchSpace.DARTS:
+        elif search_space == SearchSpaceEnum.DARTS:
             self.search_space = DARTSSearchSpace(**config)
-        elif search_space == SearchSpace.NB1SHOT1:
+        elif search_space == SearchSpaceEnum.NB1SHOT1:
             self.search_space = NASBench1Shot1SearchSpace(**config)
-        elif search_space == SearchSpace.TNB101:
+        elif search_space == SearchSpaceEnum.TNB101:
             self.search_space = TransNASBench101SearchSpace(**config)
 
     def set_sampler(
         self,
-        sampler: Samplers,
+        sampler: SamplersEnum,
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
-        if sampler == Samplers.DARTS:
+        if sampler == SamplersEnum.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.DRNAS:
+        elif sampler == SamplersEnum.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.GDAS:
+        elif sampler == SamplersEnum.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.SNAS:
+        elif sampler == SamplersEnum.SNAS:
             self.sampler = SNASSampler(**config, arch_parameters=arch_params)
 
     def set_perturbator(
         self,
-        petubrator_enum: Perturbator,
+        petubrator_enum: PerturbatorEnum,
         pertub_config: dict,
     ) -> None:
-        if petubrator_enum != Perturbator.NONE:
+        if petubrator_enum != PerturbatorEnum.NONE:
             self.perturbator = SDARTSSampler(
                 **pertub_config,
                 search_space=self.search_space,
@@ -457,9 +459,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    searchspace = SearchSpace(args.searchspace)
-    sampler = Samplers(args.sampler)
-    perturbator = Perturbator(args.perturbator)
+    searchspace = SearchSpaceEnum(args.searchspace)
+    sampler = SamplersEnum(args.sampler)
+    perturbator = PerturbatorEnum(args.perturbator)
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
