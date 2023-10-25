@@ -12,7 +12,7 @@ from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
 from confopt.utils import AverageMeter, Logger, calc_accuracy
 
-from .profile import Profile
+from .searchprofile import Profile
 
 TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 

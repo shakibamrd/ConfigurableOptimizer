@@ -1,4 +1,4 @@
 from .configurable_trainer import ConfigurableTrainer
-from .profile import Profile
+from .searchprofile import Profile
 
 __all__ = ["ConfigurableTrainer", "Profile"]
