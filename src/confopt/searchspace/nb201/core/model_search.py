@@ -157,7 +157,7 @@ class NB201SearchModel(nn.Module):
         return [self.beta_parameters]
 
     def show_alphas(self) -> str:
-        """Get a human-readable string representation of the architecture parameters
+        """Gets a string representation of the architecture parameters
         (alphas).
 
         Returns:
@@ -170,7 +170,7 @@ class NB201SearchModel(nn.Module):
             )
 
     def show_betas(self) -> str:
-        """Get a human-readable string representation of the beta parameters.
+        """Gets a string representation of the beta parameters.
 
         Returns:
             str: A string representing the beta parameters after softmax operation.
@@ -181,7 +181,7 @@ class NB201SearchModel(nn.Module):
             )
 
     def get_message(self) -> str:
-        """Get a human-readable message describing the model and its cells.
+        """Gets a message describing the model and its cells.
 
         Returns:
             str: A string message containing information about the model and its cells.

@@ -93,7 +93,7 @@ class NAS201SearchCell(nn.Module):
         self.num_edges: int = len(self.edges)
 
     def extra_repr(self) -> str:
-        """Return an informative string representation of the NAS201SearchCell.
+        """Return a string representation of the NAS201SearchCell.
 
         Returns:
             str: A string containing information about the cell's number of nodes, input
@@ -130,7 +130,7 @@ class NAS201SearchCell(nn.Module):
         Note:
             This method performs a forward pass through the NAS201SearchCell, applying
             operations to input tensors based on the provided weights and beta weights
-            (if available) for each edge.
+            (if edge normalization is required) for each edge.
         """
         nodes = [inputs]
         for i in range(1, self.max_nodes):

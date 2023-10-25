@@ -32,7 +32,7 @@ class ConfigurableTrainer:
         scheduler: LRSchedulerType,
         criterion: CriterionType,
         logger: Logger,
-        batchsize: int,
+        batch_size: int,
         use_data_parallel: bool = False,
         print_freq: int = 20,
         drop_path_prob: float = 0.1,
@@ -55,7 +55,7 @@ class ConfigurableTrainer:
         self.criterion = criterion
         self.use_data_parallel = use_data_parallel
         self.print_freq = print_freq
-        self.batch_size = batchsize
+        self.batch_size = batch_size
         self.drop_path_prob = drop_path_prob
         self.load_saved_model = load_saved_model
         self.load_best_model = load_best_model
