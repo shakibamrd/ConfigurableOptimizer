@@ -185,8 +185,7 @@ class ReLUConvBN(nn.Module):
 
         Note:
             This method performs a forward pass through the ReLUConvBN block, applying
-            ReLU activation,
-            convolution, and BatchNorm operations to the input tensor.
+            ReLU activation, convolution, and BatchNorm operations to the input tensor.
         """
         return self.op(x)  # type: ignore
 
@@ -456,7 +455,7 @@ class ResNetBasicblock(nn.Module):
             dimensions, and stride.
 
         Note:
-            This method constructs a human-readable string representation of the block.
+            This method constructs a string representation of the block.
         """
         string = "{name}(inC={in_dim}, outC={out_dim}, stride={stride})".format(
             name=self.__class__.__name__, **self.__dict__
