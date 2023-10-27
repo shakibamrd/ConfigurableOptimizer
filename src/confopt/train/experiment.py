@@ -459,7 +459,7 @@ if __name__ == "__main__":
         type=int,
     )
     args = parser.parse_args()
-    IS_DEBUG_MODE = True
+    IS_DEBUG_MODE = False
     is_wandb_log = IS_DEBUG_MODE is False
 
     searchspace = SearchSpaceType(args.searchspace)
