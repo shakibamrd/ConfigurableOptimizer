@@ -459,6 +459,8 @@ if __name__ == "__main__":
         type=int,
     )
     args = parser.parse_args()
+    IS_DEBUG_MODE = True
+    is_wandb_log = IS_DEBUG_MODE is False
 
     searchspace = SearchSpace(args.searchspace)
     sampler = Samplers(args.sampler)
@@ -469,9 +471,6 @@ if __name__ == "__main__":
         is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
     )
 
-    config = profile.get_config()
-    wandb.init(project="Configurable_Optimizers", config=config)  # type: ignore
-
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
@@ -480,10 +479,12 @@ if __name__ == "__main__":
         perturbator=perturbator,
         edge_normalization=True,
         is_partial_connection=True,
-        is_wandb_log=True,
-        debug_mode=False,
+        is_wandb_log=is_wandb_log,
+        debug_mode=IS_DEBUG_MODE,
     )
 
     # trainer = experiment.run()
     experiment.run_with_profile(profile)
-    wandb.finish()  # type: ignore
+
+    if is_wandb_log:
+        wandb.finish()  # type: ignore
