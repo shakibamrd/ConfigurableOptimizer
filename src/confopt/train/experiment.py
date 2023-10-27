@@ -46,28 +46,28 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 )
 
 
-class SearchSpace(Enum):
+class SearchSpaceType(Enum):
     DARTS = "darts"
     NB201 = "nb201"
     NB1SHOT1 = "nb1shot1"
     TNB101 = "tnb101"
 
 
-class Samplers(Enum):
+class SamplerType(Enum):
     DARTS = "darts"
     DRNAS = "drnas"
     GDAS = "gdas"
     SNAS = "snas"
 
 
-class Perturbator(Enum):
+class PerturbatorType(Enum):
     RANDOM = "random"
     ADVERSERIAL = "adverserial"
     NONE = "none"
 
 
 PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = Perturbator("none")
+PERTUBRATOR_NONE = PerturbatorType("none")
 
 
 class DatasetType(Enum):
@@ -84,11 +84,11 @@ N_CLASSES = {
 }
 
 
-class Criterions(Enum):
+class CriterionType(Enum):
     CROSS_ENTROPY = "cross_entropy"
 
 
-class Optimizers(Enum):
+class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
 
@@ -96,11 +96,11 @@ class Optimizers(Enum):
 class Experiment:
     def __init__(
         self,
-        search_space: SearchSpace,
+        search_space: SearchSpaceType,
         dataset: DatasetType,
-        sampler: Samplers,
+        sampler: SamplerType,
         seed: int,
-        perturbator: Perturbator = PERTUBRATOR_NONE,
+        perturbator: PerturbatorType = PERTUBRATOR_NONE,
         edge_normalization: bool = False,
         is_partial_connection: bool = False,
         is_wandb_log: bool = False,
@@ -156,11 +156,11 @@ class Experiment:
 
         if config is None:
             assert (
-                self.search_space_str == SearchSpace.NB201
+                self.search_space_str == SearchSpaceType.NB201
             ), "Default config only works with nb201, Please initialize Experiment \
                     with SearchSpace of type NB201"
             assert (
-                self.sampler_str == Samplers.DARTS
+                self.sampler_str == SamplerType.DARTS
             ), "Default config only works with darts sampler, Please initialize \
                     Experiment with sampler of type darts"
             nb201_config = {
@@ -307,9 +307,9 @@ class Experiment:
 
     def _enum_to_objects(
         self,
-        search_space_enum: SearchSpace,
-        sampler_enum: Samplers,
-        perturbator_enum: Perturbator,
+        search_space_enum: SearchSpaceType,
+        sampler_enum: SamplerType,
+        perturbator_enum: PerturbatorType,
         config: dict | None = None,
     ) -> None:
         if config is None:
@@ -324,25 +324,25 @@ class Experiment:
 
     def set_search_space(
         self,
-        search_space: SearchSpace,
+        search_space: SearchSpaceType,
         config: dict,
     ) -> None:
-        if search_space == SearchSpace.NB201:
+        if search_space == SearchSpaceType.NB201:
             self.search_space = NASBench201SearchSpace(**config)
-        elif search_space == SearchSpace.DARTS:
+        elif search_space == SearchSpaceType.DARTS:
             self.search_space = DARTSSearchSpace(**config)
-        elif search_space == SearchSpace.NB1SHOT1:
+        elif search_space == SearchSpaceType.NB1SHOT1:
             self.search_space = NASBench1Shot1SearchSpace(**config)
-        elif search_space == SearchSpace.TNB101:
+        elif search_space == SearchSpaceType.TNB101:
             self.search_space = TransNASBench101SearchSpace(**config)
 
     def set_sampler(
         self,
-        sampler: Samplers,
+        sampler: SamplerType,
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
-        if sampler == Samplers.DARTS:
+        if sampler == SamplerType.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
         elif sampler == sampler.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
@@ -353,10 +353,10 @@ class Experiment:
 
     def set_perturbator(
         self,
-        petubrator_enum: Perturbator,
+        petubrator_enum: PerturbatorType,
         pertub_config: dict,
     ) -> None:
-        if petubrator_enum != Perturbator.NONE:
+        if petubrator_enum != PerturbatorType.NONE:
             self.perturbator = SDARTSSampler(
                 **pertub_config,
                 search_space=self.search_space,
@@ -394,16 +394,16 @@ class Experiment:
         return None
 
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
-        criterion = Criterions(criterion_str)
-        if criterion == Criterions.CROSS_ENTROPY:
+        criterion = CriterionType(criterion_str)
+        if criterion == CriterionType.CROSS_ENTROPY:
             return torch.nn.CrossEntropyLoss()
         return None
 
     def _get_optimizer(self, optim_str: str) -> Callable | None:
-        optim = Optimizers(optim_str)
-        if optim == Optimizers.ADAM:
+        optim = OptimizerType(optim_str)
+        if optim == OptimizerType.ADAM:
             return torch.optim.Adam
-        elif optim == Optimizers.SGD:  # noqa: RET505
+        elif optim == OptimizerType.SGD:  # noqa: RET505
             return torch.optim.SGD
         return None
 
@@ -462,9 +462,9 @@ if __name__ == "__main__":
     IS_DEBUG_MODE = True
     is_wandb_log = IS_DEBUG_MODE is False
 
-    searchspace = SearchSpace(args.searchspace)
-    sampler = Samplers(args.sampler)
-    perturbator = Perturbator(args.perturbator)
+    searchspace = SearchSpaceType(args.searchspace)
+    sampler = SamplerType(args.sampler)
+    perturbator = PerturbatorType(args.perturbator)
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
