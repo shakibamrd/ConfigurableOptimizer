@@ -21,6 +21,8 @@ OptimizerType: TypeAlias = torch.optim.Optimizer
 LRSchedulerType: TypeAlias = torch.optim.lr_scheduler.LRScheduler
 CriterionType: TypeAlias = torch.nn.modules.loss._Loss
 
+DEBUG_STEPS = 5
+
 
 class ConfigurableTrainer:
     def __init__(
@@ -41,6 +43,7 @@ class ConfigurableTrainer:
         start_epoch: int = 0,
         checkpointing_freq: int = 1,
         epochs: int = 100,
+        debug_mode: bool = False,
     ) -> None:
         self.model = model
         self.model_optimizer = model_optimizer
@@ -62,6 +65,7 @@ class ConfigurableTrainer:
         self.start_epoch = start_epoch
         self.checkpointing_freq = checkpointing_freq
         self.epochs = epochs
+        self.debug_mode = debug_mode
 
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
@@ -268,6 +272,9 @@ class ConfigurableTrainer:
                 # logger.log(Sstr + " " + Tstr + " " + Wstr + " " + Astr)
                 ...
 
+            if self.debug_mode and step > DEBUG_STEPS:
+                break
+
         base_metrics = TrainingMetrics(base_losses.avg, base_top1.avg, base_top5.avg)
         arch_metrics = TrainingMetrics(arch_losses.avg, arch_top1.avg, arch_top5.avg)
 
@@ -307,6 +314,9 @@ class ConfigurableTrainer:
                 arch_losses.update(arch_loss.item(), arch_inputs.size(0))
                 arch_top1.update(arch_prec1.item(), arch_inputs.size(0))
                 arch_top5.update(arch_prec5.item(), arch_inputs.size(0))
+
+                if self.debug_mode and _step > DEBUG_STEPS:
+                    break
 
         return TrainingMetrics(arch_losses.avg, arch_top1.avg, arch_top5.avg)
 

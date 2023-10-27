@@ -104,6 +104,7 @@ class Experiment:
         edge_normalization: bool = False,
         is_partial_connection: bool = False,
         is_wandb_log: bool = False,
+        debug_mode: bool = False,
     ) -> None:
         self.search_space_str = search_space
         self.sampler_str = sampler
@@ -113,6 +114,7 @@ class Experiment:
         self.dataset_str = dataset
         self.seed = seed
         self.is_wandb_log = is_wandb_log
+        self.debug_mode = debug_mode
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -292,6 +294,7 @@ class Experiment:
             start_epoch=start_epoch,
             checkpointing_freq=arg_config.checkpointing_freq,  # type: ignore
             epochs=arg_config.epochs,  # type: ignore
+            debug_mode=self.debug_mode,
         )
 
         trainer.train(
@@ -478,6 +481,7 @@ if __name__ == "__main__":
         edge_normalization=True,
         is_partial_connection=True,
         is_wandb_log=True,
+        debug_mode=False,
     )
 
     # trainer = experiment.run()
