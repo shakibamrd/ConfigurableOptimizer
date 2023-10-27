@@ -417,7 +417,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--sampler",
-        default="darts",
+        default="gdas",
         help="samplers in (darts, drnas, gdas, snas)",
         type=str,
     )
