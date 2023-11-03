@@ -452,11 +452,8 @@ class ConfigurableTrainer:
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
         for component in model.components:
-            assert (
-                component.sample_frequency == model.components[0].sample_frequency
-            ), "The argument sample_frequency of all one-shot component should be same"
-        if model.components[0].sample_frequency == sample_frequency:
-            if sample_frequency == "epoch":
-                model.new_epoch()
-            elif sample_frequency == "step":
-                model.new_step()
+            if component.sample_frequency == sample_frequency:
+                if sample_frequency == "epoch":
+                    model.new_epoch()
+                elif sample_frequency == "step":
+                    model.new_step()
