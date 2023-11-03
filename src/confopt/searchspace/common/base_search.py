@@ -37,7 +37,6 @@ class SearchSpace(nn.Module, ABC):
             if component.sample_frequency == "epoch":
                 component.new_epoch()
                 if isinstance(component, BaseSampler):
-                    component.set_arch_parameters_from_sample()
                     self.set_arch_parameters(component.arch_parameters)
 
     def new_step(self) -> None:
@@ -45,5 +44,4 @@ class SearchSpace(nn.Module, ABC):
             if component.sample_frequency == "step":
                 component.new_step()
                 if isinstance(component, BaseSampler):
-                    component.set_arch_parameters_from_sample()
                     self.set_arch_parameters(component.arch_parameters)
