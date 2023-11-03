@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn  # noqa: PLR0402
 
+from confopt.oneshot.archsampler import BaseSampler
 from confopt.oneshot.base_component import OneShotComponent
 
 
@@ -35,12 +36,14 @@ class SearchSpace(nn.Module, ABC):
         for component in self.components:
             if component.sample_frequency == "epoch":
                 component.new_epoch()
-                component.set_arch_parameters_from_sample()
-                self.set_arch_parameters(component.arch_parameters)
+                if isinstance(component, BaseSampler):
+                    component.set_arch_parameters_from_sample()
+                    self.set_arch_parameters(component.arch_parameters)
 
     def new_step(self) -> None:
         for component in self.components:
             if component.sample_frequency == "step":
                 component.new_step()
-                component.set_arch_parameters_from_sample()
-                self.set_arch_parameters(component.arch_parameters)
+                if isinstance(component, BaseSampler):
+                    component.set_arch_parameters_from_sample()
+                    self.set_arch_parameters(component.arch_parameters)
