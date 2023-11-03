@@ -94,7 +94,7 @@ class ConfigurableTrainer:
         for epoch in range(self.start_epoch, epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
 
-            self._component_new_step_or_epoch(network, sample_frequency="step")
+            self._component_new_step_or_epoch(network, sample_frequency="epoch")
 
             base_metrics, arch_metrics = self.train_func(
                 train_loader,
