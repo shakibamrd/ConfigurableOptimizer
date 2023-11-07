@@ -50,57 +50,85 @@ class Logger:
         seed: str | int,
         # create_model_dir: bool = True,
         exp_name: str = "",
+        search_space: str = "",
         run_time: str | None = None,
         last_run: bool = False,
+        is_discrete: bool = False,
     ) -> None:
+        self.is_discrete = is_discrete
         """Create a summary writer logging to log_dir."""
         if last_run:
-            run_time = self.load_last_run(log_dir, exp_name)
+            run_time = self.load_last_run(log_dir, exp_name, search_space, str(seed))
         elif run_time is None:
             run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
         else:
-            print("is format correct")
+            print("format not correct")
 
-        # self.save_last_run(run_time, log_dir, exp_name)
-
-        self.log_dir = Path(log_dir) / exp_name / run_time / str(seed)
+        self.log_dir = Path(log_dir) / exp_name / search_space / str(seed) / run_time
         self.seed = int(seed)
 
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        if is_discrete:
+            self.log_dir = self.log_dir / "discrete_net"
+        else:
+            self.log_dir = self.log_dir / "supernet"
 
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir = self.log_dir / (
             "tensorboard-{:}".format(time.strftime("%d-%h", time.gmtime(time.time())))
         )
 
-        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
-
         self.logger_path = self.log_dir / "log"
-
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
-
         self.writer = None
 
-    def set_up_new_run(self) -> None:
-        log_dir, exp_name, run_time, seed = self.log_dir.parts
+    def set_up_new_run(self, is_discrete: bool = False) -> None:
+        log_dir, exp_name, search_space, seed, run_time, net = self.log_dir.parts
+        self.is_discrete = is_discrete
         run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
-        self.save_last_run(run_time=run_time, log_dir=log_dir, exp_name=exp_name)
-        self.log_dir = Path(log_dir) / exp_name / run_time / seed
+        self.save_last_run(
+            run_time=run_time,
+            log_dir=log_dir,
+            exp_name=exp_name,
+            search_space=search_space,
+            seed=seed,
+        )
+        self.log_dir = Path(log_dir) / exp_name / search_space / seed / run_time
+        if is_discrete:
+            self.log_dir = self.log_dir / "discrete_net"
+        else:
+            self.log_dir = self.log_dir / "supernet"
+
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir = self.log_dir / (
             "tensorboard-{:}".format(time.strftime("%d-%h", time.gmtime(time.time())))
         )
-        (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
+
         self.logger_path = self.log_dir / "log"
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
+        self.writer = None
 
-    def load_last_run(self, log_dir: str, exp_name: str) -> str:
-        file_path = Path(log_dir) / exp_name / "last_run"
+    def load_last_run(
+        self, log_dir: str, exp_name: str, search_space: str, seed: str
+    ) -> str:
+        file_path = Path(log_dir) / exp_name / search_space / seed
+        if self.is_discrete:
+            file_path = file_path / "last_run_discrete_net"
+        else:
+            file_path = file_path / "last_run_supernet"
         with open(file_path) as f:
             run_time = f.read().strip()
         return run_time
 
-    def save_last_run(self, run_time: str, log_dir: str, exp_name: str) -> str:
-        file_path = Path(log_dir) / exp_name / "last_run"
+    def save_last_run(
+        self, run_time: str, log_dir: str, exp_name: str, search_space: str, seed: str
+    ) -> str:
+        file_path = Path(log_dir) / exp_name / search_space / seed
+        if self.is_discrete:
+            file_path = file_path / "last_run_discrete_net"
+        else:
+            file_path = file_path / "last_run_supernet"
         with open(file_path, "w") as f:
             f.write(run_time)
         return run_time
@@ -116,6 +144,7 @@ class Logger:
             "last_checkpoint",  # return the last checkpoint in the checkpoints folder
             None,
         )
+
         if mode not in valids:
             raise TypeError(f"Unknow mode = {mode}, valid modes = {valids}")
         if mode == "best_model":

@@ -122,16 +122,23 @@ class Experiment:
         cudnn.enabled = True
         torch.cuda.manual_seed(rand_seed)
 
-    def run_with_profile(self, profile: ProfileConfig) -> ConfigurableTrainer:
+    def run_with_profile(
+        self, profile: ProfileConfig, exp_name: str
+    ) -> ConfigurableTrainer:
         config = profile.get_config()
         self.run(
-            config=config, load_best_model=False, load_saved_model=False, start_epoch=0
+            config=config,
+            exp_name=exp_name,
+            start_epoch=0,
+            load_best_model=False,
+            load_saved_model=False,
         )
         pass
 
     def run(
         self,
         config: dict | None = None,
+        exp_name: str = "",
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -144,12 +151,16 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=self.search_space_str.value,
+                exp_name=exp_name,
+                search_space=self.search_space_str.value,
                 last_run=True,
             )
         else:
             self.logger = Logger(
-                log_dir="logs", seed=self.seed, exp_name=self.search_space_str.value
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=exp_name,
+                search_space=self.search_space_str.value,
             )
 
         if config is None:
@@ -436,6 +447,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
     parser.add_argument("--seed", default=444, type=int)
+    parser.add_argument("--exp_name", default="test", type=str)
     parser.add_argument(
         "--load_best_model",
         action="store_true",
@@ -481,5 +493,5 @@ if __name__ == "__main__":
     )
 
     # trainer = experiment.run()
-    experiment.run_with_profile(profile)
+    experiment.run_with_profile(profile, exp_name=args.exp_name)
     wandb.finish()  # type: ignore
