@@ -459,9 +459,7 @@ class ConfigurableTrainer:
         assert (
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
-        for component in model.components:
-            if component.sample_frequency == sample_frequency:
-                if sample_frequency == "epoch":
-                    model.new_epoch()
-                elif sample_frequency == "step":
-                    model.new_step()
+        if sample_frequency == "epoch":
+            model.new_epoch()
+        elif sample_frequency == "step":
+            model.new_step()
