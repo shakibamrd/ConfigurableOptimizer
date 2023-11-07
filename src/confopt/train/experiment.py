@@ -285,7 +285,7 @@ class Experiment:
             scheduler=w_scheduler,
             criterion=criterion,
             logger=self.logger,
-            batchsize=arg_config.batch_size,  # type: ignore
+            batch_size=arg_config.batch_size,  # type: ignore
             use_data_parallel=arg_config.use_data_parallel,  # type: ignore
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,

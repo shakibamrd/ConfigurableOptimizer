@@ -50,7 +50,6 @@ class ConfigurableTrainer:
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
-
         self.logger = logger
         self.criterion = criterion
         self.use_data_parallel = use_data_parallel
@@ -339,7 +338,7 @@ class ConfigurableTrainer:
         # todo: return scheduler and optimizers that do have state_dict()
         checkpointer = Checkpointer(
             model=self.model,
-            save_dir=checkpoint_dir,
+            save_dir=str(checkpoint_dir),
             save_to_disk=True,
             # checkpointables=checkpointables,
         )

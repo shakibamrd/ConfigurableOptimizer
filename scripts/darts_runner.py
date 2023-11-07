@@ -66,7 +66,7 @@ def run_experiment() -> None:
         arch_optimizer=arch_optimizer,
         scheduler=lr_scheduler,
         criterion=criterion,
-        batchsize=16,
+        batch_size=16,
         logger=logger,
     )
     trainer.train(profile, epochs=config["epochs"], is_wandb_log=True)
