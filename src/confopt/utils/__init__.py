@@ -8,6 +8,7 @@ from .checkpoints import (
     copy_checkpoint,
     save_checkpoint,
 )
+from .configspace import get_configspace, get_loss
 from .logger import Logger, prepare_logger
 from .time import get_time_as_string
 
@@ -69,4 +70,6 @@ __all__ = [
     "Logger",
     "BaseProfile",
     "get_device",
+    "get_configspace",
+    "get_loss",
 ]

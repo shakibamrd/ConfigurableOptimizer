@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import argparse
-
 import ConfigSpace
 from ConfigSpace import Configuration
 from ConfigSpace.hyperparameters import (
@@ -11,21 +9,6 @@ from ConfigSpace.hyperparameters import (
     UniformIntegerHyperparameter,
 )
 import torch
-import wandb
-
-from confopt.profiles import ProfileConfig
-from confopt.train import (
-    DatasetType,
-    Experiment,
-    PerturbatorEnum,
-    SamplersEnum,
-    SearchSpaceEnum,
-)
-
-DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,)).to(
-    DEVICE
-)
 
 
 def get_loss(loss_str: str) -> torch.nn.Module:
@@ -42,8 +25,8 @@ def get_configspace(seed: int) -> Configuration:
     sampler_type = CategoricalHyperparameter(
         "sampler", ["darts", "drnas", "gdas", "snas"], default_value="darts"
     )
-    sample_frequency = CategoricalHyperparameter(
-        "sample_frequency", ["epoch", "step"], default_value="epoch"
+    sampler_sample_frequency = CategoricalHyperparameter(
+        "sampler_sample_frequency", ["epoch", "step"], default_value="epoch"
     )
 
     # TODO Change this later
@@ -70,13 +53,16 @@ def get_configspace(seed: int) -> Configuration:
     adverserial_random_start = CategoricalHyperparameter(
         "random_start", [True, False], default_value=True
     )
+    perturbator_sample_frequency = CategoricalHyperparameter(
+        "perturbator_sample_frequency", ["epoch", "step"], default_value="epoch"
+    )
 
     # Partial_connector config
     is_partial_connector = CategoricalHyperparameter(
         "is_partial_connector", [True, False], default_value=False
     )
     edge_normalization = Constant("edge_normalization", 1)
-    partial_connector_k = UniformIntegerHyperparameter("k", 4, 16, default_value=8)
+    partial_connector_k = CategoricalHyperparameter("k", [2, 4, 8], default_value=4)
 
     # Training Configurations
     learning_rate = UniformFloatHyperparameter(
@@ -120,7 +106,7 @@ def get_configspace(seed: int) -> Configuration:
     cs.add_hyperparameters(
         [
             sampler_type,
-            sample_frequency,
+            sampler_sample_frequency,
             gdas_tau_min,
             gdas_tau_max,
             snas_temp_init,
@@ -128,6 +114,7 @@ def get_configspace(seed: int) -> Configuration:
             snas_temp_annealing,
             snas_total_epochs,
             perturb_type,
+            perturbator_sample_frequency,
             epsilon,
             adverserial_loss,
             adverserial_steps,
@@ -222,144 +209,3 @@ def get_configspace(seed: int) -> Configuration:
     )
 
     return cs
-
-
-def build_profile(cfg: Configuration) -> ProfileConfig:
-    class CustomProfile(ProfileConfig):
-        def __init__(self, config: Configuration) -> None:
-            self.config_dict = config
-            super().__init__(config_type=cfg["sampler"])
-            self.sampler_type = config["sampler"]
-            self.set_partial_connector(config["is_partial_connector"])
-            self.set_perturb(config["perturbator"])
-
-        def get_sampler_config(self) -> dict:
-            sampler_config = {}
-            sampler_config["sample_frequency"] = self.config_dict["sample_frequency"]
-            if self.sampler_type == "gdas":
-                sampler_config.update(
-                    {
-                        "tau_min": self.config_dict["tau_min"],
-                        "tau_max": self.config_dict["tau_max"],
-                    }
-                )
-            elif self.sampler_type == "snas":
-                sampler_config.update(
-                    {
-                        "temp_init": self.config_dict["temp_init"],
-                        "temp_min": self.config_dict["temp_min"],
-                        "temp_annealing": self.config_dict["temp_annealing"],
-                        "total_epochs": self.config_dict["total_epochs"],
-                    }
-                )
-            return sampler_config
-
-        def get_perturb_config(self) -> dict | None:
-            if self.perturb_type == "adverserial":
-                perturb_config = {
-                    "epsilon": self.config_dict["epsilon"],
-                    "data": ADVERSERIAL_DATA,
-                    "loss_criterion": torch.nn.CrossEntropyLoss(),
-                    "steps": self.config_dict["steps"],
-                    "random_start": self.config_dict["random_start"],
-                    "sample_frequency": self.config_dict["sample_frequency"],
-                }
-            elif self.perturb_type == "random":
-                perturb_config = {
-                    "epsilon": self.config_dict["epsilon"],
-                    "sample_frequency": self.config_dict["sample_frequency"],
-                }
-            else:
-                return None
-            return perturb_config
-
-        def get_partial_conenctor(self) -> dict | None:
-            partial_connector_config = {"k": self.config_dict.get("k", None)}
-            return partial_connector_config
-
-        def get_trainer_config(self) -> dict:
-            trainer_config = {
-                "epochs": 100,
-                "lr": self.config_dict["lr"],
-                "optim": self.config_dict["optim"],
-                "arch_optim": self.config_dict["arch_optim"],
-                "momentum": self.config_dict["momentum"],
-                "nesterov": self.config_dict["nesterov"],
-                "criterion": self.config_dict["criterion"],
-                "batch_size": self.config_dict["batch_size"],
-                "learning_rate_min": self.config_dict["learning_rate_min"],
-                "weight_decay": self.config_dict["weight_decay"],
-                "cutout": self.config_dict["cutout"],
-                "cutout_length": self.config_dict.get("cutout_length", None),
-                "train_portion": self.config_dict["train_portion"],
-                "use_data_parallel": self.config_dict["use_data_parallel"],
-                "checkpointing_freq": self.config_dict["checkpointing_freq"],
-            }
-            return trainer_config
-
-    return CustomProfile(cfg)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        "Fine tuning and training searched architectures", add_help=False
-    )
-    parser.add_argument(
-        "--searchspace",
-        default="nb201",
-        help="search space in (darts, nb201, nb1shot1, tnb101)",
-        type=str,
-    )
-    parser.add_argument("--dataset", default="cifar10", type=str)
-    parser.add_argument("--logdir", default="./logs", type=str)
-    parser.add_argument("--seed", default=444, type=int)
-    parser.add_argument(
-        "--load_best_model",
-        action="store_true",
-        default=False,
-        help="Load the best model found from the previous run",
-    )
-    parser.add_argument(
-        "--load_saved_model",
-        action="store_true",
-        default=False,
-        help="Load the last saved model in the last run of training them",
-    )
-    parser.add_argument(
-        "--start_epoch",
-        default=0,
-        help="Specify the start epoch to continue the training of the model from the \
-        previous run",
-        type=int,
-    )
-    args = parser.parse_args()
-
-    cs = get_configspace(seed=args.seed)
-    config = cs.sample_configuration()
-
-    custom_profile = build_profile(config)
-
-    searchspace = SearchSpaceEnum(args.searchspace)  # type: ignore
-    sampler = SamplersEnum(config["sampler"])
-    perturbator = PerturbatorEnum(config.get("perturbator", None))
-    dataset = DatasetType(args.dataset)  # type: ignore
-    edge_normalization = config["edge_normalization"]
-    is_partial_connection = config["is_partial_connector"]
-
-    wandb.init(  # type: ignore
-        project="Configurable_Optimizers",
-        config=custom_profile.get_config(),
-    )
-
-    experiment = Experiment(
-        search_space=searchspace,
-        dataset=dataset,
-        sampler=sampler,
-        seed=args.seed,  # type: ignore
-        perturbator=perturbator,
-        edge_normalization=edge_normalization,
-        is_partial_connection=is_partial_connection,
-        is_wandb_log=False,  # True
-    )
-
-    experiment.run_with_profile(custom_profile)
