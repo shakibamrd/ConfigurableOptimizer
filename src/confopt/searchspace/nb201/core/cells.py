@@ -8,7 +8,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 
-from confopt.searchspace.common import OperationChoices
+from confopt.searchspace.common import OperationBlock, OperationChoices
 
 from .genotypes import Structure
 from .operations import OPS
@@ -111,7 +111,7 @@ class NAS201SearchCell(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        weightss: list[torch.Tensor],
+        weightss: list[torch.Tensor] | None = None,
         beta_weightss: list[torch.Tensor] | None = None,
     ) -> torch.Tensor:
         """Forward pass through the NAS201SearchCell.
@@ -137,16 +137,32 @@ class NAS201SearchCell(nn.Module):
             inter_nodes = []
             for j in range(i):
                 node_str = f"{i}<-{j}"
-                weights = weightss[self.edge2index[node_str]]
-                if beta_weightss is not None:
-                    beta_weights = beta_weightss[self.edge2index[node_str]]
-                    inter_nodes.append(
-                        beta_weights * self.edges[node_str](nodes[j], weights)
-                    )
+                if weightss is not None:
+                    weights = weightss[self.edge2index[node_str]]
+                    if beta_weightss is not None:
+                        beta_weights = beta_weightss[self.edge2index[node_str]]
+                        inter_nodes.append(
+                            beta_weights * self.edges[node_str](nodes[j], weights)
+                        )
+                    else:
+                        inter_nodes.append(self.edges[node_str](nodes[j], weights))
+                elif not isinstance(
+                    self.edges[node_str], (OperationChoices, OperationBlock)
+                ):
+                    inter_nodes.append(self.edges[node_str](nodes[j]))
                 else:
-                    inter_nodes.append(self.edges[node_str](nodes[j], weights))
+                    ValueError("must have an operation defined in the search")
             nodes.append(sum(inter_nodes))
         return nodes[-1]
+
+    def _discretize(self, weightss: list[torch.Tensor]) -> None:
+        for i in range(1, self.max_nodes):
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                max_idx = torch.argmax(weightss[self.edge2index[node_str]], dim=-1)
+                self.edges[node_str] = (self.edges[node_str].ops)[  # type: ignore
+                    max_idx
+                ]
 
 
 class InferCell(nn.Module):
