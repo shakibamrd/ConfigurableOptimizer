@@ -35,7 +35,8 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, Profile
+from confopt.train.configurable_trainer import ConfigurableTrainer
+from confopt.train.searchprofile import Profile
 from confopt.utils import Logger
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
