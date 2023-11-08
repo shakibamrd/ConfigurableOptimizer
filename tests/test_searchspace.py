@@ -15,10 +15,7 @@ from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell
-from confopt.searchspace.nb201.core.operations import (
-    ReLUConvBN,
-    ResNetBasicblock,
-)
+from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
 from confopt.searchspace.tnb101.core.model_search import TNB101SearchCell
 from utils import get_modules_of_type
 
@@ -87,10 +84,33 @@ class TestNASBench201SearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
-    def test_discretize(self) -> None:
+    def test_discretize_supernet(self) -> None:
+        C = 32
+        N = 3
+        num_classes = 11
+        search_space = NASBench201SearchSpace(C=C, N=N, num_classes=num_classes)
+
+        search_cells = get_modules_of_type(search_space.model, NAS201SearchCell)
+        assert len(search_cells) == N * 3
+        # for cell in search_cells:
+        #     cell._discretize(search_space.arch_parameters[0])
+
+        resnet_cells = get_modules_of_type(search_space.model, ResNetBasicblock)
+        assert len(resnet_cells) == 2
+
+        search_cells[0].edges["1<-0"]
+        # assert type(first_cell_edge_ops) in OPS.values()
+        new_model = search_space._discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = new_model(x)
+
+        assert logits.shape == torch.Size([2, num_classes])
+
+    def test_prune(self) -> None:
         search_space = NASBench201SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize()
+        search_space.prune()
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
