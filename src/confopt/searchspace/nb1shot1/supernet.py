@@ -178,8 +178,9 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             adjacency_matrix_sample = upscale_to_nasbench_format(
                 adjacency_matrix_sample
             )
-        return adjacency_matrix_sample, random.choices(
-            PRIMITIVES, k=self.num_intermediate_nodes
+        return (
+            adjacency_matrix_sample,
+            random.choices(PRIMITIVES, k=self.num_intermediate_nodes),
         )
 
     def _sample_adjacency_matrix_with_loose_ends(self) -> np.ndarray:

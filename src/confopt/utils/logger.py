@@ -199,7 +199,7 @@ class Logger:
         self,
         title: str,
         metrics: NamedTuple,
-        epoch: int,
+        epoch: int | None = None,
         totaltime: float | None = None,
     ) -> None:
         log_metrics = {

@@ -69,3 +69,26 @@ class DRNASProfile(ProfileConfig):
             "sample_frequency": "epoch",
         }
         return drnas_config
+
+
+class DiscreteProfile:
+    def get_trainer_config(self) -> dict:
+        default_train_config = {
+            "lr": 0.025,
+            "epochs": 100,
+            "optim": "sgd",
+            "momentum": 0.9,
+            "nesterov": 0,
+            "criterion": "cross_entropy",
+            "batch_size": 96,
+            "learning_rate_min": 0.0,
+            "weight_decay": 3e-4,
+            "channel": 36,
+            "drop_path_prob": 0.2,
+            "cutout": -1,
+            "cutout_length": 16,
+            "train_portion": 0.7,
+            "use_data_parallel": 0,
+            "checkpointing_freq": 1,
+        }
+        return default_train_config

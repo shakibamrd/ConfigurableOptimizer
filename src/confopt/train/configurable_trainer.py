@@ -200,8 +200,9 @@ class ConfigurableTrainer:
 
             arch_inputs, arch_targets = next(iter(valid_loader))
 
-            base_inputs, arch_inputs = base_inputs.to(self.device), arch_inputs.to(
-                self.device
+            base_inputs, arch_inputs = (
+                base_inputs.to(self.device),
+                arch_inputs.to(self.device),
             )
             base_targets = base_targets.to(self.device, non_blocking=True)
             arch_targets = arch_targets.to(self.device, non_blocking=True)

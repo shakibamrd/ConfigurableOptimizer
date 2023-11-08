@@ -6,8 +6,9 @@ import torch
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 # TODO Change this to real data
-ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,)).to(
-    DEVICE
+ADVERSERIAL_DATA = (
+    torch.randn(2, 3, 32, 32).to(DEVICE),
+    torch.randint(0, 9, (2,)).to(DEVICE),
 )
 
 
