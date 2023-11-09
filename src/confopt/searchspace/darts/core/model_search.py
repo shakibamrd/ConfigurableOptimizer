@@ -5,6 +5,7 @@ from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils.normalize_params import normalize_params
 
 from .genotypes import PRIMITIVES, Genotype
 from .operations import OPS, FactorizedReduce, ReLUConvBN
@@ -216,6 +217,7 @@ class Network(nn.Module):
         self._multiplier = multiplier
         self.edge_normalization = edge_normalization
         self.discretized = discretized
+        self.mask: None | list[torch.Tensor] = None
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
@@ -280,14 +282,16 @@ class Network(nn.Module):
         if self.edge_normalization:
             return self.edge_normalization_forward(x)
 
-        # TODO: normalization of alphas
-
         s0 = s1 = self.stem(x)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
                 weights = F.softmax(self.alphas_reduce, dim=-1)
+                if self.mask is not None:
+                    weights = normalize_params(weights, self.mask[1])
             else:
                 weights = F.softmax(self.alphas_normal, dim=-1)
+                if self.mask is not None:
+                    weights = normalize_params(weights, self.mask[0])
             s0, s1 = s1, cell(s0, s1, weights)
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
@@ -313,6 +317,8 @@ class Network(nn.Module):
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
                 weights = F.softmax(self.alphas_reduce, dim=-1)
+                if self.mask is not None:
+                    weights = normalize_params(weights, self.mask[1])
                 n = 3
                 start = 2
                 weights2 = F.softmax(self.betas_reduce[0:2], dim=-1)
@@ -324,6 +330,8 @@ class Network(nn.Module):
                     weights2 = torch.cat([weights2, tw2], dim=0)
             else:
                 weights = F.softmax(self.alphas_normal, dim=-1)
+                if self.mask is not None:
+                    weights = normalize_params(weights, self.mask[0])
                 n = 3
                 start = 2
                 weights2 = F.softmax(self.betas_normal[0:2], dim=-1)
@@ -458,7 +466,9 @@ class Network(nn.Module):
             It modifies the architecture parameters in-place to achieve the desired
             sparsity.
         """
-        self.edge_normalization = False
+        # TODO: should be removed from prune function to a seperate function
+        # TODO: write wider function for ops
+        self.mask = []
         for _name, module in self.named_modules():
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
@@ -473,6 +483,8 @@ class Network(nn.Module):
             p.data[~mask].requires_grad = False
             if p.data[~mask].grad:
                 p.data[~mask].grad.zero_()
+
+            self.mask.append(mask)  # type: ignore
 
     def _discretize(self) -> Network:
         discrete_model = Network(
