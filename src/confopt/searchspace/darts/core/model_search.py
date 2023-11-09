@@ -18,6 +18,7 @@ class MixedOp(nn.Module):
         self._ops = nn.ModuleList()
         for primitive in PRIMITIVES:
             op = OPS[primitive](C, stride, False)
+            # TODO: is it okay to remove this?
             # if "pool" in primitive:
             #     op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
             self._ops.append(op)
@@ -83,7 +84,7 @@ class Cell(nn.Module):
         self,
         s0: torch.Tensor,
         s1: torch.Tensor,
-        weights: list[torch.Tensor],
+        weights: list[torch.Tensor] | None,
         beta_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the cell.
@@ -97,6 +98,11 @@ class Cell(nn.Module):
         Returns:
             torch.Tensor: state ouptut from the cell
         """
+        if weights is None:
+            return self.discrete_model_forward(s0, s1)
+        if beta_weights is not None:
+            return self.edge_normalization_forward(s0, s1, weights, beta_weights)
+
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
 
@@ -104,8 +110,46 @@ class Cell(nn.Module):
         offset = 0
         for _i in range(self._steps):
             s = sum(
-                (beta_weights[offset + j] if beta_weights is not None else 1)
-                * self._ops[offset + j](h, weights[offset + j])
+                self._ops[offset + j](h, weights[offset + j])
+                for j, h in enumerate(states)
+            )
+            offset += len(states)
+            states.append(s)
+
+        return torch.cat(states[-self._multiplier :], dim=1)
+
+    def discrete_model_forward(
+        self,
+        s0: torch.Tensor,
+        s1: torch.Tensor,
+    ) -> torch.Tensor:
+        s0 = self.preprocess0(s0)
+        s1 = self.preprocess1(s1)
+
+        states = [s0, s1]
+        offset = 0
+        for _i in range(self._steps):
+            s = sum(self._ops[offset + j](h) for j, h in enumerate(states))
+            offset += len(states)
+            states.append(s)
+
+        return torch.cat(states[-self._multiplier :], dim=1)
+
+    def edge_normalization_forward(
+        self,
+        s0: torch.Tensor,
+        s1: torch.Tensor,
+        weights: list[torch.Tensor],
+        beta_weights: list[torch.Tensor],
+    ) -> torch.Tensor:
+        s0 = self.preprocess0(s0)
+        s1 = self.preprocess1(s1)
+
+        states = [s0, s1]
+        offset = 0
+        for _i in range(self._steps):
+            s = sum(
+                beta_weights[offset + j] * self._ops[offset + j](h, weights[offset + j])
                 for j, h in enumerate(states)
             )
             offset += len(states)
@@ -125,6 +169,7 @@ class Network(nn.Module):
         multiplier: int = 4,
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
+        discretized: bool = False,
     ) -> None:
         """Implementation of DARTS search space's network model.
 
@@ -137,6 +182,8 @@ class Network(nn.Module):
             multiplier (int): Multiplier for channels in the cells. Defaults to 4.
             stem_multiplier (int): Stem multiplier for channels. Defaults to 3.
             edge_normalization (bool): Whether to use edge normalization. Defaults to False.
+            discretized (bool): Whether supernet is discretized to only have one operation on
+            each edge or not.
 
         Attributes:
             stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
@@ -163,7 +210,7 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
         self.edge_normalization = edge_normalization
-        self.discretized = False
+        self.discretized = discretized
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
@@ -223,43 +270,65 @@ class Network(nn.Module):
             - The output tensor after the forward pass.
             - The logits tensor produced by the model.
         """
+        if self.discretized:
+            return self.discrete_model_forward(x)
+        if self.edge_normalization:
+            return self.edge_normalization_forward(x)
+
+        # TODO: normalization of alphas
+
         s0 = s1 = self.stem(x)
         for _i, cell in enumerate(self.cells):
-            if self.edge_normalization:
-                if cell.reduction:
-                    weights = F.softmax(self.alphas_reduce, dim=-1)
-                    n = 3
-                    start = 2
-                    weights2 = F.softmax(self.betas_reduce[0:2], dim=-1)
-                    for _i in range(self._steps - 1):
-                        end = start + n
-                        tw2 = F.softmax(self.betas_reduce[start:end], dim=-1)
-                        start = end
-                        n += 1
-                        weights2 = torch.cat([weights2, tw2], dim=0)
-                else:
-                    weights = F.softmax(self.alphas_normal, dim=-1)
-                    n = 3
-                    start = 2
-                    weights2 = F.softmax(self.betas_normal[0:2], dim=-1)
-                    for _i in range(self._steps - 1):
-                        end = start + n
-                        tw2 = F.softmax(self.betas_normal[start:end], dim=-1)
-                        start = end
-                        n += 1
-                        weights2 = torch.cat([weights2, tw2], dim=0)
-                s0, s1 = s1, cell(s0, s1, weights, weights2)
+            if cell.reduction:
+                weights = F.softmax(self.alphas_reduce, dim=-1)
             else:
-                if cell.reduction:
-                    if self.discretized:
-                        weights = self.alphas_reduce
-                    else:
-                        weights = F.softmax(self.alphas_reduce, dim=-1)
-                elif self.discretized:
-                    weights = self.alphas_normal
-                else:
-                    weights = F.softmax(self.alphas_normal, dim=-1)
-                s0, s1 = s1, cell(s0, s1, weights)
+                weights = F.softmax(self.alphas_normal, dim=-1)
+            s0, s1 = s1, cell(s0, s1, weights)
+        out = self.global_pooling(s1)
+        logits = self.classifier(out.view(out.size(0), -1))
+        return torch.squeeze(out, dim=(-1, -2)), logits
+
+    def discrete_model_forward(
+        self, inputs: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        s0 = s1 = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            s0, s1 = s1, cell(s0, s1)
+        out = self.global_pooling(s1)
+        logits = self.classifier(out.view(out.size(0), -1))
+        return torch.squeeze(out, dim=(-1, -2)), logits
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        # TODO: normalization of alphas
+        s0 = s1 = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            if cell.reduction:
+                weights = F.softmax(self.alphas_reduce, dim=-1)
+                n = 3
+                start = 2
+                weights2 = F.softmax(self.betas_reduce[0:2], dim=-1)
+                for _i in range(self._steps - 1):
+                    end = start + n
+                    tw2 = F.softmax(self.betas_reduce[start:end], dim=-1)
+                    start = end
+                    n += 1
+                    weights2 = torch.cat([weights2, tw2], dim=0)
+            else:
+                weights = F.softmax(self.alphas_normal, dim=-1)
+                n = 3
+                start = 2
+                weights2 = F.softmax(self.betas_normal[0:2], dim=-1)
+                for _i in range(self._steps - 1):
+                    end = start + n
+                    tw2 = F.softmax(self.betas_normal[start:end], dim=-1)
+                    start = end
+                    n += 1
+                    weights2 = torch.cat([weights2, tw2], dim=0)
+            s0, s1 = s1, cell(s0, s1, weights, weights2)
+
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
         return torch.squeeze(out, dim=(-1, -2)), logits
@@ -367,7 +436,7 @@ class Network(nn.Module):
         )
         return genotype
 
-    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
+    def _prune(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
