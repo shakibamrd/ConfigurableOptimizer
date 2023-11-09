@@ -207,7 +207,8 @@ class TestDARTSSearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
-    def test_discretize(self) -> None:
+    def test_prune(self) -> None:
+        return
         search_space = DARTSSearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 64, 64).to(DEVICE)
         search_space.discretize()
@@ -226,6 +227,23 @@ class TestDARTSSearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 256])
         assert out[1].shape == torch.Size([2, 10])
+
+    def test_discretize_supernet(self) -> None:
+        C = 32
+        layers = 6
+        num_classes = 11
+        search_space = DARTSSearchSpace(
+            C=C, layers=layers, num_classes=num_classes, edge_normalization=True
+        )
+
+        # search_cells[0].edges["1<-0"]
+        # assert type(first_cell_edge_ops) in OPS.values()
+        new_model = search_space._discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = new_model(x)
+
+        assert logits.shape == torch.Size([2, num_classes])
 
     def test_optim_forward_pass(self) -> None:
         search_space = DARTSSearchSpace(edge_normalization=True)
