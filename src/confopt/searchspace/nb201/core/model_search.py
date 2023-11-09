@@ -11,6 +11,7 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils.normalize_params import normalize_params
 
 from .cells import NAS201SearchCell as SearchCell
 from .genotypes import Structure
@@ -246,33 +247,74 @@ class NB201SearchModel(nn.Module):
             - The output tensor after the forward pass.
             - The logits tensor produced by the model.
         """
-        if not self.discretized:
-            alphas = nn.functional.softmax(self.arch_parameters, dim=-1)  # type: ignore
+        if self.discretized:
+            return self.discrete_model_forward(inputs)
+        if self.edge_normalization:
+            return self.edge_normalization_forward(inputs)
+
+        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)  # type: ignore
+
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
+
+        feature = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            if isinstance(cell, SearchCell):
+                feature = cell(feature, alphas)
+            else:
+                feature = cell(feature)
+
+        out = self.lastact(feature)
+        out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
+        logits = self.classifier(out)
+
+        return out, logits
+
+    def discrete_model_forward(
+        self, inputs: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        feature = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            feature = cell(feature)
+
+        out = self.lastact(feature)
+        out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
+        logits = self.classifier(out)
+
+        return out, logits
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)  # type: ignore
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
+
         if self.mask is not None:
             output_pruned = torch.zeros_like(alphas)
             output_pruned[self.mask] = alphas[self.mask]
             output_pruned /= torch.sum(output_pruned, dim=-1, keepdim=True)
             assert (output_pruned[~self.mask] == 0.0).all()
-            # alphas = self.arch_parameters
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
-            if isinstance(cell, SearchCell) and not self.discretized:
-                if self.edge_normalization:
-                    betas = torch.empty((0,)).to(alphas.device)
-                    for v in range(1, self.max_nodes):
-                        idx_nodes = []
-                        for u in range(v):
-                            node_str = f"{v}<-{u}"
-                            idx_nodes.append(cell.edge2index[node_str])
-                        beta_node_v = nn.functional.softmax(
-                            self.beta_parameters[idx_nodes], dim=-1
-                        )
-                        betas = torch.cat([betas, beta_node_v], dim=0)
+            if isinstance(cell, SearchCell):
+                betas = torch.empty((0,)).to(alphas.device)
+                for v in range(1, self.max_nodes):
+                    idx_nodes = []
+                    for u in range(v):
+                        node_str = f"{v}<-{u}"
+                        idx_nodes.append(cell.edge2index[node_str])
+                    beta_node_v = nn.functional.softmax(
+                        self.beta_parameters[idx_nodes], dim=-1
+                    )
+                    betas = torch.cat([betas, beta_node_v], dim=0)
 
-                    feature = cell(feature, alphas, betas)
-                else:
-                    feature = cell(feature, alphas)
+                feature = cell(feature, alphas, betas)
+
             else:
                 feature = cell(feature)
 
