@@ -9,6 +9,7 @@ from .checkpoints import (
     save_checkpoint,
 )
 from .logger import Logger, prepare_logger
+from .normalize_params import normalize_params
 from .time import get_time_as_string
 
 
@@ -69,4 +70,5 @@ __all__ = [
     "Logger",
     "BaseProfile",
     "get_device",
+    "normalize_params",
 ]
