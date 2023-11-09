@@ -84,7 +84,7 @@ class Cell(nn.Module):
         self,
         s0: torch.Tensor,
         s1: torch.Tensor,
-        weights: list[torch.Tensor] | None,
+        weights: list[torch.Tensor] | None = None,
         beta_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the cell.
@@ -156,6 +156,11 @@ class Cell(nn.Module):
             states.append(s)
 
         return torch.cat(states[-self._multiplier :], dim=1)
+
+    def _discretize(self, weights: list[torch.Tensor]) -> None:
+        for i, edge in enumerate(self._ops):
+            max_idx = torch.argmax(weights[i], dim=-1)
+            self._ops[i] = edge.ops[max_idx]  # type: ignore
 
 
 class Network(nn.Module):
@@ -303,6 +308,7 @@ class Network(nn.Module):
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # TODO: normalization of alphas
+
         s0 = s1 = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
@@ -457,7 +463,6 @@ class Network(nn.Module):
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
 
-        self.discretized = True
         top_k = int(op_sparsity * len(PRIMITIVES))
         for p in self._arch_parameters:
             sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
@@ -468,3 +473,24 @@ class Network(nn.Module):
             p.data[~mask].requires_grad = False
             if p.data[~mask].grad:
                 p.data[~mask].grad.zero_()
+
+    def _discretize(self) -> Network:
+        discrete_model = Network(
+            C=self._C,
+            num_classes=self._num_classes,
+            layers=self._layers,
+            criterion=self._criterion,  # TODO: what is this
+            steps=self._steps,
+            multiplier=self._multiplier,
+            stem_multiplier=self.stem[-1].num_features,  # type: ignore
+            edge_normalization=False,
+            discretized=True,
+        ).to(next(self.parameters()).device)
+        for cell in discrete_model.cells:
+            if cell.reduction:
+                cell._discretize(self.alphas_reduce)  # type: ignore
+            else:
+                cell._discretize(self.alphas_normal)  # type: ignore
+        discrete_model._arch_parameters = None
+
+        return discrete_model
