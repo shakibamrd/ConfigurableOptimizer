@@ -265,7 +265,7 @@ class DiscreteTrainer:
             criterion = self.criterion
         network.eval()
 
-        _, _, test_loader = self.data.get_dataloaders(
+        *_, test_loader = self.data.get_dataloaders(
             batch_size=self.batch_size,
             n_workers=0,
         )
