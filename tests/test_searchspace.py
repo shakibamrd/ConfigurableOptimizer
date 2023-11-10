@@ -236,7 +236,7 @@ class TestDARTSSearchSpace(unittest.TestCase):
             C=C, layers=layers, num_classes=num_classes, edge_normalization=True
         )
 
-        new_model = search_space._discretize()
+        new_model = search_space.discretize()
 
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
         out, logits = new_model(x)
@@ -327,14 +327,23 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
     def test_discretize(self) -> None:
         search_space = NASBench1Shot1SearchSpace(
             num_intermediate_nodes=4, search_space_type="S2"
-        )  # edge_normalization=True
+        )
         search_space.discretize()
-        arch_params = search_space.arch_parameters
-        for p in arch_params:
-            assert torch.count_nonzero(p) == len(p)
-            assert torch.equal(
-                torch.count_nonzero(p, dim=-1), torch.ones(len(p)).to(DEVICE)
-            )
+
+        self._test_forward_pass(search_space)
+
+    def test_prune(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4, search_space_type="S2"
+        )
+        search_space.prune()
+        alphas_mixed_op = search_space.arch_parameters[0]
+
+        assert torch.count_nonzero(alphas_mixed_op) == len(alphas_mixed_op)
+        assert torch.equal(
+            torch.count_nonzero(alphas_mixed_op, dim=-1),
+            torch.ones(len(alphas_mixed_op)).to(DEVICE),
+        )
 
         self._test_forward_pass(search_space)
 
