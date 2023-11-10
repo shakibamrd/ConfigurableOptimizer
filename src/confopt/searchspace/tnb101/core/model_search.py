@@ -6,6 +6,7 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common import OperationBlock, OperationChoices
+from confopt.utils.normalize_params import normalize_params
 
 from . import operations as ops
 from .operations import OPS, TRANS_NAS_BENCH_101
@@ -50,6 +51,11 @@ class TNB101SearchModel(nn.Module):
         self.max_nodes = max_nodes
         self.n_modules = 5
         self.blocks_per_module = [2] * self.n_modules
+
+        # initialize other arguments for intializing a new model
+        self.affine = affine
+        self.track_running_stats = track_running_stats
+        self.dataset = dataset
 
         self.module_stages = [
             "r_stage_1",
@@ -98,6 +104,7 @@ class TNB101SearchModel(nn.Module):
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(self.num_classes, self.num_classes)
 
+        self.mask: None | torch.Tensor = None
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
         )
@@ -111,32 +118,68 @@ class TNB101SearchModel(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.discretized:
-            alphas = self._arch_parameters
-        else:
-            alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
+            return self.discrete_model_forward(inputs)
+
+        if self.edge_normalization:
+            return self.edge_normalization_forward(inputs)
+
+        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
+
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            betas = torch.empty((0,)).to(self._arch_parameters.device)
-            if self.edge_normalization:
-                for v in range(1, self.max_nodes):
-                    idx_nodes = []
-                    for u in range(v):
-                        node_str = f"{v}<-{u}"
-                        idx_nodes.append(cell.edge2index[node_str])
-                    beta_node_v = nn.functional.softmax(
-                        self._beta_parameters[idx_nodes], dim=-1
-                    )
-                    betas = torch.cat([betas, beta_node_v], dim=0)
-                feature = cell(feature, alphas, betas)
-            else:
-                feature = cell(feature, alphas)
+            feature = cell(feature, alphas)
 
         out = self.decoder(feature)
 
         # out = self.global_pooling(out)
         out = out.view(out.size(0), -1)
         # logits = self.classifier(out)
+
+        return out, out
+
+    def discrete_model_forward(
+        self, inputs: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        feature = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            feature = cell(feature)
+
+        out = self.decoder(feature)
+
+        # out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
+
+        return out, out
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)  # type: ignore
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
+
+        feature = self.stem(inputs)
+        for cell in self.cells:
+            betas = torch.empty((0,)).to(self._arch_parameters.device)
+            for v in range(1, self.max_nodes):
+                idx_nodes = []
+                for u in range(v):
+                    node_str = f"{v}<-{u}"
+                    idx_nodes.append(cell.edge2index[node_str])
+                beta_node_v = nn.functional.softmax(
+                    self._beta_parameters[idx_nodes], dim=-1
+                )
+                betas = torch.cat([betas, beta_node_v], dim=0)
+            feature = cell(feature, alphas, betas)
+
+        out = self.decoder(feature)
+
+        # out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
 
         return out, out
 
@@ -176,7 +219,7 @@ class TNB101SearchModel(nn.Module):
     def _is_reduction_stage(self, stage: str) -> bool:
         return "r_stage" in stage
 
-    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
+    def _prune(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
@@ -192,22 +235,47 @@ class TNB101SearchModel(nn.Module):
             It modifies the architecture parameters in-place to achieve the desired
             sparsity.
         """
-        self.edge_normalization = False
+        if self._arch_parameters is None:
+            ValueError("cannot prune discretized search space")
+
+        # TODO: we could have partial connections and prune
+        # self.edge_normalization = False
+
         for _name, module in self.named_modules():
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
-        self.discretized = True
+
         sorted_arch_params, _ = torch.sort(
             self._arch_parameters, dim=1, descending=True
         )
         top_k = int(op_sparsity * len(self.op_names))
         thresholds = sorted_arch_params[:, :top_k]
-        mask = self._arch_parameters >= thresholds
+        self.mask = self._arch_parameters >= thresholds
 
-        self._arch_parameters.data *= mask.float()
-        self._arch_parameters.data[~mask].requires_grad = False
-        if self._arch_parameters.data[~mask].grad:
-            self._arch_parameters.data[~mask].grad.zero_()
+        self._arch_parameters.data *= self.mask.float()  # type: ignore
+        self._arch_parameters.data[~self.mask].requires_grad = False  # type: ignore
+        if self._arch_parameters.data[~self.mask].grad:  # type: ignore
+            self._arch_parameters.data[~self.mask].grad.zero_()  # type: ignore
+
+    def _discretize(self) -> TNB101SearchModel:
+        dicrete_model = TNB101SearchModel(
+            C=self.C,
+            stride=self.stride,
+            max_nodes=self.max_nodes,
+            num_classes=self.num_classes,
+            op_names=self.op_names,
+            affine=self.affine,
+            track_running_stats=self.track_running_stats,
+            dataset=self.dataset,
+            edge_normalization=False,
+            discretized=True,  # TODO: do we need this?
+        ).to(next(self.parameters()).device)
+
+        for cell in dicrete_model.cells:
+            cell._discretize(self._arch_parameters)
+        dicrete_model._arch_parameters = None
+
+        return dicrete_model
 
 
 class TNB101SearchCell(nn.Module):
@@ -276,8 +344,39 @@ class TNB101SearchCell(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        alphas: torch.Tensor,
+        alphas: torch.Tensor | None = None,
         betas: list[torch.Tensor] | None = None,
+    ) -> torch.Tensor:
+        if alphas is None:
+            return self.discrete_model_forward(inputs)
+        if betas is not None:
+            return self.edge_normalization_forward(inputs, alphas, betas)
+
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                weights = alphas[self.edge2index[node_str]]
+                inter_nodes.append(self.edges[node_str](nodes[j], weights))
+            nodes.append(sum(inter_nodes))
+        return nodes[-1]
+
+    def discrete_model_forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                inter_nodes.append(self.edges[node_str](nodes[j]))
+            nodes.append(sum(inter_nodes))  # type: ignore
+        return nodes[-1]
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+        alphas: list[torch.Tensor],
+        betas: list[torch.Tensor],
     ) -> torch.Tensor:
         nodes = [inputs]
         for i in range(1, self.max_nodes):
@@ -285,12 +384,18 @@ class TNB101SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 weights = alphas[self.edge2index[node_str]]
-                if betas is not None:
-                    beta_weights = betas[self.edge2index[node_str]]
-                    inter_nodes.append(
-                        beta_weights * self.edges[node_str](nodes[j], weights)
-                    )
-                else:
-                    inter_nodes.append(self.edges[node_str](nodes[j], weights))
+                beta_weights = betas[self.edge2index[node_str]]
+                inter_nodes.append(
+                    beta_weights * self.edges[node_str](nodes[j], weights)
+                )
             nodes.append(sum(inter_nodes))
         return nodes[-1]
+
+    def _discretize(self, alphas: list[torch.Tensor]) -> None:
+        for i in range(1, self.max_nodes):
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                max_idx = torch.argmax(alphas[self.edge2index[node_str]], dim=-1)
+                self.edges[node_str] = (self.edges[node_str].ops)[  # type: ignore
+                    max_idx
+                ]
