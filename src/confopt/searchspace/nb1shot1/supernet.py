@@ -494,7 +494,7 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             nasbench_data["training_time"],
         )
 
-    def discretize(self, wider: int | None = None) -> None:
+    def prune(self, wider: int | None = None) -> None:
         """Discretize the model's architecture parameters to enforce sparsity.
 
         Note:
@@ -503,4 +503,7 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             and calls the `_discretize` method to apply the discretization.
         """
         sparsity = 0.2
-        self.model._discretize(sparsity, wider)
+        self.model._prune(sparsity, wider)  # type: ignore
+
+    def discretize(self) -> nn.Module:
+        return self.model._discretize()  # type: ignore
