@@ -293,12 +293,6 @@ class NB201SearchModel(nn.Module):
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
-        if self.mask is not None:
-            output_pruned = torch.zeros_like(alphas)
-            output_pruned[self.mask] = alphas[self.mask]
-            output_pruned /= torch.sum(output_pruned, dim=-1, keepdim=True)
-            assert (output_pruned[~self.mask] == 0.0).all()
-
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
@@ -374,6 +368,7 @@ class NB201SearchModel(nn.Module):
             edge_normalization=False,
             discretized=True,  # TODO: do we need this?
         ).to(next(self.parameters()).device)
+
         for cell in discrete_model.cells:
             if isinstance(cell, SearchCell):
                 cell._discretize(self.arch_parameters)  # type: ignore
