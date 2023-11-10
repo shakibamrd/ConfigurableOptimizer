@@ -34,14 +34,18 @@ class SearchSpace(nn.Module, ABC):
 
     def new_epoch(self) -> None:
         for component in self.components:
-            if component.sample_frequency == "epoch":
-                component.new_epoch()
-                if isinstance(component, BaseSampler):
-                    self.set_arch_parameters(component.arch_parameters)
+            component.new_epoch()
+            if (
+                isinstance(component, BaseSampler)
+                and component.sample_frequency == "epoch"
+            ):
+                self.set_arch_parameters(component.arch_parameters)
 
     def new_step(self) -> None:
         for component in self.components:
-            if component.sample_frequency == "step":
-                component.new_step()
-                if isinstance(component, BaseSampler):
-                    self.set_arch_parameters(component.arch_parameters)
+            component.new_step()
+            if (
+                isinstance(component, BaseSampler)
+                and component.sample_frequency == "step"
+            ):
+                self.set_arch_parameters(component.arch_parameters)
