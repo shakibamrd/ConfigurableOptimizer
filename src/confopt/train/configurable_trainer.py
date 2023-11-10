@@ -70,7 +70,7 @@ class ConfigurableTrainer:
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
         profile.adapt_search_space(self.model)
-        if self.use_data_parallel is True:
+        if self.use_data_parallel:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
             )
@@ -94,7 +94,7 @@ class ConfigurableTrainer:
         for epoch in range(self.start_epoch, epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
 
-            self._component_new_step_or_epoch(network, sample_frequency="step")
+            self._component_new_step_or_epoch(network, sample_frequency="epoch")
 
             base_metrics, arch_metrics = self.train_func(
                 train_loader,
@@ -174,7 +174,7 @@ class ConfigurableTrainer:
         self,
         train_loader: DataLoaderType,
         valid_loader: DataLoaderType,
-        network: SearchSpace,
+        network: SearchSpace | torch.nn.DataParallel,
         criterion: CriterionType,
         w_scheduler: LRSchedulerType,  # noqa: ARG002  TODO:Fix
         w_optimizer: OptimizerType,
@@ -237,7 +237,13 @@ class ConfigurableTrainer:
             base_loss = criterion(logits, base_targets)
             base_loss.backward()
             # TODO: Does this vary with the one-shot optimizers?
-            torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
+            if isinstance(network, torch.nn.DataParallel):
+                torch.nn.utils.clip_grad_norm_(
+                    network.module.model_weight_parameters(), 5
+                )
+            else:
+                torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
+
             w_optimizer.step()
 
             w_optimizer.zero_grad()
@@ -283,7 +289,7 @@ class ConfigurableTrainer:
     def valid_func(
         self,
         valid_loader: DataLoaderType,
-        network: SearchSpace,
+        network: SearchSpace | torch.nn.DataParallel,
         criterion: CriterionType,
     ) -> TrainingMetrics:
         arch_losses, arch_top1, arch_top5 = (
@@ -442,21 +448,18 @@ class ConfigurableTrainer:
         top5_meter.update(base_prec5.item(), inputs.size(0))
 
     def _component_new_step_or_epoch(
-        self, model: SearchSpace, sample_frequency: str
+        self, model: SearchSpace | torch.nn.DataParallel, sample_frequency: str
     ) -> None:
         assert sample_frequency in [
             "epoch",
             "step",
         ], "Sample Frequency should be either epoch or step"
+        if isinstance(model, torch.nn.DataParallel):
+            model = model.module
         assert (
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
-        for component in model.components:
-            assert (
-                component.sample_frequency == model.components[0].sample_frequency
-            ), "The argument sample_frequency of all one-shot component should be same"
-        if model.components[0].sample_frequency == sample_frequency:
-            if sample_frequency == "epoch":
-                model.new_epoch()
-            elif sample_frequency == "step":
-                model.new_step()
+        if sample_frequency == "epoch":
+            model.new_epoch()
+        elif sample_frequency == "step":
+            model.new_step()
