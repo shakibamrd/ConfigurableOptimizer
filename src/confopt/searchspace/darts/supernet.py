@@ -98,5 +98,5 @@ class DARTSSearchSpace(SearchSpace):
         sparsity = 0.125
         self.model._prune(sparsity, wider)  # type: ignore
 
-    def _discretize(self) -> nn.Module:
+    def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore
