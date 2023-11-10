@@ -484,7 +484,7 @@ class Network(nn.Module):
             if p.data[~mask].grad:
                 p.data[~mask].grad.zero_()
 
-            self.mask.append(mask)  # type: ignore
+            self.mask.append(mask)
 
     def _discretize(self) -> Network:
         discrete_model = Network(
