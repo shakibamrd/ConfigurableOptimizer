@@ -92,6 +92,7 @@ class CriterionType(Enum):
 class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
+    ASGD = "asgd"
 
 
 class Experiment:
@@ -102,12 +103,14 @@ class Experiment:
         seed: int,
         is_wandb_log: bool = False,
         debug_mode: bool = False,
+        exp_name: str = "test",
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
         self.seed = seed
         self.is_wandb_log = is_wandb_log
         self.debug_mode = debug_mode
+        self.exp_name = exp_name
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -152,13 +155,11 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=self.search_space_str.value,
+                exp_name=self.exp_name,
                 last_run=True,
             )
         else:
-            self.logger = Logger(
-                log_dir="logs", seed=self.seed, exp_name=self.search_space_str.value
-            )
+            self.logger = Logger(log_dir="logs", seed=self.seed, exp_name=self.exp_name)
 
         self._enum_to_objects(
             self.search_space_str,
@@ -194,9 +195,7 @@ class Experiment:
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
             model.parameters(),
             arg_config.lr,  # type: ignore
-            momentum=arg_config.momentum,  # type: ignore
-            weight_decay=arg_config.weight_decay,  # type: ignore
-            nesterov=arg_config.nesterov,  # type: ignore
+            **config["trainer"].get("optim_config", {}),  # type: ignore
         )
 
         w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -207,11 +206,13 @@ class Experiment:
 
         if self.edge_normalization and hasattr(model, "beta_parameters"):
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
-                [*model.arch_parameters, *model.beta_parameters]
+                [*model.arch_parameters, *model.beta_parameters],
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
         else:
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
                 model.arch_parameters,
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
 
         trainer = ConfigurableTrainer(
@@ -340,6 +341,8 @@ class Experiment:
             return torch.optim.Adam
         elif optim == OptimizerType.SGD:  # noqa: RET505
             return torch.optim.SGD
+        if optim == OptimizerType.ASGD:
+            return torch.optim.ASGD
         return None
 
 
