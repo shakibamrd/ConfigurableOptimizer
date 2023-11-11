@@ -4,13 +4,18 @@ from typing import Iterable
 
 import torch
 
+from confopt.utils.configspace import (
+    get_configspace,
+    get_loss,
+    get_orthogonal_module_configspace,
+)
+from confopt.utils.logger import Logger, prepare_logger
+from confopt.utils.time import get_time_as_string
+
 from .checkpoints import (
     copy_checkpoint,
     save_checkpoint,
 )
-from .configspace import get_configspace, get_loss
-from .logger import Logger, prepare_logger
-from .time import get_time_as_string
 
 
 class AverageMeter:
@@ -71,5 +76,6 @@ __all__ = [
     "BaseProfile",
     "get_device",
     "get_configspace",
+    "get_orthogonal_module_configspace",
     "get_loss",
 ]

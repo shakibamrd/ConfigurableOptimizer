@@ -112,8 +112,9 @@ class DRNASProfile(ProfileConfig):
 
 # Dependent on confopt.utils.configspace
 class ConfigSpaceProfile(ProfileConfig):
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, config: Configuration, epochs: int = 5) -> None:
         self.config_dict = config
+        self.epochs = epochs
         super().__init__(config_type=config["sampler"])
         self.sampler_type = config["sampler"]
         self.set_partial_connector(config["is_partial_connector"])
@@ -165,22 +166,65 @@ class ConfigSpaceProfile(ProfileConfig):
         partial_connector_config = {"k": self.config_dict.get("k", None)}
         return partial_connector_config
 
+    def _get_optim_config(self, search_optim: str) -> dict:
+        assert search_optim in ["base", "arch"]
+        optim_type = "arch_optim"
+        search_key = "arch_opt"
+        if search_optim == "base":
+            optim_type = "optim"
+            search_key = "opt"
+
+        config_optim = self.config_dict.get(optim_type, "sgd")
+
+        if config_optim == "adam":
+            return {
+                optim_type: config_optim,
+                optim_type
+                + "_config": {
+                    "betas": (
+                        self.config_dict.get(search_key + "_beta1", 0.9),
+                        self.config_dict.get(search_key + "_beta2", 0.999),
+                    ),
+                },
+            }
+
+        if config_optim == "sgd":
+            return {
+                optim_type: config_optim,
+                optim_type
+                + "_config": {
+                    "momentum": self.config_dict.get(search_key + "_momentum", 0.9),
+                },
+            }
+
+        if config_optim == "asgd":
+            return {
+                optim_type: config_optim,
+                optim_type
+                + "_config": {
+                    "lambda": self.config_dict.get(search_key + "_lambda", 0.9),
+                },
+            }
+
+        return {optim_type: config_optim}
+
     def get_trainer_config(self) -> dict:
         trainer_config = {
-            "epochs": 20,
-            "lr": self.config_dict["lr"],
-            "optim": self.config_dict["optim"],
-            "arch_optim": self.config_dict["arch_optim"],
-            "momentum": self.config_dict["momentum"],
-            "nesterov": self.config_dict["nesterov"],
-            "criterion": self.config_dict["criterion"],
-            "batch_size": self.config_dict["batch_size"],
-            "learning_rate_min": self.config_dict["learning_rate_min"],
-            "weight_decay": self.config_dict["weight_decay"],
-            "cutout": self.config_dict["cutout"],
+            "epochs": self.epochs,
+            "lr": self.config_dict.get("lr", 0.025),
+            "optim": self.config_dict.get("optim", "sgd"),
+            "arch_optim": self.config_dict.get("arch_optim", "adam"),
+            "criterion": self.config_dict.get("criterion", "cross_entropy"),
+            "batch_size": self.config_dict.get("batch_size", 96),
+            "learning_rate_min": self.config_dict.get("learning_rate_min", 0),
+            "cutout": self.config_dict.get("cutout", -1),
             "cutout_length": self.config_dict.get("cutout_length", None),
-            "train_portion": self.config_dict["train_portion"],
-            "use_data_parallel": self.config_dict["use_data_parallel"],
-            "checkpointing_freq": self.config_dict["checkpointing_freq"],
+            "train_portion": self.config_dict.get("train_portion", 0.7),
+            "use_data_parallel": self.config_dict.get("use_data_parallel", 1),
+            "checkpointing_freq": self.config_dict.get("checkpointing_freq", 3),
         }
+
+        trainer_config.update(self._get_optim_config("base"))
+        trainer_config.update(self._get_optim_config("arch"))
+
         return trainer_config
