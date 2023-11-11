@@ -35,10 +35,9 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer
+from confopt.train.configurable_trainer import ConfigurableTrainer
+from confopt.train.searchprofile import Profile
 from confopt.utils import Logger
-
-from .profile import Profile
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -48,28 +47,28 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 )
 
 
-class SearchSpaceEnum(Enum):
+class SearchSpaceType(Enum):
     DARTS = "darts"
     NB201 = "nb201"
     NB1SHOT1 = "nb1shot1"
     TNB101 = "tnb101"
 
 
-class SamplersEnum(Enum):
+class SamplerType(Enum):
     DARTS = "darts"
     DRNAS = "drnas"
     GDAS = "gdas"
     SNAS = "snas"
 
 
-class PerturbatorEnum(Enum):
+class PerturbatorType(Enum):
     RANDOM = "random"
     ADVERSERIAL = "adverserial"
     NONE = "none"
 
 
 PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = PerturbatorEnum("none")
+PERTUBRATOR_NONE = PerturbatorType("none")
 
 
 class DatasetType(Enum):
@@ -86,11 +85,11 @@ N_CLASSES = {
 }
 
 
-class Criterions(Enum):
+class CriterionType(Enum):
     CROSS_ENTROPY = "cross_entropy"
 
 
-class Optimizers(Enum):
+class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
 
@@ -98,23 +97,17 @@ class Optimizers(Enum):
 class Experiment:
     def __init__(
         self,
-        search_space: SearchSpaceEnum,
+        search_space: SearchSpaceType,
         dataset: DatasetType,
-        sampler: SamplersEnum,
         seed: int,
-        perturbator: PerturbatorEnum = PERTUBRATOR_NONE,
-        edge_normalization: bool = False,
-        is_partial_connection: bool = False,
         is_wandb_log: bool = False,
+        debug_mode: bool = False,
     ) -> None:
         self.search_space_str = search_space
-        self.sampler_str = sampler
-        self.perturbator_str = perturbator
-        self.edge_normalization = edge_normalization
-        self.is_partial_connection = is_partial_connection
         self.dataset_str = dataset
         self.seed = seed
         self.is_wandb_log = is_wandb_log
+        self.debug_mode = debug_mode
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -124,14 +117,29 @@ class Experiment:
         cudnn.enabled = True
         torch.cuda.manual_seed(rand_seed)
 
-    def run_with_profile(self, profile: ProfileConfig) -> ConfigurableTrainer:
+    def run_with_profile(
+        self,
+        profile: ProfileConfig,
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> ConfigurableTrainer:
         config = profile.get_config()
-        self.run(
-            config=config, load_best_model=False, load_saved_model=False, start_epoch=0
-        )
-        pass
+        assert hasattr(profile, "sampler_type")
+        self.sampler_str = SamplerType(profile.sampler_type)
+        self.perturbator_str = PerturbatorType(profile.perturb_type)
+        self.is_partial_connection = profile.is_partial_connection
+        self.edge_normalization = profile.is_partial_connection
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
-    def run(
+        return self.runner(
+            config,
+            start_epoch,
+            load_saved_model,
+            load_best_model,
+        )
+
+    def runner(
         self,
         config: dict | None = None,
         start_epoch: int = 0,
@@ -139,8 +147,6 @@ class Experiment:
         load_best_model: bool = False,
     ) -> ConfigurableTrainer:
         self.set_seed(self.seed)
-
-        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
         if load_saved_model or load_best_model or start_epoch > 0:
             self.logger = Logger(
@@ -154,95 +160,24 @@ class Experiment:
                 log_dir="logs", seed=self.seed, exp_name=self.search_space_str.value
             )
 
-        if config is None:
-            assert (
-                self.search_space_str == SearchSpaceEnum.NB201
-            ), "Default config only works with nb201, Please initialize Experiment \
-                    with SearchSpace of type NB201"
-            assert (
-                self.sampler_str == SamplersEnum.DARTS
-            ), "Default config only works with darts sampler, Please initialize \
-                    Experiment with sampler of type darts"
-            nb201_config = {
-                "C": 16,
-                "N": 5,
-                "max_nodes": 4,
-                "num_classes": 10,
-                "steps": 3,
-                "affine": False,
-                "track_running_stats": False,
-            }
-
-            train_config = {
-                "lr": 0.025,
-                "epochs": 100,
-                "optim": "sgd",
-                "arch_optim": "adam",
-                "momentum": 0.9,
-                "nesterov": 0,
-                "criterion": "cross_entropy",
-                "batch_size": 96,
-                "learning_rate_min": 0.0,
-                "weight_decay": 3e-4,
-                "channel": 36,
-                "auxiliary": False,
-                "auxiliary_weight": 0.4,
-                "drop_path_prob": 0.2,
-                "cutout": -1,
-                "cutout_length": 16,
-                "train_portion": 0.7,
-                "use_data_parallel": 0,
-                "checkpointing_freq": 1,
-            }
-
-            darts_sampler_config = {"sample_frequency": "epoch"}
-
-            adverserial_config = {
-                "epsilon": 0.03,
-                "data": ADVERSERIAL_DATA,
-                "loss_criterion": torch.nn.CrossEntropyLoss(),
-                "steps": 20,
-                "random_start": True,
-                "sample_frequency": "epoch",
-            }
-
-            partial_connector_config = {
-                "k": 4,
-            }
-
-            confopt_config: dict = {
-                "search_space": nb201_config,
-                "trainer": train_config,
-                "sampler": darts_sampler_config,
-                "perturbator": adverserial_config,
-                "partial_connector": partial_connector_config,
-                "logger": {"project_name": "Configurable_Optimizer"},
-            }
-
         self._enum_to_objects(
             self.search_space_str,
             self.sampler_str,
             self.perturbator_str,
-            config=config if config is not None else confopt_config,
+            config=config,
         )
         if self.is_wandb_log:
             wandb.init(  # type: ignore
                 project=config.get("project_name", "Configurable_Optimizer")
                 if config is not None
                 else "Configurable_Optimizer",
-                config=config if config is not None else confopt_config,  # type: ignore
+                config=config,
             )
 
-        if config is None:
-            Arguments = namedtuple(  # type: ignore
-                "Configure", " ".join(confopt_config["trainer"].keys())
-            )
-            arg_config = Arguments(**confopt_config["trainer"])  # type: ignore
-        else:
-            Arguments = namedtuple(  # type: ignore
-                "Configure", " ".join(config["trainer"].keys())  # type: ignore
-            )
-            arg_config = Arguments(**config["trainer"])  # type: ignore
+        Arguments = namedtuple(  # type: ignore
+            "Configure", " ".join(config["trainer"].keys())  # type: ignore
+        )
+        arg_config = Arguments(**config["trainer"])  # type: ignore
 
         criterion = self._get_criterion(
             criterion_str=arg_config.criterion  # type: ignore
@@ -294,6 +229,7 @@ class Experiment:
             start_epoch=start_epoch,
             checkpointing_freq=arg_config.checkpointing_freq,  # type: ignore
             epochs=arg_config.epochs,  # type: ignore
+            debug_mode=self.debug_mode,
         )
 
         trainer.train(
@@ -306,9 +242,9 @@ class Experiment:
 
     def _enum_to_objects(
         self,
-        search_space_enum: SearchSpaceEnum,
-        sampler_enum: SamplersEnum,
-        perturbator_enum: PerturbatorEnum,
+        search_space_enum: SearchSpaceType,
+        sampler_enum: SamplerType,
+        perturbator_enum: PerturbatorType,
         config: dict | None = None,
     ) -> None:
         if config is None:
@@ -323,39 +259,39 @@ class Experiment:
 
     def set_search_space(
         self,
-        search_space: SearchSpaceEnum,
+        search_space: SearchSpaceType,
         config: dict,
     ) -> None:
-        if search_space == SearchSpaceEnum.NB201:
+        if search_space == SearchSpaceType.NB201:
             self.search_space = NASBench201SearchSpace(**config)
-        elif search_space == SearchSpaceEnum.DARTS:
+        elif search_space == SearchSpaceType.DARTS:
             self.search_space = DARTSSearchSpace(**config)
-        elif search_space == SearchSpaceEnum.NB1SHOT1:
+        elif search_space == SearchSpaceType.NB1SHOT1:
             self.search_space = NASBench1Shot1SearchSpace(**config)
-        elif search_space == SearchSpaceEnum.TNB101:
+        elif search_space == SearchSpaceType.TNB101:
             self.search_space = TransNASBench101SearchSpace(**config)
 
     def set_sampler(
         self,
-        sampler: SamplersEnum,
+        sampler: SamplerType,
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
-        if sampler == SamplersEnum.DARTS:
+        if sampler == SamplerType.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplersEnum.DRNAS:
+        elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplersEnum.GDAS:
+        elif sampler == SamplerType.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplersEnum.SNAS:
+        elif sampler == SamplerType.SNAS:
             self.sampler = SNASSampler(**config, arch_parameters=arch_params)
 
     def set_perturbator(
         self,
-        petubrator_enum: PerturbatorEnum,
+        petubrator_enum: PerturbatorType,
         pertub_config: dict,
     ) -> None:
-        if petubrator_enum != PerturbatorEnum.NONE:
+        if petubrator_enum != PerturbatorType.NONE:
             self.perturbator = SDARTSSampler(
                 **pertub_config,
                 search_space=self.search_space,
@@ -393,16 +329,16 @@ class Experiment:
         return None
 
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
-        criterion = Criterions(criterion_str)
-        if criterion == Criterions.CROSS_ENTROPY:
+        criterion = CriterionType(criterion_str)
+        if criterion == CriterionType.CROSS_ENTROPY:
             return torch.nn.CrossEntropyLoss()
         return None
 
     def _get_optimizer(self, optim_str: str) -> Callable | None:
-        optim = Optimizers(optim_str)
-        if optim == Optimizers.ADAM:
+        optim = OptimizerType(optim_str)
+        if optim == OptimizerType.ADAM:
             return torch.optim.Adam
-        elif optim == Optimizers.SGD:  # noqa: RET505
+        elif optim == OptimizerType.SGD:  # noqa: RET505
             return torch.optim.SGD
         return None
 
@@ -419,7 +355,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--sampler",
-        default="darts",
+        default="gdas",
         help="samplers in (darts, drnas, gdas, snas)",
         type=str,
     )
@@ -458,30 +394,25 @@ if __name__ == "__main__":
         type=int,
     )
     args = parser.parse_args()
+    IS_DEBUG_MODE = True
+    is_wandb_log = IS_DEBUG_MODE is False
 
-    searchspace = SearchSpaceEnum(args.searchspace)
-    sampler = SamplersEnum(args.sampler)
-    perturbator = PerturbatorEnum(args.perturbator)
+    searchspace = SearchSpaceType(args.searchspace)
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
         is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
     )
 
-    config = profile.get_config()
-    wandb.init(project="Configurable_Optimizers", config=config)  # type: ignore
-
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
-        sampler=sampler,
         seed=args.seed,
-        perturbator=perturbator,
-        edge_normalization=True,
-        is_partial_connection=True,
-        is_wandb_log=True,
+        is_wandb_log=is_wandb_log,
+        debug_mode=IS_DEBUG_MODE,
     )
 
-    # trainer = experiment.run()
-    experiment.run_with_profile(profile)
-    wandb.finish()  # type: ignore
+    trainer = experiment.run_with_profile(profile)
+
+    if is_wandb_log:
+        wandb.finish()  # type: ignore

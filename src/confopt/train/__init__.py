@@ -2,16 +2,18 @@ from .configurable_trainer import ConfigurableTrainer
 from .experiment import (
     DatasetType,
     Experiment,
-    PerturbatorEnum,
-    SamplersEnum,
-    SearchSpaceEnum,
+    PerturbatorType,
+    SamplerType,
+    SearchSpaceType,
 )
+from .searchprofile import Profile
 
 __all__ = [
     "ConfigurableTrainer",
+    "Profile",
     "Experiment",
-    "SearchSpaceEnum",
-    "SamplersEnum",
-    "PerturbatorEnum",
+    "SearchSpaceType",
     "DatasetType",
+    "SamplerType",
+    "PerturbatorType",
 ]

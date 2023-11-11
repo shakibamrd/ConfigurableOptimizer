@@ -44,9 +44,11 @@ class BaseSampler(OneShotComponent):
         super().new_epoch()
         if self.sample_frequency == "epoch":
             self._sample_and_update_alphas()
+            self.set_arch_parameters_from_sample()
 
     def new_step(self) -> None:  # type: ignore
         super().new_step()
 
         if self.sample_frequency == "step":
             self._sample_and_update_alphas()
+            self.set_arch_parameters_from_sample()
