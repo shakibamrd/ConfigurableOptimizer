@@ -151,6 +151,9 @@ def get_configspace(seed: int) -> Configuration:  # noqa: PLR0915
         "arch_optim", choices=["adam", "sgd", "asgd"], default_value="adam"
     )
 
+    # needed for SGD arch optim
+    arch_opt_lr = Constant("arch_lr", 0.001)
+
     # adam params
     opt_beta1 = Constant("opt_beta1", 0.9)
     opt_beta2 = Constant("opt_beta2", 0.999)
@@ -219,6 +222,7 @@ def get_configspace(seed: int) -> Configuration:  # noqa: PLR0915
             is_partial_connector,
             partial_connector_k,
             learning_rate,
+            arch_opt_lr,
             opt_param,
             opt_beta1,
             opt_beta2,
