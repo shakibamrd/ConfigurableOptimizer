@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import traceback
 
 import torch
 import wandb
@@ -9,9 +10,9 @@ from confopt.profiles import ConfigSpaceProfile
 from confopt.train import (
     DatasetType,
     Experiment,
-    PerturbatorEnum,
-    SamplersEnum,
-    SearchSpaceEnum,
+    PerturbatorType,
+    SamplerType,
+    SearchSpaceType,
 )
 from confopt.utils import get_configspace
 
@@ -56,35 +57,70 @@ if __name__ == "__main__":
         help="Number of random search experiment to perform",
         type=int,
     )
+    parser.add_argument(
+        "--epochs",
+        default=5,
+        help="Number of epochs for each experiment run",
+        type=int,
+    )
+    parser.add_argument(
+        "--wandb_log",
+        action="store_true",
+        default=False,
+        help="log on wandb",
+    )
     args = parser.parse_args()
-    print(args.num_exp)
 
     cs = get_configspace(seed=args.seed)
+
+    # manage wandb runs
+    run_names = {}
+
     for _ in range(args.num_exp):  # type: ignore
         config = cs.sample_configuration()
-        cs_profile = ConfigSpaceProfile(config)
-
-        searchspace = SearchSpaceEnum(args.searchspace)  # type: ignore
-        sampler = SamplersEnum(config["sampler"])
-        perturbator = PerturbatorEnum(config.get("perturbator", None))
+        cs_profile = ConfigSpaceProfile(config, epochs=5)
+        searchspace = SearchSpaceType(args.searchspace)  # type: ignore
+        sampler = SamplerType(config["sampler"])
+        perturbator = PerturbatorType(config.get("perturbator", None))
         dataset = DatasetType(args.dataset)  # type: ignore
-        edge_normalization = config["edge_normalization"]
+        edge_normalization = config.get("edge_normalization", False)
         is_partial_connection = config["is_partial_connector"]
 
-        # wandb.init(  # type: ignore
-        #     project="Configurable_Optimizers",
-        #     config=custom_profile.get_config(),
-        # )
-        # TODO change after PR in design of experiment
+        run_name = args.searchspace + "_" + config["sampler"]
+        if config["perturbator"] != "none":
+            run_name += "_" + config["perturbator"]
+        if config["is_partial_connector"]:
+            run_name += "_" + "pc"
+
+        if args.wandb_log:  # type: ignore
+            run_num = 0
+            if run_name not in run_names:
+                run_names[run_name] = run_num
+            else:
+                run_names[run_name] += 1
+                run_num = run_names[run_name]
+            run_name += "_" + str(run_num)
+
         experiment = Experiment(
             search_space=searchspace,
             dataset=dataset,
-            sampler=sampler,
             seed=args.seed,  # type: ignore
-            perturbator=perturbator,
-            edge_normalization=True,
-            is_partial_connection=is_partial_connection,
-            is_wandb_log=False,  # True
+            is_wandb_log=args.wandb_log,  # type: ignore
+            exp_name=run_name,
+            debug_mode=True,
         )
-
-        experiment.run_with_profile(cs_profile)
+        try:
+            experiment.run_with_profile(
+                cs_profile,
+            )
+            if args.wandb_log:  # type: ignore
+                wandb.finish()  # type: ignore
+            experiment.logger.close()
+        except Exception as e:  # noqa: BLE001
+            print(e)
+            traceback.print_exc()
+            if args.wandb_log:  # type: ignore
+                print("Check wandb logs to see where the search crashed")
+                wandb.finish(1)  # type: ignore
+            experiment.logger.close()
+            continue
