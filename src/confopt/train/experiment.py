@@ -133,6 +133,16 @@ class Experiment:
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
         self.edge_normalization = profile.is_partial_connection
+        config.update(
+            {
+                "run_info": {
+                    "search_space": self.search_space_str.value,
+                    "sampler": self.sampler_str.value,
+                    "perturbator": self.perturbator_str.value,
+                    "partial_connector": self.is_partial_connection,
+                },
+            }
+        )
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
         return self.runner(
@@ -169,9 +179,11 @@ class Experiment:
         )
         if self.is_wandb_log:
             wandb.init(  # type: ignore
-                project=config.get("project_name", "Configurable_Optimizer")
-                if config is not None
-                else "Configurable_Optimizer",
+                project=config.get(  # type: ignore
+                    "wandb_project_name", "Configurable_Optimizer"
+                ),
+                group=config.get("wandb_group", "untitled"),  # type: ignore
+                name=self.exp_name,
                 config=config,
             )
 
@@ -207,11 +219,13 @@ class Experiment:
         if self.edge_normalization and hasattr(model, "beta_parameters"):
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
                 [*model.arch_parameters, *model.beta_parameters],
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
                 **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
         else:
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
                 model.arch_parameters,
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
                 **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
 
