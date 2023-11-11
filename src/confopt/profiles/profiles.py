@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 from ConfigSpace import Configuration
 import torch
 
@@ -76,6 +78,11 @@ class SNASProfile(ProfileConfig):
         self.total_epochs = total_epochs
         self.set_partial_connector(is_partial_connection)
         self.set_perturb(perturbation, perturbator_sample_frequency)
+        warnings.warn(
+            "The argument total epochs to SNAS sampler should be set same as \
+            number of epochs for training",
+            stacklevel=1,
+        )
 
     def get_sampler_config(self) -> dict:
         snas_config = {
@@ -138,7 +145,7 @@ class ConfigSpaceProfile(ProfileConfig):
                     "temp_init": self.config_dict["temp_init"],
                     "temp_min": self.config_dict["temp_min"],
                     "temp_annealing": self.config_dict["temp_annealing"],
-                    "total_epochs": self.config_dict["total_epochs"],
+                    "total_epochs": self.epochs,
                 }
             )
         return sampler_config
@@ -202,7 +209,7 @@ class ConfigSpaceProfile(ProfileConfig):
                 optim_type: config_optim,
                 optim_type
                 + "_config": {
-                    "lambda": self.config_dict.get(search_key + "_lambda", 0.9),
+                    "lambd": self.config_dict.get(search_key + "_lambda", 0.9),
                 },
             }
 
@@ -212,6 +219,7 @@ class ConfigSpaceProfile(ProfileConfig):
         trainer_config = {
             "epochs": self.epochs,
             "lr": self.config_dict.get("lr", 0.025),
+            "arch_lr": self.config_dict.get("arch_lr", 0.001),
             "optim": self.config_dict.get("optim", "sgd"),
             "arch_optim": self.config_dict.get("arch_optim", "adam"),
             "criterion": self.config_dict.get("criterion", "cross_entropy"),
