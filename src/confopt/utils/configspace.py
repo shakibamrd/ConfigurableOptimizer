@@ -316,7 +316,7 @@ def get_configspace(seed: int) -> Configuration:  # noqa: PLR0915
         arch_opt_beta2, arch_optim_param, "adam"
     )
     use_arch_opt_sgd_momentum = ConfigSpace.conditions.EqualsCondition(
-        arch_opt_beta2, arch_optim_param, "sgd"
+        arch_opt_momentum, arch_optim_param, "sgd"
     )
     use_arch_opt_asgd_lambda = ConfigSpace.conditions.EqualsCondition(
         arch_opt_lambda, arch_optim_param, "asgd"
