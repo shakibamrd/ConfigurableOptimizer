@@ -119,13 +119,25 @@ class DRNASProfile(ProfileConfig):
 
 # Dependent on confopt.utils.configspace
 class ConfigSpaceProfile(ProfileConfig):
-    def __init__(self, config: Configuration, epochs: int = 5) -> None:
+    def __init__(
+        self, config: Configuration, epochs: int = 5, run_group: str = "untitled"
+    ) -> None:
         self.config_dict = config
         self.epochs = epochs
         super().__init__(config_type=config["sampler"])
         self.sampler_type = config["sampler"]
+        self.run_group = run_group
         self.set_partial_connector(config["is_partial_connector"])
         self.set_perturb(config["perturbator"])
+
+    def get_config(self) -> dict:
+        run_config = super().get_config()
+        run_config.update(
+            {
+                "wandb_group": self.run_group,
+            }
+        )
+        return run_config
 
     def get_sampler_config(self) -> dict:
         sampler_config = {}
