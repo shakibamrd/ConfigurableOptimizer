@@ -167,9 +167,15 @@ class Experiment:
                 seed=self.seed,
                 exp_name=self.exp_name,
                 last_run=True,
+                search_space=self.search_space_str.value,
             )
         else:
-            self.logger = Logger(log_dir="logs", seed=self.seed, exp_name=self.exp_name)
+            self.logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+            )
 
         self._enum_to_objects(
             self.search_space_str,
