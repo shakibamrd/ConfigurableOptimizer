@@ -16,9 +16,15 @@ class ProfileConfig:
     def __init__(self, config_type: str) -> None:
         self.config_type = config_type
 
-    def set_perturb(self, perturb_type: str | None = None) -> None:
+    def set_perturb(
+        self,
+        perturb_type: str | None = None,
+        perturbator_sample_frequency: str = "epoch",
+    ) -> None:
         assert perturb_type in ["adverserial", "random", "none", None]
+        assert perturbator_sample_frequency in ["epoch", "step"]
         self.perturb_type = perturb_type
+        self.perturbator_sample_frequency = perturbator_sample_frequency
 
     def set_partial_connector(self, is_partial_connection: bool = False) -> None:
         self.is_partial_connection = is_partial_connection
@@ -34,6 +40,9 @@ class ProfileConfig:
             "partial_connector": partial_connector_config,
             "trainer": trainer_config,
         }
+        searchspace_config = self.get_searchspace_config()
+        if searchspace_config is not None:
+            config.update({"search_space": searchspace_config})
         return config
 
     @abstractmethod
@@ -50,12 +59,12 @@ class ProfileConfig:
                 "loss_criterion": torch.nn.CrossEntropyLoss(),
                 "steps": 20,
                 "random_start": True,
-                "sample_frequency": "epoch",
+                "sample_frequency": self.perturbator_sample_frequency,
             }
         elif self.perturb_type == "random":
             perturb_config = {
                 "epsilon": 0.03,
-                "sample_frequency": "epoch",
+                "sample_frequency": self.perturbator_sample_frequency,
             }
         else:
             return None
@@ -81,10 +90,6 @@ class ProfileConfig:
             "batch_size": 96,
             "learning_rate_min": 0.0,
             "weight_decay": 3e-4,
-            "channel": 36,
-            "auxiliary": False,
-            "auxiliary_weight": 0.4,
-            "drop_path_prob": 0.2,
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.7,
@@ -92,3 +97,7 @@ class ProfileConfig:
             "checkpointing_freq": 1,
         }
         return default_train_config
+
+    @abstractmethod
+    def get_searchspace_config(self) -> dict:
+        pass
