@@ -368,6 +368,7 @@ class NB201SearchModel(nn.Module):
             edge_normalization=False,
             discretized=True,  # TODO: do we need this?
         ).to(next(self.parameters()).device)
+
         for cell in discrete_model.cells:
             if isinstance(cell, SearchCell):
                 cell._discretize(self.arch_parameters)  # type: ignore

@@ -416,10 +416,10 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
 
-    def test_discretize(self) -> None:
+    def test_prune(self) -> None:
         search_space = TransNASBench101SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize()
+        search_space.prune()
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
@@ -427,6 +427,21 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
             torch.ones(len(arch_params)).to(DEVICE),
         )
         out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 10])
+        assert out[1].shape == torch.Size([2, 10])
+
+    def test_discretize_supernet(self) -> None:
+        search_space = TransNASBench101SearchSpace()
+
+        new_model = search_space._discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out = new_model(x)
 
         assert isinstance(out, tuple)
         assert len(out) == 2
