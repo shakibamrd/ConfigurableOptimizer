@@ -199,7 +199,7 @@ class Experiment:
         model = self.search_space
 
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
-            model.parameters(),
+            model.model_weight_parameters(),
             arg_config.lr,  # type: ignore
             momentum=arg_config.momentum,  # type: ignore
             weight_decay=arg_config.weight_decay,  # type: ignore
