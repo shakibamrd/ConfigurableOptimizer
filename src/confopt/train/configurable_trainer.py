@@ -349,7 +349,7 @@ class ConfigurableTrainer:
 
         self._init_periodic_checkpointer()
         self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
-        self.logger.set_up_new_run()
+        self.logger.set_up_run()
 
     def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
