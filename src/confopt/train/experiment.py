@@ -6,7 +6,6 @@ from enum import Enum
 import random
 from typing import Callable
 
-from fvcore.common.checkpoint import Checkpointer
 import numpy as np
 import torch
 from torch.backends import cudnn
@@ -402,11 +401,6 @@ class Experiment:
                 last_run=True,
                 is_discrete=False,
             )
-            self.load_supernet_from_checkpoint(
-                start_epoch,
-                load_saved_model,
-                load_best_model,
-            )
         else:
             self.logger = Logger(
                 log_dir="logs",
@@ -416,8 +410,6 @@ class Experiment:
                 last_run=False,
                 is_discrete=True,
             )
-
-        model = self.search_space._discretize()  # type: ignore
 
         Arguments = namedtuple(  # type: ignore
             "Configure", " ".join(arg_config.keys())  # type: ignore
@@ -439,7 +431,7 @@ class Experiment:
         )
 
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
-            model.parameters(),
+            self.search_space.model_weight_parameters(),
             arg_config.lr,  # type: ignore
             momentum=arg_config.momentum,  # type: ignore
             weight_decay=arg_config.weight_decay,  # type: ignore
@@ -457,7 +449,7 @@ class Experiment:
         )
 
         trainer = DiscreteTrainer(
-            model=model,
+            model=self.search_space,
             data=data,
             model_optimizer=w_optimizer,
             scheduler=w_scheduler,
@@ -480,55 +472,6 @@ class Experiment:
         trainer.test(is_wandb_log=self.is_wandb_log)
 
         return trainer
-
-    def _get_checkpoint_dir(
-        self,
-        start_epoch: int,
-        load_saved_model: bool,
-        load_best_model: bool,
-    ) -> str:
-        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
-        mode = None
-
-        if load_saved_model or load_best_model:
-            mode = "checkpoints"
-        return self.logger.path(mode=mode)
-
-    def load_supernet_from_checkpoint(
-        self,
-        start_epoch: int,
-        load_saved_model: bool,
-        load_best_model: bool,
-    ) -> None:
-        checkpoint_dir = self._get_checkpoint_dir(
-            start_epoch, load_saved_model, load_best_model
-        )
-        checkpointer = Checkpointer(
-            model=self.search_space,
-            save_dir=checkpoint_dir,
-            save_to_disk=True,
-        )
-        if load_best_model:
-            last_info = self.logger.path("best_model")
-            info = checkpointer._load_file(f=last_info)
-            self.logger.log(
-                f"=> loading checkpoint of the best-model '{last_info}' start"
-            )
-        elif start_epoch != 0:
-            last_info = self.logger.path("checkpoints")
-            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", start_epoch)
-            info = checkpointer._load_file(f=last_info)
-            self.logger.log(f"resume from supernet trained by {start_epoch} epochs")
-        elif load_saved_model:
-            last_info = self.logger.path("last_checkpoint")
-            info = checkpointer._load_file(f=last_info)
-            self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
-        else:
-            self.logger.log("=> did not find the any file")
-            return
-
-        self.logger.set_up_new_run()
-        self.search_space.load_state_dict(info["model"])
 
 
 if __name__ == "__main__":
