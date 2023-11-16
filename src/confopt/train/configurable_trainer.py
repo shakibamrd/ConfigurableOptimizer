@@ -69,6 +69,12 @@ class ConfigurableTrainer:
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
         profile.adapt_search_space(self.model)
+
+        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
+            self._load_model_state_if_exists()
+        else:
+            self._init_empty_model_state_info()
+
         if self.use_data_parallel:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
@@ -76,11 +82,6 @@ class ConfigurableTrainer:
         else:
             network: nn.Module = self.model  # type: ignore
             criterion = self.criterion
-
-        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
-            self._load_model_state_if_exists()
-        else:
-            self._init_empty_model_state_info()
 
         start_time = time.time()
         search_time, epoch_time = AverageMeter(), AverageMeter()
@@ -348,6 +349,7 @@ class ConfigurableTrainer:
 
         self._init_periodic_checkpointer()
         self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
+        self.logger.set_up_new_run()
 
     def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
@@ -355,7 +357,7 @@ class ConfigurableTrainer:
         # todo: return scheduler and optimizers that do have state_dict()
         checkpointer = Checkpointer(
             model=self.model,
-            save_dir=str(checkpoint_dir),
+            save_dir=checkpoint_dir,
             save_to_disk=True,
             # checkpointables=checkpointables,
         )
@@ -411,7 +413,7 @@ class ConfigurableTrainer:
             info = self.best_model_checkpointer._load_file(f=last_info)
         elif self.start_epoch != 0:
             last_info = self.logger.path("checkpoints")
-            last_info = last_info / "{}_{:07d}.pth".format("model", self.start_epoch)
+            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", self.start_epoch)
             info = self.checkpointer._load_file(f=last_info)
         elif self.load_saved_model:
             last_info = self.logger.path("last_checkpoint")
