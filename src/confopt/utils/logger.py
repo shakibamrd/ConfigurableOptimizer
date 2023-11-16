@@ -136,7 +136,7 @@ class Logger:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(dir={self.log_dir}, writer={self.writer})"
 
-    def path(self, mode: str | None) -> Path:
+    def path(self, mode: str | None) -> str:
         valids = (
             "best_model",  # checkpoint containing the best model
             "checkpoints",  # checkpoint of all the checkpoints (periodic)
@@ -148,14 +148,14 @@ class Logger:
         if mode not in valids:
             raise TypeError(f"Unknow mode = {mode}, valid modes = {valids}")
         if mode == "best_model":
-            return self.log_dir / (mode + ".pth")
+            return str(self.log_dir / (mode + ".pth"))
         if mode == "last_checkpoint":
             last_checkpoint_path = self.log_dir / "checkpoints" / "last_checkpoint"
             with open(last_checkpoint_path) as f:
-                return self.log_dir / "checkpoints" / f.read().strip()
+                return str(self.log_dir / "checkpoints" / f.read().strip())
         if mode is None:
-            return self.log_dir
-        return self.log_dir / mode
+            return str(self.log_dir)
+        return str(self.log_dir / mode)
 
     def extract_log(self) -> IO[Any]:
         return self.logger_file
