@@ -67,11 +67,6 @@ class Logger:
         self.log_dir = Path(log_dir) / exp_name / search_space / str(seed) / run_time
         self.seed = int(seed)
 
-        if is_discrete:
-            self.log_dir = self.log_dir / "discrete_net"
-        else:
-            self.log_dir = self.log_dir / "supernet"
-
         self.log_dir.mkdir(parents=True, exist_ok=True)
         (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir = self.log_dir / (
@@ -82,10 +77,15 @@ class Logger:
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
         self.writer = None
 
-    def set_up_new_run(self, is_discrete: bool = False) -> None:
-        log_dir, exp_name, search_space, seed, run_time, net = self.log_dir.parts
-        self.is_discrete = is_discrete
+    def set_up_new_run(self) -> None:
         run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
+        self.set_up_run(run_time)
+
+    def set_up_run(self, new_run_time: str | None = None) -> None:
+        log_dir, exp_name, search_space, seed, run_time = self.log_dir.parts
+        if new_run_time:
+            run_time = new_run_time
+
         self.save_last_run(
             run_time=run_time,
             log_dir=log_dir,
@@ -94,10 +94,6 @@ class Logger:
             seed=seed,
         )
         self.log_dir = Path(log_dir) / exp_name / search_space / seed / run_time
-        if is_discrete:
-            self.log_dir = self.log_dir / "discrete_net"
-        else:
-            self.log_dir = self.log_dir / "supernet"
 
         self.log_dir.mkdir(parents=True, exist_ok=True)
         (Path(self.log_dir) / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -107,16 +103,12 @@ class Logger:
 
         self.logger_path = self.log_dir / "log"
         self.logger_file = open(self.logger_path, "w")  # noqa: SIM115
-        self.writer = None
 
     def load_last_run(
         self, log_dir: str, exp_name: str, search_space: str, seed: str
     ) -> str:
-        file_path = Path(log_dir) / exp_name / search_space / seed
-        if self.is_discrete:
-            file_path = file_path / "last_run_discrete_net"
-        else:
-            file_path = file_path / "last_run_supernet"
+        file_path = Path(log_dir) / exp_name / search_space / seed / "last_run"
+
         with open(file_path) as f:
             run_time = f.read().strip()
         return run_time
@@ -124,11 +116,8 @@ class Logger:
     def save_last_run(
         self, run_time: str, log_dir: str, exp_name: str, search_space: str, seed: str
     ) -> str:
-        file_path = Path(log_dir) / exp_name / search_space / seed
-        if self.is_discrete:
-            file_path = file_path / "last_run_discrete_net"
-        else:
-            file_path = file_path / "last_run_supernet"
+        file_path = Path(log_dir) / exp_name / search_space / seed / "last_run"
+
         with open(file_path, "w") as f:
             f.write(run_time)
         return run_time
