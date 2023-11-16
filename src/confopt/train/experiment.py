@@ -6,6 +6,7 @@ from enum import Enum
 import random
 from typing import Callable
 
+from fvcore.common.checkpoint import Checkpointer
 import numpy as np
 import torch
 from torch.backends import cudnn
@@ -26,6 +27,7 @@ from confopt.oneshot.archsampler import (
 )
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.profiles import (
+    DiscreteProfile,
     GDASProfile,
     ProfileConfig,
 )
@@ -35,15 +37,23 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
+
+# <<<<<<< Updated upstream
 from confopt.train.configurable_trainer import ConfigurableTrainer
+from confopt.train.discrete_trainer import DiscreteTrainer
 from confopt.train.searchprofile import Profile
+
+# =======
+# from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
+# >>>>>>> Stashed changes
 from confopt.utils import Logger
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # TODO Change this to real data
-ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,)).to(
-    DEVICE
+ADVERSERIAL_DATA = (
+    torch.randn(2, 3, 32, 32).to(DEVICE),
+    torch.randint(0, 9, (2,)).to(DEVICE),
 )
 
 
@@ -126,12 +136,12 @@ class Experiment:
         load_best_model: bool = False,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
+
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
         self.edge_normalization = profile.is_partial_connection
-        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
         return self.runner(
             config,
@@ -149,6 +159,8 @@ class Experiment:
         load_saved_model: bool = False,
         load_best_model: bool = False,
     ) -> ConfigurableTrainer:
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+
         self.set_seed(self.seed)
 
         if load_saved_model or load_best_model or start_epoch > 0:
@@ -349,6 +361,175 @@ class Experiment:
             return torch.optim.SGD
         return None
 
+    def run_discrete_model_with_profile(
+        self,
+        profile: DiscreteProfile,
+        exp_name: str,
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> DiscreteTrainer:
+        config = profile.get_trainer_config()
+
+        return self.run_discrete_model(
+            config,
+            exp_name,
+            start_epoch,
+            load_saved_model,
+            load_best_model,
+        )
+
+    def run_discrete_model(
+        self,
+        arg_config: dict | None = None,
+        exp_name: str = "",
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> DiscreteTrainer:
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+
+        self.set_seed(self.seed)
+        if not hasattr(self, "search_space"):
+            self.set_search_space(self.search_space_str, config.get("search_space", {}))
+
+        if load_saved_model or load_best_model or start_epoch > 0:
+            self.logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=exp_name,
+                search_space=self.search_space_str.value,
+                last_run=True,
+                is_discrete=False,
+            )
+            self.load_supernet_from_checkpoint(
+                start_epoch,
+                load_saved_model,
+                load_best_model,
+            )
+        else:
+            self.logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=exp_name,
+                search_space=self.search_space_str.value,
+                last_run=False,
+                is_discrete=True,
+            )
+
+        model = self.search_space._discretize()  # type: ignore
+
+        Arguments = namedtuple(  # type: ignore
+            "Configure", " ".join(arg_config.keys())  # type: ignore
+        )
+        arg_config = Arguments(**arg_config)  # type: ignore
+
+        if self.is_wandb_log:
+            wandb.init(  # type: ignore
+                project=config.get("project_name", "Configurable_Optimizer")
+                if config is not None
+                else "Configurable_Optimizer",
+                config=config if config is not None else arg_config,  # type: ignore
+            )
+
+        data = self._get_dataset(self.dataset_str)(
+            root="datasets",
+            cutout=arg_config.cutout,  # type: ignore
+            train_portion=arg_config.train_portion,  # type: ignore
+        )
+
+        w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
+            model.parameters(),
+            arg_config.lr,  # type: ignore
+            momentum=arg_config.momentum,  # type: ignore
+            weight_decay=arg_config.weight_decay,  # type: ignore
+            nesterov=arg_config.nesterov,  # type: ignore
+        )
+
+        w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=w_optimizer,
+            T_max=float(arg_config.epochs),  # type: ignore
+            eta_min=arg_config.learning_rate_min,  # type: ignore
+        )
+
+        criterion = self._get_criterion(
+            criterion_str=arg_config.criterion  # type: ignore
+        )
+
+        trainer = DiscreteTrainer(
+            model=model,
+            data=data,
+            model_optimizer=w_optimizer,
+            scheduler=w_scheduler,
+            criterion=criterion,
+            logger=self.logger,
+            batch_size=arg_config.batch_size,  # type: ignore
+            use_data_parallel=arg_config.use_data_parallel,  # type: ignore
+            load_saved_model=load_saved_model,
+            load_best_model=load_best_model,
+            start_epoch=start_epoch,
+            checkpointing_freq=arg_config.checkpointing_freq,  # type: ignore
+            epochs=arg_config.epochs,  # type: ignore
+        )
+
+        trainer.train(
+            epochs=arg_config.epochs,  # type: ignore
+            is_wandb_log=self.is_wandb_log,
+        )
+
+        trainer.test(is_wandb_log=self.is_wandb_log)
+
+        return trainer
+
+    def _get_checkpoint_dir(
+        self,
+        start_epoch: int,
+        load_saved_model: bool,
+        load_best_model: bool,
+    ) -> str:
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+        mode = None
+
+        if load_saved_model or load_best_model:
+            mode = "checkpoints"
+        return self.logger.path(mode=mode)
+
+    def load_supernet_from_checkpoint(
+        self,
+        start_epoch: int,
+        load_saved_model: bool,
+        load_best_model: bool,
+    ) -> None:
+        checkpoint_dir = self._get_checkpoint_dir(
+            start_epoch, load_saved_model, load_best_model
+        )
+        checkpointer = Checkpointer(
+            model=self.search_space,
+            save_dir=checkpoint_dir,
+            save_to_disk=True,
+        )
+        if load_best_model:
+            last_info = self.logger.path("best_model")
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(
+                f"=> loading checkpoint of the best-model '{last_info}' start"
+            )
+        elif start_epoch != 0:
+            last_info = self.logger.path("checkpoints")
+            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", start_epoch)
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(f"resume from supernet trained by {start_epoch} epochs")
+        elif load_saved_model:
+            last_info = self.logger.path("last_checkpoint")
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
+        else:
+            self.logger.log("=> did not find the any file")
+            return
+
+        self.logger.set_up_new_run()
+        self.search_space.load_state_dict(info["model"])
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -412,6 +593,8 @@ if __name__ == "__main__":
         is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
     )
 
+    config = profile.get_trainer_config()
+
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
@@ -420,7 +603,22 @@ if __name__ == "__main__":
         debug_mode=IS_DEBUG_MODE,
     )
 
-    trainer = experiment.run_with_profile(profile, exp_name=args.exp_name)
+    trainer = experiment.run_with_profile(
+        profile,
+        exp_name=args.exp_name,
+        start_epoch=args.start_epoch,
+        load_saved_model=args.load_saved_model,
+        load_best_model=args.load_best_model,
+    )
+
+    profile = DiscreteProfile()
+    discret_trainer = experiment.run_discrete_model_with_profile(
+        profile,
+        exp_name=args.exp_name,
+        start_epoch=args.start_epoch,
+        load_saved_model=args.load_saved_model,
+        load_best_model=args.load_best_model,
+    )
 
     if is_wandb_log:
         wandb.finish()  # type: ignore
