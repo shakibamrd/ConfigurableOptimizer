@@ -62,6 +62,13 @@ class DiscreteTrainer:
     def train(self, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
 
+        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
+            self._load_model_state_if_exists()
+
+        self._init_empty_model_state_info()
+
+        self.model = self.model._discretize()  # type: ignore
+
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
@@ -69,11 +76,6 @@ class DiscreteTrainer:
         else:
             network: nn.Module = self.model  # type: ignore
             criterion = self.criterion
-
-        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
-            self._load_model_state_if_exists()
-        else:
-            self._init_empty_model_state_info()
 
         start_time = time.time()
         search_time, epoch_time = AverageMeter(), AverageMeter()
@@ -130,19 +132,11 @@ class DiscreteTrainer:
                 self.search_accs_top5[epoch],
             ) = base_metrics
 
-            checkpointables = self._get_checkpointables(epoch=epoch)
-            self.periodic_checkpointer.step(
-                iteration=epoch, checkpointables=checkpointables
-            )
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
                     f"<<<--->>> The {epoch_str}-th epoch : found the highest "
                     + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
-                )
-
-                self.best_model_checkpointer.save(
-                    name="best_model", checkpointables=checkpointables
                 )
 
             # measure elapsed time
@@ -228,10 +222,6 @@ class DiscreteTrainer:
 
         with torch.no_grad():
             for _step, (valid_inputs, valid_targets) in enumerate(valid_loader):
-                # if torch.cuda.is_available():
-                #     arch_targets = arch_targets.cuda(non_blocking=True)
-                #     arch_inputs = arch_inputs.cuda(non_blocking=True)
-
                 # prediction
                 valid_inputs = valid_inputs.to(self.device)
                 valid_targets = valid_targets.to(self.device, non_blocking=True)
@@ -340,9 +330,55 @@ class DiscreteTrainer:
             max_iter=self.epochs,
         )
 
+    def _set_checkpointer_info(self, last_checkpoint: dict) -> None:
+        self.model.load_state_dict(last_checkpoint["model"])
+        # TODO: see if this line would work and make sense or does it also need a
+        # load_state_dict
+        self.model_optimizer.params = self.model_optimizer.model_weight_parameters()
+
+    def _get_checkpoint_dir(self) -> str:
+        assert (
+            sum([self.load_best_model, self.load_saved_model, (self.start_epoch > 0)])
+            <= 1
+        )
+        mode = None
+
+        if self.load_saved_model or self.load_best_model:
+            mode = "checkpoints"
+        return self.logger.path(mode=mode)
+
     def _load_model_state_if_exists(self) -> None:
-        self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
-        self._init_periodic_checkpointer()
+        checkpoint_dir = self._get_checkpoint_dir()
+        checkpointer = Checkpointer(
+            model=self.model,
+            save_dir=checkpoint_dir,
+            save_to_disk=True,
+        )
+
+        if self.load_best_model:
+            last_info = self.logger.path("best_model")
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(
+                f"=> loading checkpoint of the best-model '{last_info}' start"
+            )
+        elif self.start_epoch != 0:
+            last_info = self.logger.path("checkpoints")
+            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", self.start_epoch)
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(
+                f"resume from supernet trained by {self.start_epoch} epochs"
+            )
+        elif self.load_saved_model:
+            last_info = self.logger.path("last_checkpoint")
+            info = checkpointer._load_file(f=last_info)
+            self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
+        else:
+            self.logger.log("=> did not find the any file")
+            return
+
+        self.logger.set_up_new_run()
+        self.checkpointer.save_dir = self.logger.path(mode="checkpoints")
+        self._set_checkpointer_info(info)
 
     def _init_empty_model_state_info(self) -> None:
         self.start_epoch = 0
@@ -353,8 +389,7 @@ class DiscreteTrainer:
         self.valid_accs_top1: dict[int | str, float | int] = {"best": -1}
         self.valid_accs_top5: dict[int, float] = {}
 
-        self._init_periodic_checkpointer()
-        self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
+        self.logger.set_up_run()
 
     def _load_onto_data_parallel(
         self, network: nn.Module, criterion: CriterionType
