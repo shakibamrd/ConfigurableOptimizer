@@ -342,13 +342,13 @@ class NB201SearchModel(nn.Module):
         for _name, module in self.named_modules():
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
-        # self.discretized = True
+
         sorted_arch_params, _ = torch.sort(
-            self.arch_parameters, dim=1, descending=True  # type: ignore
+            self.arch_parameters.data, dim=1, descending=True  # type: ignore
         )
         top_k = int(op_sparsity * len(self.op_names))
         thresholds = sorted_arch_params[:, :top_k]
-        self.mask = self.arch_parameters >= thresholds
+        self.mask = self.arch_parameters.data >= thresholds  # type: ignore
 
         self.arch_parameters.data *= self.mask.float()  # type: ignore
         self.arch_parameters.data[~self.mask].requires_grad = False  # type: ignore
