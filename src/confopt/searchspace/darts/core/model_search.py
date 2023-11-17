@@ -285,11 +285,11 @@ class Network(nn.Module):
         s0 = s1 = self.stem(x)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
-                weights = F.softmax(self.alphas_reduce, dim=-1)
+                weights = self.alphas_reduce
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
             else:
-                weights = F.softmax(self.alphas_normal, dim=-1)
+                weights = self.alphas_normal
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
             s0, s1 = s1, cell(s0, s1, weights)
@@ -316,7 +316,7 @@ class Network(nn.Module):
         s0 = s1 = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
-                weights = F.softmax(self.alphas_reduce, dim=-1)
+                weights = self.alphas_reduce
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
                 n = 3
@@ -329,7 +329,7 @@ class Network(nn.Module):
                     n += 1
                     weights2 = torch.cat([weights2, tw2], dim=0)
             else:
-                weights = F.softmax(self.alphas_normal, dim=-1)
+                weights = self.alphas_normal
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
                 n = 3
