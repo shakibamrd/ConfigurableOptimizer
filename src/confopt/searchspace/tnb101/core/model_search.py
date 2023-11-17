@@ -123,7 +123,7 @@ class TNB101SearchModel(nn.Module):
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
-        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
+        alphas = self._arch_parameters
 
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
@@ -158,7 +158,7 @@ class TNB101SearchModel(nn.Module):
         self,
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = nn.functional.softmax(self._arch_parameters, dim=-1)  # type: ignore
+        alphas = self._arch_parameters
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 

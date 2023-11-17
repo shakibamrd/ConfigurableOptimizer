@@ -252,7 +252,7 @@ class NB201SearchModel(nn.Module):
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
-        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)  # type: ignore
+        alphas = self.arch_parameters
 
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
@@ -289,14 +289,14 @@ class NB201SearchModel(nn.Module):
         self,
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = nn.functional.softmax(self.arch_parameters, dim=-1)  # type: ignore
+        alphas = self.arch_parameters
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
-                betas = torch.empty((0,)).to(alphas.device)
+                betas = torch.empty((0,)).to(alphas.device)  # type: ignore
                 for v in range(1, self.max_nodes):
                     idx_nodes = []
                     for u in range(v):
