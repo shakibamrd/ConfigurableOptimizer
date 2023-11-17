@@ -82,7 +82,13 @@ class Logger:
         self.set_up_run(run_time)
 
     def set_up_run(self, new_run_time: str | None = None) -> None:
-        log_dir, exp_name, search_space, seed, run_time = self.log_dir.parts
+        parts = self.log_dir.parts
+        log_dir = "/".join(parts[:-4])
+        exp_name = parts[-4]
+        search_space = parts[-3]
+        seed = parts[-2]
+        run_time = parts[-1]
+
         if new_run_time:
             run_time = new_run_time
 
