@@ -4,6 +4,7 @@ from .data import (
     CIFAR100Data,
     ImageNet16Data,
     ImageNet16120Data,
+    ObjectClassificationData,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "CIFAR100Data",
     "ImageNet16Data",
     "ImageNet16120Data",
+    "ObjectClassificationData",
 ]

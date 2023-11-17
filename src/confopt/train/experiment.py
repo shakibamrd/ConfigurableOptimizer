@@ -16,6 +16,7 @@ from confopt.dataset import (
     CIFAR100Data,
     ImageNet16Data,
     ImageNet16120Data,
+    ObjectClassificationData,
 )
 from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
@@ -76,12 +77,14 @@ class DatasetType(Enum):
     CIFAR100 = "cifar100"
     IMGNET16 = "imgnet16"
     IMGNET16_120 = "imgnet16_120"
+    TASKONOMY_OBJ_CLASS = "class_object"
 
 
 N_CLASSES = {
     DatasetType.CIFAR10: 10,
     DatasetType.CIFAR100: 100,
     DatasetType.IMGNET16_120: 120,
+    DatasetType.TASKONOMY_OBJ_CLASS: 100,
 }
 
 
@@ -326,6 +329,8 @@ class Experiment:
             return ImageNet16Data
         elif dataset == DatasetType.IMGNET16_120:
             return ImageNet16120Data
+        elif dataset == DatasetType.TASKONOMY_OBJ_CLASS:
+            return ObjectClassificationData
         return None
 
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
