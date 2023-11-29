@@ -12,11 +12,13 @@ class DartsProfile(ProfileConfig):
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
         PROFILE_TYPE = "DARTS"
-        super().__init__(PROFILE_TYPE)
-        self.sampler_type = str.lower(PROFILE_TYPE)
-        self.sampler_sample_frequency = sampler_sample_frequency
-        self.set_partial_connector(is_partial_connection)
-        self.set_perturb(perturbation, perturbator_sample_frequency)
+        super().__init__(
+            PROFILE_TYPE,
+            is_partial_connection,
+            perturbation,
+            sampler_sample_frequency,
+            perturbator_sample_frequency,
+        )
 
     def get_sampler_config(self) -> dict:
         darts_config = {"sample_frequency": self.sampler_sample_frequency}
@@ -34,13 +36,15 @@ class GDASProfile(ProfileConfig):
         tau_max: float = 10,
     ) -> None:
         PROFILE_TYPE = "GDAS"
-        super().__init__(PROFILE_TYPE)
-        self.sampler_type = str.lower(PROFILE_TYPE)
-        self.sampler_sample_frequency = sampler_sample_frequency
+        super().__init__(
+            PROFILE_TYPE,
+            is_partial_connection,
+            perturbation,
+            sampler_sample_frequency,
+            perturbator_sample_frequency,
+        )
         self.tau_min = tau_min
         self.tau_max = tau_max
-        self.set_partial_connector(is_partial_connection)
-        self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def get_sampler_config(self) -> dict:
         gdas_config = {
@@ -64,15 +68,17 @@ class SNASProfile(ProfileConfig):
         total_epochs: int = 250,
     ) -> None:
         PROFILE_TYPE = "SNAS"
-        super().__init__(PROFILE_TYPE)
-        self.sampler_type = str.lower(PROFILE_TYPE)
-        self.sampler_sample_frequency = sampler_sample_frequency
+        super().__init__(
+            PROFILE_TYPE,
+            is_partial_connection,
+            perturbation,
+            sampler_sample_frequency,
+            perturbator_sample_frequency,
+        )
         self.temp_init = temp_init
         self.temp_min = temp_min
         self.temp_annealing = temp_annealing
         self.total_epochs = total_epochs
-        self.set_partial_connector(is_partial_connection)
-        self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def get_sampler_config(self) -> dict:
         snas_config = {
@@ -94,11 +100,13 @@ class DRNASProfile(ProfileConfig):
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
         PROFILE_TYPE = "DRNAS"
-        super().__init__(PROFILE_TYPE)
-        self.sampler_type = str.lower(PROFILE_TYPE)
-        self.sampler_sample_frequency = sampler_sample_frequency
-        self.set_partial_connector(is_partial_connection)
-        self.set_perturb(perturbation, perturbator_sample_frequency)
+        super().__init__(
+            PROFILE_TYPE,
+            is_partial_connection,
+            perturbation,
+            sampler_sample_frequency,
+            perturbator_sample_frequency,
+        )
 
     def get_sampler_config(self) -> dict:
         drnas_config = {

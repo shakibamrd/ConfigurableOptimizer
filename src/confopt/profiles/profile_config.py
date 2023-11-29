@@ -12,8 +12,19 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 
 
 class ProfileConfig:
-    def __init__(self, config_type: str) -> None:
+    def __init__(
+        self,
+        config_type: str,
+        is_partial_connection: bool = False,
+        perturbation: str | None = None,
+        sampler_sample_frequency: str = "epoch",
+        perturbator_sample_frequency: str = "epoch",
+    ) -> None:
+        self.sampler_type = str.lower(config_type)
         self.config_type = config_type
+        self.sampler_sample_frequency = sampler_sample_frequency
+        self.set_partial_connector(is_partial_connection)
+        self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def set_perturb(
         self,
