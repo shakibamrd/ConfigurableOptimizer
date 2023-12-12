@@ -12,6 +12,7 @@ from confopt.oneshot.archsampler import (
     GDASSampler,
     SNASSampler,
 )
+from confopt.oneshot.dropout import Dropout
 from confopt.searchspace import NASBench201SearchSpace
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -263,6 +264,39 @@ class TestArchSamplers(unittest.TestCase):
                 arch_parameters=arch_parameters,
                 sample_frequency="illegal",
             )
+
+
+class TestDropout(unittest.TestCase):
+    def test_dropout_probability(self) -> None:
+        probability = 0.1
+        arch_parameters = torch.ones(1000)
+
+        dropout = Dropout(p=probability)
+        output = dropout.apply_mask(arch_parameters)
+        dropped_percent = (1000 - torch.count_nonzero(output)) / 1000
+
+        self.assertAlmostEqual(probability, dropped_percent.numpy(), places=1)
+
+    def test_negative_probability(self) -> None:
+        self._test_probabilities(-1.0)
+
+    def test_too_large_probability(self) -> None:
+        self._test_probabilities(1.0)
+
+    def _test_probabilities(self, probability: float) -> None:
+        with self.assertRaises(AssertionError):
+            Dropout(p=probability)
+
+    def test_illegal_anneal_frequency(self) -> None:
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_frequency="illegal")
+
+    def test_illegal_anneal_type_and_frequency(self) -> None:
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_frequency="epoch")
+
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_type="linear")
 
 
 if __name__ == "__main__":
