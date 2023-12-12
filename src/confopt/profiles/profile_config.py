@@ -16,6 +16,7 @@ class ProfileConfig:
         self,
         config_type: str,
         is_partial_connection: bool = False,
+        is_dropout: bool = False,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -24,6 +25,7 @@ class ProfileConfig:
         self.config_type = config_type
         self.sampler_sample_frequency = sampler_sample_frequency
         self.set_partial_connector(is_partial_connection)
+        self.set_dropout(is_dropout)
         self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def set_perturb(
@@ -38,6 +40,9 @@ class ProfileConfig:
 
     def set_partial_connector(self, is_partial_connection: bool = False) -> None:
         self.is_partial_connection = is_partial_connection
+
+    def set_dropout(self, is_dropout: bool = False) -> None:
+        self.is_dropout = is_dropout
 
     def get_config(self) -> dict:
         sampler_config = self.get_sampler_config()
