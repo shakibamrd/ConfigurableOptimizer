@@ -4,6 +4,7 @@ import torch
 
 from confopt.oneshot import BaseSampler
 from confopt.oneshot.archsampler.darts.sampler import DARTSSampler
+from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.searchspace import DARTSSearchSpace
 from confopt.searchspace.common import (
@@ -20,11 +21,13 @@ class Profile:
         edge_normalization: bool = False,
         partial_connector: PartialConnector | None = None,
         perturbation: BaseSampler | None = None,
+        dropout: Dropout | None = None,
     ) -> None:
         self.sampler = sampler
         self.edge_normalization = edge_normalization
         self.partial_connector = partial_connector
         self.perturbation = perturbation
+        self.dropout = dropout
 
     def adapt_search_space(self, search_space: SearchSpace) -> None:
         if hasattr(search_space.model, "edge_normalization"):
@@ -49,9 +52,7 @@ class Profile:
         self, ops: torch.nn.Module, is_reduction_cell: bool = False
     ) -> OperationBlock:
         op_block = OperationBlock(
-            ops,
-            is_reduction_cell,
-            self.partial_connector,
+            ops, is_reduction_cell, self.partial_connector, self.dropout
         )
         return op_block
 
