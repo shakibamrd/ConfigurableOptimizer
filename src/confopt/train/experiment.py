@@ -17,7 +17,6 @@ from confopt.dataset import (
     ImageNet16Data,
     ImageNet16120Data,
 )
-from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
     DARTSSampler,
     DRNASSampler,
@@ -25,6 +24,7 @@ from confopt.oneshot.archsampler import (
     SNASSampler,
 )
 from confopt.oneshot.partial_connector import PartialConnector
+from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.profiles import (
     GDASProfile,
     ProfileConfig,
@@ -92,6 +92,7 @@ class CriterionType(Enum):
 class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
+    ASGD = "asgd"
 
 
 class Experiment:
@@ -102,12 +103,14 @@ class Experiment:
         seed: int,
         is_wandb_log: bool = False,
         debug_mode: bool = False,
+        exp_name: str = "test",
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
         self.seed = seed
         self.is_wandb_log = is_wandb_log
         self.debug_mode = debug_mode
+        self.exp_name = exp_name
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -131,7 +134,6 @@ class Experiment:
         self.is_partial_connection = profile.is_partial_connection
         self.edge_normalization = profile.is_partial_connection
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
-
         return self.runner(
             config,
             start_epoch,
@@ -192,11 +194,9 @@ class Experiment:
         model = self.search_space
 
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
-            model.parameters(),
+            model.model_weight_parameters(),
             arg_config.lr,  # type: ignore
-            momentum=arg_config.momentum,  # type: ignore
-            weight_decay=arg_config.weight_decay,  # type: ignore
-            nesterov=arg_config.nesterov,  # type: ignore
+            **config["trainer"].get("optim_config", {}),  # type: ignore
         )
 
         w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -207,11 +207,15 @@ class Experiment:
 
         if self.edge_normalization and hasattr(model, "beta_parameters"):
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
-                [*model.arch_parameters, *model.beta_parameters]
+                [*model.arch_parameters, *model.beta_parameters],
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
         else:
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
                 model.arch_parameters,
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
 
         trainer = ConfigurableTrainer(
@@ -279,11 +283,11 @@ class Experiment:
         arch_params = self.search_space.arch_parameters
         if sampler == SamplerType.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.DRNAS:
+        elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.GDAS:
+        elif sampler == SamplerType.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.SNAS:
+        elif sampler == SamplerType.SNAS:
             self.sampler = SNASSampler(**config, arch_parameters=arch_params)
 
     def set_perturbator(
@@ -292,7 +296,7 @@ class Experiment:
         pertub_config: dict,
     ) -> None:
         if petubrator_enum != PerturbatorType.NONE:
-            self.perturbator = SDARTSSampler(
+            self.perturbator = SDARTSPerturbator(
                 **pertub_config,
                 search_space=self.search_space,
                 arch_parameters=self.search_space.arch_parameters,
@@ -340,6 +344,8 @@ class Experiment:
             return torch.optim.Adam
         elif optim == OptimizerType.SGD:  # noqa: RET505
             return torch.optim.SGD
+        if optim == OptimizerType.ASGD:
+            return torch.optim.ASGD
         return None
 
 
