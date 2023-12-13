@@ -5,11 +5,11 @@ from typing import Any, Callable, Literal
 import torch
 from torch.optim.optimizer import Optimizer, required
 
-from confopt.oneshot.archsampler import BaseSampler
+from confopt.oneshot.perturbator import BasePerturbator
 from confopt.searchspace.common import SearchSpace
 
 
-class SDARTSSampler(BaseSampler):
+class SDARTSPerturbator(BasePerturbator):
     def __init__(
         self,
         arch_parameters: list[torch.Tensor],
@@ -51,16 +51,16 @@ class SDARTSSampler(BaseSampler):
         else:
             self.loss_criterion = loss_criterion
 
-    def sample_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
+    def perturb_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
         if self.attack_type == "random":
             sampled_alphas = []
             for alpha in arch_parameters:
-                sampled_alphas.append(self.sample_random(alpha.clone(), self.epsilon))
+                sampled_alphas.append(self.perturb_random(alpha.clone(), self.epsilon))
 
             self.clip(sampled_alphas)
             return sampled_alphas
 
-        return self.sample_linf_pgd_alpha(
+        return self.perturb_linf_pgd_alpha(
             self.model,
             self.loss_criterion,
             self.X,
@@ -71,11 +71,11 @@ class SDARTSSampler(BaseSampler):
             self.random_start,
         )
 
-    def sample_random(self, alpha: torch.Tensor, epsilon: float) -> torch.Tensor:
+    def perturb_random(self, alpha: torch.Tensor, epsilon: float) -> torch.Tensor:
         alpha.data.add_(torch.zeros_like(alpha).uniform_(-epsilon, epsilon))
         return alpha
 
-    def sample_linf_pgd_alpha(
+    def perturb_linf_pgd_alpha(
         self,
         model: torch.nn.Module,
         loss_criterion: torch.nn.Module,
