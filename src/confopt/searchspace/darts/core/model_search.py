@@ -79,6 +79,9 @@ class Cell(nn.Module):
                 op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
 
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
     def forward(
         self,
         s0: torch.Tensor,
@@ -227,7 +230,7 @@ class Network(nn.Module):
         for _i, cell in enumerate(self.cells):
             if self.edge_normalization:
                 if cell.reduction:
-                    weights = F.softmax(self.alphas_reduce, dim=-1)
+                    weights = self.sample(self.alphas_reduce)
                     n = 3
                     start = 2
                     weights2 = F.softmax(self.betas_reduce[0:2], dim=-1)
@@ -238,7 +241,7 @@ class Network(nn.Module):
                         n += 1
                         weights2 = torch.cat([weights2, tw2], dim=0)
                 else:
-                    weights = F.softmax(self.alphas_normal, dim=-1)
+                    weights = self.sample(self.alphas_normal)
                     n = 3
                     start = 2
                     weights2 = F.softmax(self.betas_normal[0:2], dim=-1)
@@ -254,11 +257,11 @@ class Network(nn.Module):
                     if self.discretized:
                         weights = self.alphas_reduce
                     else:
-                        weights = F.softmax(self.alphas_reduce, dim=-1)
+                        weights = self.sample(self.alphas_reduce)
                 elif self.discretized:
                     weights = self.alphas_normal
                 else:
-                    weights = F.softmax(self.alphas_normal, dim=-1)
+                    weights = self.sample(self.alphas_normal)
                 s0, s1 = s1, cell(s0, s1, weights)
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
