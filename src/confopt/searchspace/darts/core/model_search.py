@@ -79,9 +79,6 @@ class Cell(nn.Module):
                 op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
 
-    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
-
     def forward(
         self,
         s0: torch.Tensor,
@@ -214,6 +211,10 @@ class Network(nn.Module):
         for x, y in zip(model_new.beta_parameters(), self.beta_parameters()):
             x.data.copy_(y.data)
         return model_new
+
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return F.softmax(alphas, dim=-1)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the network model.

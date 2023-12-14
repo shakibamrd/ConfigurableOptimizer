@@ -45,9 +45,6 @@ class Profile:
         if self.perturbation:
             search_space.components.append(self.perturbation)
 
-        # Set the default function for the search space
-        self.set_default_sample(search_space)
-
     def perturb_parameter(self, search_space: SearchSpace) -> None:
         if self.perturbation is not None:
             self.perturbation._perturb_and_update_alphas()

@@ -227,7 +227,8 @@ class NB201SearchModel(nn.Module):
         return Structure(genotypes)
 
     def sample(self, alphas: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        # Replace this function on the fly to change the sampling method
+        return torch.nn.functional.softmax(alphas, dim=-1)
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the model.
