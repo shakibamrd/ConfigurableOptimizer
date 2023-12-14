@@ -53,12 +53,14 @@ class SDARTSPerturbator(BasePerturbator):
 
     def perturb_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
         if self.attack_type == "random":
-            sampled_alphas = []
+            perturbed_alphas = []
             for alpha in arch_parameters:
-                sampled_alphas.append(self.perturb_random(alpha.clone(), self.epsilon))
+                perturbed_alphas.append(
+                    self.perturb_random(alpha.clone(), self.epsilon)
+                )
 
-            self.clip(sampled_alphas)
-            return sampled_alphas
+            self.clip(perturbed_alphas)
+            return perturbed_alphas
 
         return self.perturb_linf_pgd_alpha(
             self.model,
