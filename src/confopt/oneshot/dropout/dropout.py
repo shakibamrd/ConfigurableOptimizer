@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Literal
 
 import torch
@@ -16,6 +17,7 @@ class Dropout(OneShotComponent):
         p_min: float | None = None,
         anneal_frequency: Literal["epoch", "step", None] = None,
         anneal_type: Literal["linear", "cosine", None] = None,
+        max_iter: int | None = None,
         seed: int = 1,
     ) -> None:
         """Instantiate a dropout class.
@@ -28,21 +30,27 @@ class Dropout(OneShotComponent):
             dropout probability. Defaults to None.
             anneal_type (str, optional): Type of probability annealing to be used.
             Defaults to None.
+            max_iter (int, optional): Total amount of iterations.
+            Required for annealing.
             seed (int, optional): The seed for random number generation. Defaults to 1.
         """
         super().__init__()
         assert p >= 0
         assert p < 1
-        if p_min:
-            assert p_min >= 0
-            assert p_min < 1
-            assert p_min < p
+        if anneal_frequency is not None:
+            assert p_min >= 0  # type: ignore
+            assert p_min < 1  # type: ignore
+            assert p_min < p  # type: ignore
+            assert max_iter > 0  # type: ignore
         assert anneal_frequency in ["epoch", "step", None]
+        assert anneal_type in ["cosine", "step", None]
         assert bool(anneal_frequency) == bool(anneal_type)
 
         self._p_init = p
         self._p_min = p_min
         self._anneal_frequency = anneal_frequency
+        self._anneal_type = anneal_type
+        self._max_iter = max_iter
         self._seed = seed
 
         self.p = self._p_init
@@ -58,9 +66,6 @@ class Dropout(OneShotComponent):
         scale_mask = torch.ones_like(parameters)
         return scale_mask * dropout_mask * parameters
 
-    def _anneal_probability(self) -> None:
-        """This function decays the dropout probability to the goal probability."""
-
     def new_epoch(self) -> None:
         super().new_epoch()
         if self._anneal_frequency == "epoch":
@@ -70,3 +75,22 @@ class Dropout(OneShotComponent):
         super().new_step()
         if self._anneal_frequency == "step":
             self._anneal_probability()
+
+    def _anneal_probability(self) -> None:
+        """This function decays the dropout probability to the goal probability."""
+        if self._anneal_type == "linear":
+            self.p = (1 - self._epoch / self._max_iter) * (  # type: ignore
+                self._p_init - self._p_min  # type: ignore
+            ) + self.p_min  # type: ignore
+        elif self._anneal_type == "cosine":
+            # Concept from the following paper:
+            # Loshchilov, I., & Hutter, F. (2016).
+            # SGDR: Stochastic gradient descent with warm restarts.
+            self.p = (
+                0.5  # type: ignore
+                * (self._p_init - self._p_min)  # type: ignore
+                * (1 + math.cos(self.p * math.pi / self._max_iter))  # type: ignore
+                + self._p_min
+            )
+        else:
+            raise ValueError(f"Unsupported annealing type: {self._anneal_type}")
