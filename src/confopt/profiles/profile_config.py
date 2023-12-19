@@ -125,8 +125,4 @@ class ProfileConfig:
     def get_dropout_config(self) -> dict:
         return {
             "p": self.dropout,
-            "p_min": 0.0,
-            "anneal_frequency": "epoch",
-            "anneal_type": "linear",
-            "max_iter": self.epochs,
         }
