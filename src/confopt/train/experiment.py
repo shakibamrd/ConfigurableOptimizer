@@ -130,7 +130,7 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
-        self.is_dropout = profile.is_dropout
+        self.dropout = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
@@ -311,7 +311,7 @@ class Experiment:
             self.partial_connector = None
 
     def set_dropout(self, config: dict) -> None:
-        if self.is_dropout:
+        if self.dropout is not None:
             self.dropout = Dropout(**config)
         else:
             self.dropout = None
@@ -417,7 +417,9 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
-        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
+        is_partial_connection=args.is_partial_connector,
+        perturbation=args.perturbator,
+        dropout=args.dropout,
     )
 
     experiment = Experiment(

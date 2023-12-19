@@ -12,11 +12,13 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 
 
 class ProfileConfig:
+    epochs = 100
+
     def __init__(
         self,
         config_type: str,
         is_partial_connection: bool = False,
-        is_dropout: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -25,7 +27,7 @@ class ProfileConfig:
         self.config_type = config_type
         self.sampler_sample_frequency = sampler_sample_frequency
         self.set_partial_connector(is_partial_connection)
-        self.set_dropout(is_dropout)
+        self.set_dropout(dropout)
         self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def set_perturb(
@@ -41,18 +43,20 @@ class ProfileConfig:
     def set_partial_connector(self, is_partial_connection: bool = False) -> None:
         self.is_partial_connection = is_partial_connection
 
-    def set_dropout(self, is_dropout: bool = False) -> None:
-        self.is_dropout = is_dropout
+    def set_dropout(self, dropout: float | None = None) -> None:
+        self.dropout = dropout
 
     def get_config(self) -> dict:
         sampler_config = self.get_sampler_config()
         perturb_config = self.get_perturb_config()
         partial_connector_config = self.get_partial_conenctor()
+        dropout_config = self.get_dropout_config()
         trainer_config = self.get_trainer_config()
         config = {
             "sampler": sampler_config,
             "perturbator": perturb_config,
             "partial_connector": partial_connector_config,
+            "dropout": dropout_config,
             "trainer": trainer_config,
         }
         searchspace_config = self.get_searchspace_config()
@@ -96,7 +100,7 @@ class ProfileConfig:
     def get_trainer_config(self) -> dict:
         default_train_config = {
             "lr": 0.025,
-            "epochs": 100,
+            "epochs": self.epochs,
             "optim": "sgd",
             "arch_optim": "adam",
             "momentum": 0.9,
@@ -116,3 +120,13 @@ class ProfileConfig:
     @abstractmethod
     def get_searchspace_config(self) -> dict:
         pass
+
+    @abstractmethod
+    def get_dropout_config(self) -> dict:
+        return {
+            "p": self.dropout,
+            "p_min": 0.0,
+            "anneal_frequency": "epoch",
+            "anneal_type": "linear",
+            "max_iter": self.epochs,
+        }

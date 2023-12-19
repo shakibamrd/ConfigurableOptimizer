@@ -7,7 +7,7 @@ class DartsProfile(ProfileConfig):
     def __init__(
         self,
         is_partial_connection: bool = False,
-        is_dropout: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -16,7 +16,7 @@ class DartsProfile(ProfileConfig):
         super().__init__(
             PROFILE_TYPE,
             is_partial_connection,
-            is_dropout,
+            dropout,
             perturbation,
             sampler_sample_frequency,
             perturbator_sample_frequency,
@@ -31,7 +31,7 @@ class GDASProfile(ProfileConfig):
     def __init__(
         self,
         is_partial_connection: bool = False,
-        is_dropout: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -42,7 +42,7 @@ class GDASProfile(ProfileConfig):
         super().__init__(
             PROFILE_TYPE,
             is_partial_connection,
-            is_dropout,
+            dropout,
             perturbation,
             sampler_sample_frequency,
             perturbator_sample_frequency,
@@ -63,7 +63,7 @@ class SNASProfile(ProfileConfig):
     def __init__(
         self,
         is_partial_connection: bool = False,
-        is_dropout: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -76,7 +76,7 @@ class SNASProfile(ProfileConfig):
         super().__init__(
             PROFILE_TYPE,
             is_partial_connection,
-            is_dropout,
+            dropout,
             perturbation,
             sampler_sample_frequency,
             perturbator_sample_frequency,
@@ -101,7 +101,7 @@ class DRNASProfile(ProfileConfig):
     def __init__(
         self,
         is_partial_connection: bool = False,
-        is_dropout: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         sampler_sample_frequency: str = "epoch",
         perturbator_sample_frequency: str = "epoch",
@@ -110,7 +110,7 @@ class DRNASProfile(ProfileConfig):
         super().__init__(
             PROFILE_TYPE,
             is_partial_connection,
-            is_dropout,
+            dropout,
             perturbation,
             sampler_sample_frequency,
             perturbator_sample_frequency,
