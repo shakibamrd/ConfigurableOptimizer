@@ -50,13 +50,13 @@ class Profile:
             self.perturbation._perturb_and_update_alphas()
             search_space.set_arch_parameters(self.perturbation.perturbed_alphas)
 
-    def set_sampler_sample(self, search_space: SearchSpace) -> None:
+    def update_sample_function_from_sampler(self, search_space: SearchSpace) -> None:
         search_space.set_sample_function(self.sampler.sample_alphas)
 
     def default_sample_function(self, alphas: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.softmax(alphas, dim=-1)
 
-    def set_default_sample(self, search_space: SearchSpace) -> None:
+    def reset_sample_function(self, search_space: SearchSpace) -> None:
         search_space.set_sample_function(self.default_sample_function)
 
     def _initialize_operation_block(

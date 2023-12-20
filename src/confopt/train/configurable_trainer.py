@@ -486,8 +486,8 @@ class ConfigurableTrainer:
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
         if calling_frequency == "epoch":
-            profile.set_sampler_sample(model)
+            profile.update_sample_function_from_sampler(model)
         elif (
             calling_frequency == "step" and profile.sampler.sample_frequency == "epoch"
         ):
-            profile.set_default_sample(model)
+            profile.reset_sample_function(model)
