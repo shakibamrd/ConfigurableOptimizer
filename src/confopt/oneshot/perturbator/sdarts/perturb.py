@@ -56,7 +56,9 @@ class SDARTSPerturbator(BasePerturbator):
             perturbed_alphas = []
             for alpha in arch_parameters:
                 perturbed_alphas.append(
-                    self.perturb_random(alpha.clone(), self.epsilon)
+                    alpha.clone().data.add_(
+                        torch.zeros_like(alpha).uniform_(-self.epsilon, self.epsilon)
+                    )
                 )
 
             self.clip(perturbed_alphas)
