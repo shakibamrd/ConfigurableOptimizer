@@ -35,9 +35,3 @@ class BasePerturbator(OneShotComponent):
         # print(sampled_alphas)
         if perturbed_alphas is not None:
             self.perturbed_alphas = perturbed_alphas
-
-    def new_epoch(self) -> None:
-        super().new_epoch()
-
-    def new_step(self) -> None:  # type: ignore
-        super().new_step()
