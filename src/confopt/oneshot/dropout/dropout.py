@@ -63,8 +63,8 @@ class Dropout(OneShotComponent):
         """
         random = torch.rand_like(parameters)
         dropout_mask = random >= self.p
-        scale_mask = torch.ones_like(parameters)
-        return scale_mask * dropout_mask * parameters
+        rescale = 1 / (1 - self.p)
+        return rescale * dropout_mask * parameters
 
     def new_epoch(self) -> None:
         super().new_epoch()
