@@ -109,11 +109,15 @@ class TNB101SearchModel(nn.Module):
     def beta_parameters(self) -> nn.Parameter:
         return self._beta_parameters
 
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return torch.nn.functional.softmax(alphas, dim=-1)
+
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.discretized:
             alphas = self._arch_parameters
         else:
-            alphas = nn.functional.softmax(self._arch_parameters, dim=-1)
+            alphas = self.sample(self._arch_parameters)
 
         feature = self.stem(inputs)
         for cell in self.cells:

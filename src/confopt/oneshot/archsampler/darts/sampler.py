@@ -20,4 +20,8 @@ class DARTSSampler(BaseSampler):
     def sample_alphas(
         self, arch_parameters: list[torch.Tensor]
     ) -> list[torch.Tensor] | None:
-        return arch_parameters
+        sampled_alphas = []
+        for alpha in arch_parameters:
+            sampled_alpha = torch.nn.functional.softmax(alpha, dim=-1)
+            sampled_alphas.append(sampled_alpha)
+        return sampled_alphas

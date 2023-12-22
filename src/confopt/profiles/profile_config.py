@@ -33,7 +33,10 @@ class ProfileConfig:
     ) -> None:
         assert perturb_type in ["adverserial", "random", "none", None]
         assert perturbator_sample_frequency in ["epoch", "step"]
-        self.perturb_type = perturb_type
+        if perturb_type is None:
+            self.perturb_type = "none"
+        else:
+            self.perturb_type = perturb_type
         self.perturbator_sample_frequency = perturbator_sample_frequency
 
     def set_partial_connector(self, is_partial_connection: bool = False) -> None:
