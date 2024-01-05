@@ -37,14 +37,14 @@ class Dropout(OneShotComponent):
         super().__init__()
         assert p >= 0
         assert p < 1
+        assert anneal_frequency in ["epoch", "step", None]
+        assert anneal_type in ["linear", "cosine", None]
+        assert bool(anneal_frequency) == bool(anneal_type)
         if anneal_frequency is not None:
             assert p_min >= 0  # type: ignore
             assert p_min < 1  # type: ignore
             assert p_min < p  # type: ignore
             assert max_iter > 0  # type: ignore
-        assert anneal_frequency in ["epoch", "step", None]
-        assert anneal_type in ["linear", "cosine", None]
-        assert bool(anneal_frequency) == bool(anneal_type)
 
         self._p_init = p
         self._p_min = p_min
