@@ -55,12 +55,12 @@ class OperationBlock(nn.Module):
         self.dropout = dropout
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
+        if self.dropout:
+            alphas = self.dropout.apply_mask(alphas)
         if self.partial_connector is not None:
             self.partial_connector.is_reduction_cell = self.is_reduction_cell
         if self.partial_connector:
             return self.partial_connector(x, alphas, self.ops)
-        if self.dropout:
-            alphas = self.dropout.apply_mask(alphas)
 
         states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
 
