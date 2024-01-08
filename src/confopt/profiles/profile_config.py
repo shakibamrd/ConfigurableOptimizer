@@ -49,6 +49,7 @@ class ProfileConfig:
 
     def set_dropout(self, dropout: float | None = None) -> None:
         self.dropout = dropout
+        self._initialize_dropout_config()
 
     def get_config(self) -> dict:
         assert (
@@ -120,14 +121,12 @@ class ProfileConfig:
     @abstractmethod
     def _initialize_dropout_config(self) -> None:
         dropout_config = {
-            "p": self.dropout,
-            "p_min": None,
-            "anneal_frequency": None,
-            "anneal_type": None,
-            "max_iter": None,
-            "seed": 1,
+            "p": self.dropout if self.dropout is not None else 0.0,
+            "p_min": 0.0,
+            "anneal_frequency": "epoch",
+            "anneal_type": "linear",
+            "max_iter": self.epochs,
         }
-
         self.dropout_config = dropout_config
 
     def configure_sampler(self, **kwargs) -> None:  # type: ignore
@@ -174,7 +173,7 @@ class ProfileConfig:
             assert (
                 config_key in self.trainer_config
             ), f"{config_key} not a valid configuration for the dropout module"
-            self.trainer_config[config_key] = kwargs[config_key]
+            self.dropout_config[config_key] = kwargs[config_key]
 
     @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
