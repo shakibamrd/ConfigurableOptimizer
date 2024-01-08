@@ -18,7 +18,6 @@ class Dropout(OneShotComponent):
         anneal_frequency: Literal["epoch", "step", None] = None,
         anneal_type: Literal["linear", "cosine", None] = None,
         max_iter: int | None = None,
-        seed: int = 1,
     ) -> None:
         """Instantiate a dropout class.
 
@@ -32,7 +31,6 @@ class Dropout(OneShotComponent):
             Defaults to None.
             max_iter (int, optional): Total amount of iterations.
             Required for annealing.
-            seed (int, optional): The seed for random number generation. Defaults to 1.
         """
         super().__init__()
         assert p >= 0
@@ -51,7 +49,6 @@ class Dropout(OneShotComponent):
         self._anneal_frequency = anneal_frequency
         self._anneal_type = anneal_type
         self._max_iter = max_iter
-        self._seed = seed
 
         self.p = self._p_init
 
