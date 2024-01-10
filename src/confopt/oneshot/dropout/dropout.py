@@ -78,7 +78,7 @@ class Dropout(OneShotComponent):
         if self._anneal_type == "linear":
             self.p = (1 - self._epoch / self._max_iter) * (  # type: ignore
                 self._p_init - self._p_min  # type: ignore
-            ) + self.p_min  # type: ignore
+            ) + self._p_min  # type: ignore
         elif self._anneal_type == "cosine":
             # Concept from the following paper:
             # Loshchilov, I., & Hutter, F. (2016).

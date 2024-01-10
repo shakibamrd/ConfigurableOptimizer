@@ -47,6 +47,8 @@ class Profile:
         search_space.components.append(self.sampler)
         if self.perturbation:
             search_space.components.append(self.perturbation)
+        if self.dropout:
+            search_space.components.append(self.dropout)
 
     def perturb_parameter(self, search_space: SearchSpace) -> None:
         if self.perturbation is not None:
