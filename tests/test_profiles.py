@@ -14,6 +14,7 @@ class TestProfileConfig(unittest.TestCase):
         profile = ProfileConfig(
             "TEST",
             is_partial_connection=True,
+            dropout=0.5,
             perturbation="random",
             perturbator_sample_frequency="step",
         )
@@ -41,6 +42,7 @@ class TestProfileConfig(unittest.TestCase):
         profile = ProfileConfig(
             "TEST",
             is_partial_connection=True,
+            dropout=0.5,
             perturbation="random",
             perturbator_sample_frequency="step",
         )
@@ -53,6 +55,8 @@ class TestProfileConfig(unittest.TestCase):
 
         trainer_config = {"invalid_config": False}
 
+        dropout_config = {"invalid_config": "test"}
+
         with self.assertRaises(AssertionError):
             profile.configure_partial_connector(**partial_connector_config)
 
@@ -61,6 +65,9 @@ class TestProfileConfig(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             profile.configure_trainer(**trainer_config)
+
+        with self.assertRaises(AssertionError):
+            profile.configure_dropout(**dropout_config)
 
 
 class TestDartsProfile(unittest.TestCase):

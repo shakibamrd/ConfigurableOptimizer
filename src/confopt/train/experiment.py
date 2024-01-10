@@ -23,6 +23,7 @@ from confopt.oneshot.archsampler import (
     GDASSampler,
     SNASSampler,
 )
+from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.profiles import (
@@ -132,6 +133,7 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
+        self.dropout = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
         return self.runner(
@@ -259,6 +261,7 @@ class Experiment:
         self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
 
         self.set_partial_connector(config.get("partial_connector", {}))
+        self.set_dropout(config.get("dropout", {}))
         self.set_profile()
 
     def set_search_space(
@@ -311,6 +314,12 @@ class Experiment:
         else:
             self.partial_connector = None
 
+    def set_dropout(self, config: dict) -> None:
+        if self.dropout is not None:
+            self.dropout = Dropout(**config)
+        else:
+            self.dropout = None
+
     def set_profile(self) -> None:
         assert self.sampler is not None
 
@@ -319,6 +328,7 @@ class Experiment:
             edge_normalization=self.edge_normalization,
             partial_connector=self.partial_connector,
             perturbation=self.perturbator,
+            dropout=self.dropout,
         )
 
     def _get_dataset(self, dataset: DatasetType) -> Callable | None:
@@ -377,6 +387,12 @@ if __name__ == "__main__":
         default=False,
         help="Enable/Disable partial connection",
     )
+    parser.add_argument(
+        "--dropout",
+        default=None,
+        help="Dropout probability. 0 <= p < 1.",
+        type=float,
+    )
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
     parser.add_argument("--seed", default=444, type=int)
@@ -407,7 +423,9 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
-        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
+        is_partial_connection=args.is_partial_connector,
+        perturbation=args.perturbator,
+        dropout=args.dropout,
     )
 
     experiment = Experiment(

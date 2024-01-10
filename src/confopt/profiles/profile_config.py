@@ -12,10 +12,13 @@ ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,
 
 
 class ProfileConfig:
+    epochs = 100
+
     def __init__(
         self,
         config_type: str,
         is_partial_connection: bool = False,
+        dropout: float | None = None,
         perturbation: str | None = None,
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
@@ -23,6 +26,7 @@ class ProfileConfig:
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self.set_partial_connector(is_partial_connection)
+        self.set_dropout(dropout)
         self.set_perturb(perturbation, perturbator_sample_frequency)
 
     def set_perturb(
@@ -43,6 +47,10 @@ class ProfileConfig:
         self.is_partial_connection = is_partial_connection
         self._initialize_partial_connector_config()
 
+    def set_dropout(self, dropout: float | None = None) -> None:
+        self.dropout = dropout
+        self._initialize_dropout_config()
+
     def get_config(self) -> dict:
         assert (
             self.sampler_config is not None
@@ -51,6 +59,7 @@ class ProfileConfig:
             "sampler": self.sampler_config,
             "perturbator": self.perturb_config,
             "partial_connector": self.partial_connector_config,
+            "dropout": self.dropout_config,
             "trainer": self.trainer_config,
         }
         if hasattr(self, "searchspace_config") and self.searchspace_config is not None:
@@ -91,7 +100,7 @@ class ProfileConfig:
     def _initialize_trainer_config(self) -> None:
         trainer_config = {
             "lr": 0.025,
-            "epochs": 100,
+            "epochs": self.epochs,
             "optim": "sgd",
             "arch_optim": "adam",
             "momentum": 0.9,
@@ -108,6 +117,17 @@ class ProfileConfig:
         }
 
         self.trainer_config = trainer_config
+
+    @abstractmethod
+    def _initialize_dropout_config(self) -> None:
+        dropout_config = {
+            "p": self.dropout if self.dropout is not None else 0.0,
+            "p_min": 0.0,
+            "anneal_frequency": "epoch",
+            "anneal_type": "linear",
+            "max_iter": self.epochs,
+        }
+        self.dropout_config = dropout_config
 
     def configure_sampler(self, **kwargs) -> None:  # type: ignore
         assert self.sampler_config is not None
@@ -147,6 +167,13 @@ class ProfileConfig:
                 config_key in self.trainer_config
             ), f"{config_key} not a valid configuration for the trainer"
             self.trainer_config[config_key] = kwargs[config_key]
+
+    def configure_dropout(self, **kwargs) -> None:  # type: ignore
+        for config_key in kwargs:
+            assert (
+                config_key in self.trainer_config
+            ), f"{config_key} not a valid configuration for the dropout module"
+            self.dropout_config[config_key] = kwargs[config_key]
 
     @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
