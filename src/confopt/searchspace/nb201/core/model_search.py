@@ -379,3 +379,10 @@ class NB201SearchModel(nn.Module):
         discrete_model.arch_parameters = None
 
         return discrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        params -= set(self.beta_parameters)
+        if self.arch_parameters is not None:
+            params -= set(self.arch_parameters)
+        return list(params)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import namedtuple
 import time
 
-from fvcore.common.checkpoint import Checkpointer, PeriodicCheckpointer
+from fvcore.common.checkpoint import Checkpointer
 import torch
 from torch import nn
 from typing_extensions import TypeAlias
@@ -68,6 +68,18 @@ class DiscreteTrainer:
         self._init_empty_model_state_info()
 
         self.model = self.model._discretize()  # type: ignore
+        # TODO: check if we even need to change the optimizer, i believe not!
+        optimizer_hyperparameters = self.model_optimizer.defaults
+        self.model_optimizer = type(self.model_optimizer)(
+            self.model.model_weight_parameters(),  # type: ignore
+            **optimizer_hyperparameters,
+        )
+        self.scheduler = type(self.scheduler)(
+            self.model_optimizer,
+            self.scheduler.T_max,  # type: ignore
+            self.scheduler.eta_min,  # type: ignore
+        )
+        # =========================================================
 
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
@@ -90,26 +102,19 @@ class DiscreteTrainer:
 
             base_metrics = self.train_func(
                 train_loader,
-                # val_loader,
                 network,
                 criterion,
-                self.scheduler,
-                self.model_optimizer,
-                epoch_str,
                 self.print_freq,
-                self.logger,
             )
 
             # Logging
             search_time.update(time.time() - start_time)
             self.logger.log_metrics(
-                "Train: Model metrics ",
+                "Train: Model/Network metrics ",
                 base_metrics,
                 epoch_str,
                 search_time.sum,
             )
-
-            self.logger.log_metrics("Train: Network metrics ", base_metrics, epoch_str)
 
             valid_metrics = self.valid_func(val_loader, self.model, self.criterion)
             self.logger.log_metrics("Evaluation: ", valid_metrics, epoch_str)
@@ -149,14 +154,9 @@ class DiscreteTrainer:
     def train_func(
         self,
         train_loader: DataLoaderType,
-        # valid_loader: DataLoaderType,
         network: SearchSpace,
         criterion: CriterionType,
-        w_scheduler: LRSchedulerType,  # noqa: ARG002  TODO:Fix
-        w_optimizer: OptimizerType,
-        epoch_str: str,  # noqa: ARG002  TODO:Fix
         print_freq: int,
-        logger: Logger,  # noqa: ARG002  TODO:Fix
     ) -> TrainingMetrics:
         data_time, batch_time = AverageMeter(), AverageMeter()
         base_losses, base_top1, base_top5 = (
@@ -177,14 +177,14 @@ class DiscreteTrainer:
             # measure data loading time
             data_time.update(time.time() - end)
 
-            w_optimizer.zero_grad()
+            self.model_optimizer.zero_grad()
             _, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
             base_loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(network.parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
-            w_optimizer.step()
+            self.model_optimizer.step()
 
             self._update_meters(
                 inputs=base_inputs,
@@ -299,42 +299,39 @@ class DiscreteTrainer:
         top1_meter.update(base_prec1.item(), inputs.size(0))
         top5_meter.update(base_prec5.item(), inputs.size(0))
 
-    def _get_checkpointables(self, epoch: int) -> dict:
-        return {
-            "epoch": epoch,
-            "search_losses": self.search_losses,
-            "search_accs_top1": self.search_accs_top1,
-            "search_accs_top5": self.search_accs_top5,
-            "valid_losses": self.valid_losses,
-            "valid_accs_top1": self.valid_accs_top1,
-            "valid_accs_top5": self.valid_accs_top5,
-        }
+    # def _get_checkpointables(self, epoch: int) -> dict:
+    #     return {
+    #         "epoch": epoch,
+    #         "search_losses": self.search_losses,
+    #         "search_accs_top1": self.search_accs_top1,
+    #         "search_accs_top5": self.search_accs_top5,
+    #         "valid_losses": self.valid_losses,
+    #         "valid_accs_top1": self.valid_accs_top1,
+    #         "valid_accs_top5": self.valid_accs_top5,
+    #     }
 
-    def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
-        checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
-        # checkpointables = self._get_checkpointables(self.start_epoch)
-        checkpointer = Checkpointer(
-            model=self.model,
-            save_dir=str(checkpoint_dir),
-            save_to_disk=True,
-        )
-        checkpointer.add_checkpointable("w_scheduler", self.scheduler)
-        checkpointer.add_checkpointable("w_optimizer", self.model_optimizer)
-        return checkpointer
+    # def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
+    #     checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
+    #     # checkpointables = self._get_checkpointables(self.start_epoch)
+    #     checkpointer = Checkpointer(
+    #         model=self.model,
+    #         save_dir=str(checkpoint_dir),
+    #         save_to_disk=True,
+    #     )
+    #     checkpointer.add_checkpointable("w_scheduler", self.scheduler)
+    #     checkpointer.add_checkpointable("w_optimizer", self.model_optimizer)
+    #     return checkpointer
 
-    def _init_periodic_checkpointer(self) -> None:
-        self.checkpointer = self._set_up_checkpointer(mode="checkpoints")
-        self.periodic_checkpointer = PeriodicCheckpointer(
-            checkpointer=self.checkpointer,
-            period=self.checkpointing_freq,
-            max_iter=self.epochs,
-        )
+    # def _init_periodic_checkpointer(self) -> None:
+    #     self.checkpointer = self._set_up_checkpointer(mode="checkpoints")
+    #     self.periodic_checkpointer = PeriodicCheckpointer(
+    #         checkpointer=self.checkpointer,
+    #         period=self.checkpointing_freq,
+    #         max_iter=self.epochs,
+    #     )
 
     def _set_checkpointer_info(self, last_checkpoint: dict) -> None:
         self.model.load_state_dict(last_checkpoint["model"])
-        # TODO: see if this line would work and make sense or does it also need a
-        # load_state_dict
-        self.model_optimizer.params = self.model_optimizer.model_weight_parameters()
 
     def _get_checkpoint_dir(self) -> str:
         assert (
@@ -377,7 +374,7 @@ class DiscreteTrainer:
             return
 
         self.logger.set_up_new_run()
-        self.checkpointer.save_dir = self.logger.path(mode="checkpoints")
+        checkpointer.save_dir = self.logger.path(mode="checkpoints")
         self._set_checkpointer_info(info)
 
     def _init_empty_model_state_info(self) -> None:

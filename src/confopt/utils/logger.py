@@ -53,9 +53,7 @@ class Logger:
         search_space: str = "",
         run_time: str | None = None,
         last_run: bool = False,
-        is_discrete: bool = False,
     ) -> None:
-        self.is_discrete = is_discrete
         """Create a summary writer logging to log_dir."""
         if last_run:
             run_time = self.load_last_run(log_dir, exp_name, search_space, str(seed))

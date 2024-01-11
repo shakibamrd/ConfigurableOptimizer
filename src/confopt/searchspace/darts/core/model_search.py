@@ -510,3 +510,11 @@ class Network(nn.Module):
         discrete_model._arch_parameters = None
 
         return discrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        params -= set(self._betas)
+        if self._arch_parameters is not None:
+            params -= set(self.alphas_reduce)
+            params -= set(self.alphas_normal)
+        return list(params)

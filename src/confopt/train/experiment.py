@@ -392,6 +392,7 @@ class Experiment:
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
         self.set_seed(self.seed)
+
         if not hasattr(self, "search_space"):
             self.set_search_space(self.search_space_str, config.get("search_space", {}))
 
@@ -402,7 +403,6 @@ class Experiment:
                 exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
                 last_run=True,
-                is_discrete=False,
             )
         else:
             self.logger = Logger(
@@ -411,7 +411,6 @@ class Experiment:
                 exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
                 last_run=False,
-                is_discrete=True,
             )
 
         Arguments = namedtuple(  # type: ignore
@@ -433,8 +432,10 @@ class Experiment:
             train_portion=arg_config.train_portion,  # type: ignore
         )
 
+        model = self.search_space
+
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
-            self.search_space.model_weight_parameters(),
+            model.model_weight_parameters(),
             arg_config.lr,  # type: ignore
             momentum=arg_config.momentum,  # type: ignore
             weight_decay=arg_config.weight_decay,  # type: ignore
@@ -452,7 +453,7 @@ class Experiment:
         )
 
         trainer = DiscreteTrainer(
-            model=self.search_space,
+            model=model,
             data=data,
             model_optimizer=w_optimizer,
             scheduler=w_scheduler,

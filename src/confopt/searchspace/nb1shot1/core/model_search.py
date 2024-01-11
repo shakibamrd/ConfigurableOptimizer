@@ -513,3 +513,12 @@ class Network(nn.Module):
         discrete_model.alphas_output.requires_grad = False
 
         return discrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        # TODO: remove some of the input and output alphas!
+        if self.alphas_mixed_op is not None:
+            params -= set(self.alphas_mixed_op)
+        return list(params)
+        ...
+        return None

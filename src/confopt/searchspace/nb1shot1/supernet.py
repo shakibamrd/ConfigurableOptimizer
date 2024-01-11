@@ -116,6 +116,10 @@ class NASBench1Shot1SearchSpace(SearchSpace):
     def arch_parameters(self) -> list[nn.Parameter]:
         return self.model.arch_parameters()  # type: ignore
 
+    @property
+    def beta_parameters(self) -> list[nn.Parameter] | None:
+        return None
+
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         (
             self.model.alphas_mixed_op.data,

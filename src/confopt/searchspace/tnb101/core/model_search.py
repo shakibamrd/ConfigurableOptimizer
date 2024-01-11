@@ -26,7 +26,6 @@ class TNB101SearchModel(nn.Module):
         track_running_stats: bool = False,
         dataset: str = "cifar10",
         edge_normalization: bool = False,
-        discretized: bool = False,
     ):
         """Initialize a TransNasBench-101 network consisting of one cell
         Args:
@@ -45,7 +44,6 @@ class TNB101SearchModel(nn.Module):
         self.C = C
         self.stride = stride
         self.edge_normalization = edge_normalization
-        self.discretized = discretized
 
         self.op_names = deepcopy(op_names)
         self.max_nodes = max_nodes
@@ -121,7 +119,7 @@ class TNB101SearchModel(nn.Module):
         return torch.nn.functional.softmax(alphas, dim=-1)
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        if self.discretized:
+        if self._arch_parameters is None:
             return self.discrete_model_forward(inputs)
 
         if self.edge_normalization:
@@ -163,6 +161,7 @@ class TNB101SearchModel(nn.Module):
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = self.sample(self._arch_parameters)
+
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
@@ -272,7 +271,6 @@ class TNB101SearchModel(nn.Module):
             track_running_stats=self.track_running_stats,
             dataset=self.dataset,
             edge_normalization=False,
-            discretized=True,  # TODO: do we need this?
         ).to(next(self.parameters()).device)
 
         for cell in dicrete_model.cells:
@@ -280,6 +278,13 @@ class TNB101SearchModel(nn.Module):
         dicrete_model._arch_parameters = None
 
         return dicrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        params -= set(self._beta_parameters)
+        if self._arch_parameters is not None:
+            params -= set(self._arch_parameters)
+        return list(params)
 
 
 class TNB101SearchCell(nn.Module):
