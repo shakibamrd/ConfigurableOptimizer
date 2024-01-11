@@ -116,6 +116,10 @@ class TNB101SearchModel(nn.Module):
     def beta_parameters(self) -> nn.Parameter:
         return self._beta_parameters
 
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return torch.nn.functional.softmax(alphas, dim=-1)
+
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.discretized:
             return self.discrete_model_forward(inputs)
@@ -123,7 +127,7 @@ class TNB101SearchModel(nn.Module):
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
-        alphas = self._arch_parameters
+        alphas = self.sample(self._arch_parameters)
 
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
@@ -158,7 +162,7 @@ class TNB101SearchModel(nn.Module):
         self,
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = self._arch_parameters
+        alphas = self.sample(self._arch_parameters)
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 

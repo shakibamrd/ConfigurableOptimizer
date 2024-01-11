@@ -94,9 +94,11 @@ class ConfigurableTrainer:
         for epoch in range(self.start_epoch, epochs):
             epoch_str = f"{epoch:03d}-{epochs:03d}"
 
-            self._component_new_step_or_epoch(network, sample_frequency="epoch")
+            self._component_new_step_or_epoch(network, calling_frequency="epoch")
+            self.update_sample_function(profile, network, calling_frequency="epoch")
 
             base_metrics, arch_metrics = self.train_func(
+                profile,
                 train_loader,
                 val_loader,
                 network,
@@ -172,6 +174,7 @@ class ConfigurableTrainer:
 
     def train_func(
         self,
+        profile: Profile,
         train_loader: DataLoaderType,
         valid_loader: DataLoaderType,
         network: SearchSpace | torch.nn.DataParallel,
@@ -200,8 +203,9 @@ class ConfigurableTrainer:
         for step, (base_inputs, base_targets) in enumerate(train_loader):
             # FIXME: What was the point of this? and is it safe to remove?
             # scheduler.update(None, 1.0 * step / len(xloader))
-
-            self._component_new_step_or_epoch(network, sample_frequency="step")
+            self._component_new_step_or_epoch(network, calling_frequency="step")
+            if step == 1:
+                self.update_sample_function(profile, network, calling_frequency="step")
 
             arch_inputs, arch_targets = next(iter(valid_loader))
 
@@ -219,6 +223,8 @@ class ConfigurableTrainer:
             arch_loss = criterion(logits, arch_targets)
             arch_loss.backward()
             arch_optimizer.step()
+
+            profile.perturb_parameter(network)
 
             self._update_meters(
                 inputs=arch_inputs,
@@ -450,18 +456,40 @@ class ConfigurableTrainer:
         top5_meter.update(base_prec5.item(), inputs.size(0))
 
     def _component_new_step_or_epoch(
-        self, model: SearchSpace | torch.nn.DataParallel, sample_frequency: str
+        self, model: SearchSpace | torch.nn.DataParallel, calling_frequency: str
     ) -> None:
-        assert sample_frequency in [
+        assert calling_frequency in [
             "epoch",
             "step",
-        ], "Sample Frequency should be either epoch or step"
+        ], "Called Frequency should be either epoch or step"
         if isinstance(model, torch.nn.DataParallel):
             model = model.module
         assert (
             len(model.components) > 0
         ), "There are no oneshot components inside the search space"
-        if sample_frequency == "epoch":
+        if calling_frequency == "epoch":
             model.new_epoch()
-        elif sample_frequency == "step":
+        elif calling_frequency == "step":
             model.new_step()
+
+    def update_sample_function(
+        self,
+        profile: Profile,
+        model: SearchSpace | torch.nn.DataParallel,
+        calling_frequency: str,
+    ) -> None:
+        assert calling_frequency in [
+            "epoch",
+            "step",
+        ], "Called Frequency should be either epoch or step"
+        if isinstance(model, torch.nn.DataParallel):
+            model = model.module
+        assert (
+            len(model.components) > 0
+        ), "There are no oneshot components inside the search space"
+        if calling_frequency == "epoch":
+            profile.update_sample_function_from_sampler(model)
+        elif (
+            calling_frequency == "step" and profile.sampler.sample_frequency == "epoch"
+        ):
+            profile.reset_sample_function(model)

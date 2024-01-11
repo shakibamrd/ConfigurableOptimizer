@@ -17,14 +17,15 @@ from confopt.dataset import (
     ImageNet16Data,
     ImageNet16120Data,
 )
-from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
     SNASSampler,
 )
+from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
+from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.profiles import (
     DiscreteProfile,
     GDASProfile,
@@ -36,15 +37,7 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-
-# <<<<<<< Updated upstream
-from confopt.train.configurable_trainer import ConfigurableTrainer
-from confopt.train.discrete_trainer import DiscreteTrainer
-from confopt.train.searchprofile import Profile
-
-# =======
-# from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
-# >>>>>>> Stashed changes
+from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
 from confopt.utils import Logger
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -101,6 +94,7 @@ class CriterionType(Enum):
 class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
+    ASGD = "asgd"
 
 
 class Experiment:
@@ -111,12 +105,14 @@ class Experiment:
         seed: int,
         is_wandb_log: bool = False,
         debug_mode: bool = False,
+        exp_name: str = "test",
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
         self.seed = seed
         self.is_wandb_log = is_wandb_log
         self.debug_mode = debug_mode
+        self.exp_name = exp_name
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -129,7 +125,6 @@ class Experiment:
     def run_with_profile(
         self,
         profile: ProfileConfig,
-        exp_name: str,
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -140,11 +135,11 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
+        self.dropout = profile.dropout
         self.edge_normalization = profile.is_partial_connection
-
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
         return self.runner(
             config,
-            exp_name,
             start_epoch,
             load_saved_model,
             load_best_model,
@@ -153,7 +148,6 @@ class Experiment:
     def runner(
         self,
         config: dict | None = None,
-        exp_name: str = "",
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -166,7 +160,7 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=exp_name,
+                exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
                 last_run=True,
             )
@@ -174,7 +168,7 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=exp_name,
+                exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
             )
 
@@ -212,9 +206,7 @@ class Experiment:
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
             model.model_weight_parameters(),
             arg_config.lr,  # type: ignore
-            momentum=arg_config.momentum,  # type: ignore
-            weight_decay=arg_config.weight_decay,  # type: ignore
-            nesterov=arg_config.nesterov,  # type: ignore
+            **config["trainer"].get("optim_config", {}),  # type: ignore
         )
 
         w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -225,11 +217,15 @@ class Experiment:
 
         if self.edge_normalization and hasattr(model, "beta_parameters"):
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
-                [*model.arch_parameters, *model.beta_parameters]
+                [*model.arch_parameters, *model.beta_parameters],
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
         else:
             arch_optimizer = self._get_optimizer(arg_config.arch_optim)(  # type: ignore
                 model.arch_parameters,
+                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
+                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
             )
 
         trainer = ConfigurableTrainer(
@@ -273,6 +269,7 @@ class Experiment:
         self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
 
         self.set_partial_connector(config.get("partial_connector", {}))
+        self.set_dropout(config.get("dropout", {}))
         self.set_profile()
 
     def set_search_space(
@@ -297,11 +294,11 @@ class Experiment:
         arch_params = self.search_space.arch_parameters
         if sampler == SamplerType.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.DRNAS:
+        elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.GDAS:
+        elif sampler == SamplerType.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
-        elif sampler == sampler.SNAS:
+        elif sampler == SamplerType.SNAS:
             self.sampler = SNASSampler(**config, arch_parameters=arch_params)
 
     def set_perturbator(
@@ -310,7 +307,7 @@ class Experiment:
         pertub_config: dict,
     ) -> None:
         if petubrator_enum != PerturbatorType.NONE:
-            self.perturbator = SDARTSSampler(
+            self.perturbator = SDARTSPerturbator(
                 **pertub_config,
                 search_space=self.search_space,
                 arch_parameters=self.search_space.arch_parameters,
@@ -325,6 +322,12 @@ class Experiment:
         else:
             self.partial_connector = None
 
+    def set_dropout(self, config: dict) -> None:
+        if self.dropout is not None:
+            self.dropout = Dropout(**config)
+        else:
+            self.dropout = None
+
     def set_profile(self) -> None:
         assert self.sampler is not None
 
@@ -333,6 +336,7 @@ class Experiment:
             edge_normalization=self.edge_normalization,
             partial_connector=self.partial_connector,
             perturbation=self.perturbator,
+            dropout=self.dropout,
         )
 
     def _get_dataset(self, dataset: DatasetType) -> Callable | None:
@@ -358,12 +362,13 @@ class Experiment:
             return torch.optim.Adam
         elif optim == OptimizerType.SGD:  # noqa: RET505
             return torch.optim.SGD
+        if optim == OptimizerType.ASGD:
+            return torch.optim.ASGD
         return None
 
     def run_discrete_model_with_profile(
         self,
         profile: DiscreteProfile,
-        exp_name: str,
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -372,7 +377,6 @@ class Experiment:
 
         return self.run_discrete_model(
             config,
-            exp_name,
             start_epoch,
             load_saved_model,
             load_best_model,
@@ -381,7 +385,6 @@ class Experiment:
     def run_discrete_model(
         self,
         arg_config: dict | None = None,
-        exp_name: str = "",
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -396,7 +399,7 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=exp_name,
+                exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
                 last_run=True,
                 is_discrete=False,
@@ -405,7 +408,7 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=exp_name,
+                exp_name=self.exp_name,
                 search_space=self.search_space_str.value,
                 last_run=False,
                 is_discrete=True,
@@ -502,6 +505,12 @@ if __name__ == "__main__":
         default=False,
         help="Enable/Disable partial connection",
     )
+    parser.add_argument(
+        "--dropout",
+        default=None,
+        help="Dropout probability. 0 <= p < 1.",
+        type=float,
+    )
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
     parser.add_argument("--seed", default=444, type=int)
@@ -533,7 +542,9 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
-        is_partial_connection=args.is_partial_connector, perturbation=args.perturbator
+        is_partial_connection=args.is_partial_connector,
+        perturbation=args.perturbator,
+        dropout=args.dropout,
     )
 
     config = profile.get_trainer_config()
@@ -544,11 +555,11 @@ if __name__ == "__main__":
         seed=args.seed,
         is_wandb_log=is_wandb_log,
         debug_mode=IS_DEBUG_MODE,
+        exp_name=args.exp_name,
     )
 
     trainer = experiment.run_with_profile(
         profile,
-        exp_name=args.exp_name,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
         load_best_model=args.load_best_model,
@@ -557,7 +568,6 @@ if __name__ == "__main__":
     profile = DiscreteProfile()
     discret_trainer = experiment.run_discrete_model_with_profile(
         profile,
-        exp_name=args.exp_name,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
         load_best_model=args.load_best_model,

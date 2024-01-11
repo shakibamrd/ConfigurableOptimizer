@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -37,6 +38,7 @@ class OperationBlock(nn.Module):
         ops: list[nn.Module],
         is_reduction_cell: bool,
         partial_connector: PartialConnector | None = None,
+        dropout: Dropout | None = None,
         device: torch.device = DEVICE,
     ) -> None:
         super().__init__()
@@ -50,12 +52,16 @@ class OperationBlock(nn.Module):
         self.ops = ops
         self.partial_connector = partial_connector
         self.is_reduction_cell = is_reduction_cell
+        self.dropout = dropout
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
+        if self.dropout:
+            alphas = self.dropout.apply_mask(alphas)
         if self.partial_connector is not None:
             self.partial_connector.is_reduction_cell = self.is_reduction_cell
         if self.partial_connector:
             return self.partial_connector(x, alphas, self.ops)
+
         states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
 
         return sum(states)  # type: ignore

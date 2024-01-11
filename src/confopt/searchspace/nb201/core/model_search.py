@@ -236,6 +236,10 @@ class NB201SearchModel(nn.Module):
             genotypes.append(tuple(xlist))
         return Structure(genotypes)
 
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return torch.nn.functional.softmax(alphas, dim=-1)
+
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the model.
 
@@ -252,7 +256,7 @@ class NB201SearchModel(nn.Module):
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
-        alphas = self.arch_parameters
+        alphas = self.sample(self.arch_parameters)
 
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
@@ -289,7 +293,7 @@ class NB201SearchModel(nn.Module):
         self,
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        alphas = self.arch_parameters
+        alphas = self.sample(self.arch_parameters)
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 

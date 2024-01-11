@@ -266,6 +266,10 @@ class Network(nn.Module):
             x.data.copy_(y.data)
         return model_new
 
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return F.softmax(alphas, dim=-1)
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the network model.
 
@@ -285,11 +289,11 @@ class Network(nn.Module):
         s0 = s1 = self.stem(x)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
-                weights = self.alphas_reduce
+                weights = self.sample(self.alphas_reduce)
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
             else:
-                weights = self.alphas_normal
+                weights = self.sample(self.alphas_normal)
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
             s0, s1 = s1, cell(s0, s1, weights)
@@ -316,7 +320,7 @@ class Network(nn.Module):
         s0 = s1 = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
-                weights = self.alphas_reduce
+                weights = self.sample(self.alphas_reduce)
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
                 n = 3
@@ -329,7 +333,7 @@ class Network(nn.Module):
                     n += 1
                     weights2 = torch.cat([weights2, tw2], dim=0)
             else:
-                weights = self.alphas_normal
+                weights = self.sample(self.alphas_normal)
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
                 n = 3

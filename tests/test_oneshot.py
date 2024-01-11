@@ -4,7 +4,6 @@ import unittest
 
 import torch
 
-from confopt.oneshot.archmodifier import SDARTSSampler
 from confopt.oneshot.archsampler import (
     BaseSampler,
     DARTSSampler,
@@ -12,6 +11,8 @@ from confopt.oneshot.archsampler import (
     GDASSampler,
     SNASSampler,
 )
+from confopt.oneshot.dropout import Dropout
+from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.searchspace import NASBench201SearchSpace
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -42,7 +43,7 @@ class TestArchSamplers(unittest.TestCase):
 
         # assert that the tensors are close
         for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
-            assert torch.allclose(arch_param_before, arch_param_after)
+            assert not torch.allclose(arch_param_before, arch_param_after)
 
     def _test_darts_sampler_new_step_epoch(self, sample_frequency: str) -> None:
         searchspace = NASBench201SearchSpace(N=1)
@@ -57,7 +58,7 @@ class TestArchSamplers(unittest.TestCase):
 
         # assert that the tensors are close
         for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
-            assert torch.allclose(arch_param_before, arch_param_after)
+            assert not torch.allclose(arch_param_before, arch_param_after)
 
     def test_darts_sampler_new_step(self) -> None:
         self._test_darts_sampler_new_step_epoch(sample_frequency="step")
@@ -133,63 +134,6 @@ class TestArchSamplers(unittest.TestCase):
     def test_drnas_sampler_new_epoch(self) -> None:
         self._test_drnas_sampler_new_step_epoch(sample_frequency="epoch")
 
-    def test_sdarts_sampler(self) -> None:
-        searchspace = NASBench201SearchSpace(N=1)
-        epsilon = 0.03
-        loss_criterion = torch.nn.CrossEntropyLoss()
-        X = torch.randn(2, 3, 32, 32).to(DEVICE)
-        target = torch.randint(0, 9, (2,)).to(DEVICE)
-
-        sampler = SDARTSSampler(
-            search_space=searchspace,
-            loss_criterion=loss_criterion,
-            arch_parameters=searchspace.arch_parameters,
-            epsilon=epsilon,
-            data=(X, target),
-        )
-
-        # Random Attack
-        alphas_before = searchspace.arch_parameters
-        alphas_after = sampler.sample_alphas(alphas_before)
-
-        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
-            assert not torch.allclose(arch_param_before, arch_param_after)
-
-        # Adverserial Attack
-        # Changes the model's alpha as well, but if the loss does not decrease, it does
-        # not change alpha
-        # TODO Improve this test
-        sampler.attack_type = "adverserial"
-        alphas_before = [
-            arch_param.clone() for arch_param in searchspace.arch_parameters
-        ]
-
-        alphas_after = sampler.sample_alphas(searchspace.arch_parameters)
-
-    def _test_sdarts_sampler_new_step_epoch(self, sample_frequency: str) -> None:
-        test_epsilon = 0.03
-        searchspace = NASBench201SearchSpace(N=1)
-        sampler = SDARTSSampler(
-            search_space=searchspace,
-            sample_frequency=sample_frequency,
-            arch_parameters=searchspace.arch_parameters,
-            epsilon=test_epsilon,
-        )
-
-        # Random Attack
-        alphas_before = searchspace.arch_parameters
-        self._sampler_new_step_or_epoch(sampler, sample_frequency)
-        alphas_after = sampler.sampled_alphas
-
-        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
-            assert not torch.allclose(arch_param_before, arch_param_after)
-
-    def test_sdarts_sampler_new_step(self) -> None:
-        self._test_sdarts_sampler_new_step_epoch(sample_frequency="step")
-
-    def test_sdarts_sampler_new_epoch(self) -> None:
-        self._test_sdarts_sampler_new_step_epoch(sample_frequency="epoch")
-
     def test_snas_sampler(self) -> None:
         searchspace = NASBench201SearchSpace(N=1)
         sampler = SNASSampler(arch_parameters=searchspace.arch_parameters)
@@ -240,6 +184,38 @@ class TestArchSamplers(unittest.TestCase):
     def test_snas_temperature_mixedup(self) -> None:
         self._test_snas_illegal_temperatures(0.1, 1.0)
 
+    def test_sdarts_perturbator(self) -> None:
+        searchspace = NASBench201SearchSpace(N=1)
+        epsilon = 0.03
+        loss_criterion = torch.nn.CrossEntropyLoss()
+        X = torch.randn(2, 3, 32, 32).to(DEVICE)
+        target = torch.randint(0, 9, (2,)).to(DEVICE)
+
+        perturbator = SDARTSPerturbator(
+            search_space=searchspace,
+            loss_criterion=loss_criterion,
+            arch_parameters=searchspace.arch_parameters,
+            epsilon=epsilon,
+            data=(X, target),
+        )
+
+        # Random Attack
+        alphas_before = searchspace.arch_parameters
+        alphas_after = perturbator.perturb_alphas(alphas_before)
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+
+        # Adverserial Attack
+        # Changes the model's alpha as well, but if the loss does not decrease, it does
+        # not change alpha
+        # TODO Improve this test
+        perturbator.attack_type = "adverserial"
+        alphas_before = [
+            arch_param.clone() for arch_param in searchspace.arch_parameters
+        ]
+
+        alphas_after = perturbator.perturb_alphas(searchspace.arch_parameters)
+
     def test_illegal_sample_frequency(self) -> None:
         arch_parameters = [torch.randn(5, 5)]
         with self.assertRaises(AssertionError):
@@ -252,17 +228,52 @@ class TestArchSamplers(unittest.TestCase):
             DRNASSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
 
         with self.assertRaises(AssertionError):
-            SDARTSSampler(
+            SNASSampler(
+                arch_parameters=arch_parameters,
+                sample_frequency="illegal",
+            )
+
+        with self.assertRaises(AssertionError):
+            SDARTSPerturbator(
                 arch_parameters=arch_parameters,
                 sample_frequency="illegal",
                 epsilon=0.03,
             )
 
+
+class TestDropout(unittest.TestCase):
+    def test_dropout_probability(self) -> None:
+        probability = 0.1
+        arch_parameters = torch.ones(1000)
+
+        dropout = Dropout(p=probability)
+        output = dropout.apply_mask(arch_parameters)
+        dropped_percent = (1000 - torch.count_nonzero(output)) / 1000
+
+        self.assertAlmostEqual(
+            probability, dropped_percent.numpy(), places=1
+        )  # type: ignore
+
+    def test_negative_probability(self) -> None:
+        self._test_probabilities(-1.0)
+
+    def test_too_large_probability(self) -> None:
+        self._test_probabilities(1.0)
+
+    def _test_probabilities(self, probability: float) -> None:
         with self.assertRaises(AssertionError):
-            SNASSampler(
-                arch_parameters=arch_parameters,
-                sample_frequency="illegal",
-            )
+            Dropout(p=probability)
+
+    def test_illegal_anneal_frequency(self) -> None:
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_frequency="illegal")
+
+    def test_illegal_anneal_type_and_frequency(self) -> None:
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_frequency="epoch")
+
+        with self.assertRaises(AssertionError):
+            Dropout(p=0.5, anneal_type="linear")
 
 
 if __name__ == "__main__":

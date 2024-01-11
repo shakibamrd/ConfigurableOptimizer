@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import torch
 
-from confopt.oneshot import BaseSampler
-from confopt.oneshot.archsampler.darts.sampler import DARTSSampler
+from confopt.oneshot.archsampler import BaseSampler, DARTSSampler
+from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
+from confopt.oneshot.perturbator import BasePerturbator
 from confopt.searchspace import DARTSSearchSpace
 from confopt.searchspace.common import (
     OperationBlock,
@@ -19,12 +20,14 @@ class Profile:
         sampler: BaseSampler,
         edge_normalization: bool = False,
         partial_connector: PartialConnector | None = None,
-        perturbation: BaseSampler | None = None,
+        perturbation: BasePerturbator | None = None,
+        dropout: Dropout | None = None,
     ) -> None:
         self.sampler = sampler
         self.edge_normalization = edge_normalization
         self.partial_connector = partial_connector
         self.perturbation = perturbation
+        self.dropout = dropout
 
     def adapt_search_space(self, search_space: SearchSpace) -> None:
         if hasattr(search_space.model, "edge_normalization"):
@@ -44,14 +47,28 @@ class Profile:
         search_space.components.append(self.sampler)
         if self.perturbation:
             search_space.components.append(self.perturbation)
+        if self.dropout:
+            search_space.components.append(self.dropout)
+
+    def perturb_parameter(self, search_space: SearchSpace) -> None:
+        if self.perturbation is not None:
+            self.perturbation._perturb_and_update_alphas()
+            search_space.set_arch_parameters(self.perturbation.perturbed_alphas)
+
+    def update_sample_function_from_sampler(self, search_space: SearchSpace) -> None:
+        search_space.set_sample_function(self.sampler.sample_alphas)
+
+    def default_sample_function(self, alphas: torch.Tensor) -> torch.Tensor:
+        return torch.nn.functional.softmax(alphas, dim=-1)
+
+    def reset_sample_function(self, search_space: SearchSpace) -> None:
+        search_space.set_sample_function(self.default_sample_function)
 
     def _initialize_operation_block(
         self, ops: torch.nn.Module, is_reduction_cell: bool = False
     ) -> OperationBlock:
         op_block = OperationBlock(
-            ops,
-            is_reduction_cell,
-            self.partial_connector,
+            ops, is_reduction_cell, self.partial_connector, self.dropout
         )
         return op_block
 
