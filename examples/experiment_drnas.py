@@ -28,6 +28,20 @@ def read_args() -> argparse.Namespace:
         help="dataset to be used (cifar10, cifar100, imagenet)",
         type=str,
     )
+    parser.add_argument(
+        "--search_epochs",
+        default=100,
+        help="number of epochs to train the supernet",
+        type=int,
+    )
+
+    parser.add_argument(
+        "--eval_epochs",
+        default=100,
+        help="number of epochs to train the discrete network",
+        type=int,
+    )
+
     args = parser.parse_args()
     return args
 
@@ -41,6 +55,7 @@ if __name__ == "__main__":
 
     # Sampler and Perturbator have different sample_frequency
     profile = DRNASProfile(
+        epochs=args.search_epochs,
         is_partial_connection=True,
         sampler_sample_frequency="step",
     )
@@ -67,7 +82,7 @@ if __name__ == "__main__":
 
     trainer = experiment.run_with_profile(profile)
 
-    discrete_profile = DiscreteProfile()
+    discrete_profile = DiscreteProfile(epochs=args.eval_epochs)
     discret_trainer = experiment.run_discrete_model_with_profile(
         discrete_profile,
         start_epoch=args.start_epoch,

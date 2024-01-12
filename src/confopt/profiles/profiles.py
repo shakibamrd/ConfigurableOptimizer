@@ -168,8 +168,9 @@ class DRNASProfile(ProfileConfig):
 
 
 class DiscreteProfile:
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:  # type: ignore
         self._initialize_trainer_config()
+        self.configure_trainer(**kwargs)
 
     def get_trainer_config(self) -> dict:
         return self.train_config
