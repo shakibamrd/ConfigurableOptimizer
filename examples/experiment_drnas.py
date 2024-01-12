@@ -85,7 +85,7 @@ if __name__ == "__main__":
     discrete_profile = DiscreteProfile(epochs=args.eval_epochs)
     discret_trainer = experiment.run_discrete_model_with_profile(
         discrete_profile,
-        start_epoch=args.start_epoch,
-        load_saved_model=args.load_saved_model,
-        load_best_model=args.load_best_model,
+        # start_epoch=args.eval_epochs,
+        # load_saved_model=args.load_saved_model,
+        # load_best_model=args.load_best_model,
     )
