@@ -18,12 +18,14 @@ class ProfileConfig:
     def __init__(
         self,
         config_type: str,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
         self.config_type = config_type
+        self.epochs = epochs
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self.set_partial_connector(is_partial_connection)
@@ -172,7 +174,7 @@ class ProfileConfig:
     def configure_dropout(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
             assert (
-                config_key in self.trainer_config
+                config_key in self.dropout_config
             ), f"{config_key} not a valid configuration for the dropout module"
             self.dropout_config[config_key] = kwargs[config_key]
 

@@ -6,6 +6,7 @@ from .profile_config import ProfileConfig
 class DartsProfile(ProfileConfig):
     def __init__(
         self,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
@@ -19,6 +20,7 @@ class DartsProfile(ProfileConfig):
         self.sampler_sample_frequency = sampler_sample_frequency
         super().__init__(
             PROFILE_TYPE,
+            epochs,
             is_partial_connection,
             dropout,
             perturbation,
@@ -39,6 +41,7 @@ class DartsProfile(ProfileConfig):
 class GDASProfile(ProfileConfig):
     def __init__(
         self,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
@@ -56,6 +59,7 @@ class GDASProfile(ProfileConfig):
         self.tau_max = tau_max
         super().__init__(
             PROFILE_TYPE,
+            epochs,
             is_partial_connection,
             dropout,
             perturbation,
@@ -80,6 +84,7 @@ class GDASProfile(ProfileConfig):
 class SNASProfile(ProfileConfig):
     def __init__(
         self,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
@@ -101,6 +106,7 @@ class SNASProfile(ProfileConfig):
         self.total_epochs = total_epochs
         super().__init__(
             PROFILE_TYPE,
+            epochs,
             is_partial_connection,
             dropout,
             perturbation,
@@ -127,6 +133,7 @@ class SNASProfile(ProfileConfig):
 class DRNASProfile(ProfileConfig):
     def __init__(
         self,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
@@ -140,6 +147,7 @@ class DRNASProfile(ProfileConfig):
         self.sampler_sample_frequency = sampler_sample_frequency
         super().__init__(
             PROFILE_TYPE,
+            epochs,
             is_partial_connection,
             dropout,
             perturbation,
@@ -160,7 +168,13 @@ class DRNASProfile(ProfileConfig):
 
 
 class DiscreteProfile:
+    def __init__(self) -> None:
+        self._initialize_trainer_config()
+
     def get_trainer_config(self) -> dict:
+        return self.train_config
+
+    def _initialize_trainer_config(self) -> None:
         default_train_config = {
             "lr": 0.025,
             "epochs": 100,
@@ -179,4 +193,12 @@ class DiscreteProfile:
             "use_data_parallel": 0,
             "checkpointing_freq": 1,
         }
-        return default_train_config
+        self.train_config = default_train_config
+
+    def configure_trainer(self, **kwargs) -> None:  # type: ignore
+        for config_key in kwargs:
+            assert (
+                config_key in self.train_config
+            ), f"{config_key} not a valid configuration for training a \
+            discrete architecture"
+            self.train_config[config_key] = kwargs[config_key]

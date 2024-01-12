@@ -543,12 +543,13 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
+        epochs=args.epochs,
         is_partial_connection=args.is_partial_connector,
         perturbation=args.perturbator,
         dropout=args.dropout,
     )
 
-    config = profile.get_trainer_config()
+    config = profile.get_config()
 
     experiment = Experiment(
         search_space=searchspace,
