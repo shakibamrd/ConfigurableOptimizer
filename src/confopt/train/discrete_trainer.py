@@ -67,7 +67,7 @@ class DiscreteTrainer:
 
         self._init_empty_model_state_info()
 
-        self.model = self.model._discretize()  # type: ignore
+        self.model = self.model.discretize()  # type: ignore
         # TODO: check if we even need to change the optimizer, i believe not!
         optimizer_hyperparameters = self.model_optimizer.defaults
         self.model_optimizer = type(self.model_optimizer)(

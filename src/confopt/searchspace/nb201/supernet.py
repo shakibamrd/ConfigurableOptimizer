@@ -75,5 +75,5 @@ class NASBench201SearchSpace(SearchSpace):
         sparsity = 0.2
         self.model._prune(sparsity, wider)  # type: ignore
 
-    def _discretize(self) -> nn.Module:
+    def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore

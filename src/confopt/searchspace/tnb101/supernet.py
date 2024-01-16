@@ -30,7 +30,7 @@ class TransNASBench101SearchSpace(SearchSpace):
         sparsity = 0.25
         self.model._prune(sparsity, wider)
 
-    def _discretize(self) -> nn.Module:
+    def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore
 
 
