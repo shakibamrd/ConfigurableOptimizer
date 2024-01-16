@@ -394,7 +394,10 @@ class Experiment:
         self.set_seed(self.seed)
 
         if not hasattr(self, "search_space"):
-            self.set_search_space(self.search_space_str, config.get("search_space", {}))
+            self.set_search_space(
+                self.search_space_str,
+                arg_config.get("search_space", {}),  # type: ignore
+            )
 
         if load_saved_model or load_best_model or start_epoch > 0:
             self.logger = Logger(
@@ -433,13 +436,10 @@ class Experiment:
         )
 
         model = self.search_space
-
         w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
             model.model_weight_parameters(),
             arg_config.lr,  # type: ignore
-            momentum=arg_config.momentum,  # type: ignore
-            weight_decay=arg_config.weight_decay,  # type: ignore
-            nesterov=arg_config.nesterov,  # type: ignore
+            **arg_config.optim_config,  # type: ignore
         )
 
         w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

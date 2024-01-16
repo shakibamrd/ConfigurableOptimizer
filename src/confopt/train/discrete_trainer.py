@@ -280,7 +280,7 @@ class DiscreteTrainer:
         if is_wandb_log:
             self.logger.wandb_log_metrics("test", test_metrics)
 
-        self.logger.log_metrics("Test: ", test_metrics)
+        self.logger.log_metrics("Test", test_metrics, epoch_str="---")
 
         return test_metrics
 

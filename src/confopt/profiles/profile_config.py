@@ -103,11 +103,18 @@ class ProfileConfig:
     def _initialize_trainer_config(self) -> None:
         trainer_config = {
             "lr": 0.025,
+            "arch_lr": 3e-4,
             "epochs": self.epochs,
             "optim": "sgd",
             "arch_optim": "adam",
-            "momentum": 0.9,
-            "nesterov": 0,
+            "optim_config": {
+                "momentum": 0.9,
+                "nesterov": 0,
+                "weight_decay": 3e-4,
+            },
+            "arch_optim_config": {
+                "weight_decay": 1e-3,
+            },
             "criterion": "cross_entropy",
             "batch_size": 96,
             "learning_rate_min": 0.0,
@@ -115,7 +122,7 @@ class ProfileConfig:
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.7,
-            "use_data_parallel": 0,
+            "use_data_parallel": True,
             "checkpointing_freq": 1,
         }
 

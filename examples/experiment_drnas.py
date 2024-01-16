@@ -69,13 +69,28 @@ if __name__ == "__main__":
         profile.configure_partial_connector(k=4)
         searchspace_config.update({"C": 36, "layers": 20})
     profile.set_searchspace_config(searchspace_config)
-    profile.configure_trainer(train_portion=0.5, batch_size=32)
+
+    train_config = {
+        "train_portion": 0.5,
+        "batch_size": 64,
+        "optim_config": {
+            "weight_decay": 3e-4,
+            "momentum": 0.9,
+            "nesterov": 0,
+        },
+        "arch_optim_config": {
+            "betas": (0.5, 0.999),
+            "weight_decay": 1e-3,
+        },
+        "learning_rate_min": 0.001,
+    }
+    profile.configure_trainer(**train_config)
     config = profile.get_config()
 
     print(json.dumps(config, indent=2, default=str))
 
     IS_DEBUG_MODE = True
-    IS_WANDB_LOG = True
+    IS_WANDB_LOG = False
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
@@ -89,8 +104,8 @@ if __name__ == "__main__":
     if IS_WANDB_LOG:
         wandb.finish()  # type: ignore
 
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs)
-    discrete_profile.configure_trainer(batch_size=32)
+    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
+    discrete_profile.configure_trainer(batch_size=64)
     discret_trainer = experiment.run_discrete_model_with_profile(
         discrete_profile,
         # start_epoch=args.eval_epochs,
