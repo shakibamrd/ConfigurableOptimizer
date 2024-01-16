@@ -44,6 +44,13 @@ def read_args() -> argparse.Namespace:
         type=int,
     )
 
+    parser.add_argument(
+        "--seed",
+        default=100,
+        help="random seed",
+        type=int,
+    )
+
     args = parser.parse_args()
     return args
 
@@ -53,7 +60,7 @@ if __name__ == "__main__":
     assert args.searchspace in ["darts", "nb201"], "Unsupported searchspace"
     searchspace = SearchSpaceType(args.searchspace)  # type: ignore
     dataset = DatasetType(args.dataset)  # type: ignore
-    seed = 100
+    seed = args.seed
 
     # Sampler and Perturbator have different sample_frequency
     profile = DRNASProfile(
@@ -89,7 +96,7 @@ if __name__ == "__main__":
 
     print(json.dumps(config, indent=2, default=str))
 
-    IS_DEBUG_MODE = True
+    IS_DEBUG_MODE = False
     IS_WANDB_LOG = False
     experiment = Experiment(
         search_space=searchspace,
