@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 
+import wandb
+
 from confopt.profiles import DiscreteProfile, DRNASProfile
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 
@@ -56,7 +58,6 @@ if __name__ == "__main__":
     # Sampler and Perturbator have different sample_frequency
     profile = DRNASProfile(
         epochs=args.search_epochs,
-        is_partial_connection=True,
         sampler_sample_frequency="step",
     )
     # nb201 take in default configs, but for darts, we require different config
@@ -64,28 +65,37 @@ if __name__ == "__main__":
         "num_classes": dataset_size[args.dataset],  # type: ignore
     }
     if args.searchspace == "darts":
+        profile.set_partial_connector(is_partial_connection=True)
+        profile.configure_partial_connector(k=4)
         searchspace_config.update({"C": 36, "layers": 20})
     profile.set_searchspace_config(searchspace_config)
-    profile.configure_trainer(train_portion=0.5)
+    profile.configure_trainer(train_portion=0.5, batch_size=32)
     config = profile.get_config()
 
     print(json.dumps(config, indent=2, default=str))
 
     IS_DEBUG_MODE = True
-
+    IS_WANDB_LOG = True
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
+        is_wandb_log=IS_WANDB_LOG,
     )
 
     trainer = experiment.run_with_profile(profile)
 
+    if IS_WANDB_LOG:
+        wandb.finish()  # type: ignore
+
     discrete_profile = DiscreteProfile(epochs=args.eval_epochs)
+    discrete_profile.configure_trainer(batch_size=32)
     discret_trainer = experiment.run_discrete_model_with_profile(
         discrete_profile,
         # start_epoch=args.eval_epochs,
         # load_saved_model=args.load_saved_model,
         # load_best_model=args.load_best_model,
     )
+    if IS_WANDB_LOG:
+        wandb.finish()  # type: ignore

@@ -413,18 +413,18 @@ class Experiment:
                 last_run=False,
             )
 
+        if self.is_wandb_log:
+            wandb.init(  # type: ignore
+                project=arg_config.get("project_name", "Configurable_Optimizer")
+                if arg_config is not None
+                else "Configurable_Optimizer",
+                config=arg_config,  # type: ignore
+            )
+
         Arguments = namedtuple(  # type: ignore
             "Configure", " ".join(arg_config.keys())  # type: ignore
         )
         arg_config = Arguments(**arg_config)  # type: ignore
-
-        if self.is_wandb_log:
-            wandb.init(  # type: ignore
-                project=config.get("project_name", "Configurable_Optimizer")
-                if config is not None
-                else "Configurable_Optimizer",
-                config=config if config is not None else arg_config,  # type: ignore
-            )
 
         data = self._get_dataset(self.dataset_str)(
             root="datasets",
