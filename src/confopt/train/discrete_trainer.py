@@ -182,7 +182,12 @@ class DiscreteTrainer:
             base_loss = criterion(logits, base_targets)
             base_loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
+            if isinstance(network, torch.nn.DataParallel):
+                torch.nn.utils.clip_grad_norm_(
+                    network.module.model_weight_parameters(), 5
+                )
+            else:
+                torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
             self.model_optimizer.step()
 
