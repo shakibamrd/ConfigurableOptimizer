@@ -92,27 +92,34 @@ if __name__ == "__main__":
         "learning_rate_min": 0.001,
     }
     profile.configure_trainer(**train_config)
+    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
+    discrete_profile.configure_trainer(batch_size=64)
+
+    discrete_config = discrete_profile.get_trainer_config()
+    profile.configure_extra_config(
+        {
+            "discrete_trainer": discrete_config,
+            "project_name": "BASELINES",
+            "run_type": "DRNAS",
+        }
+    )
     config = profile.get_config()
 
     print(json.dumps(config, indent=2, default=str))
 
     IS_DEBUG_MODE = False
-    IS_WANDB_LOG = False
+    IS_WANDB_LOG = True
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
+        exp_name="DRNAS_BASELINE",
     )
 
     trainer = experiment.run_with_profile(profile)
 
-    if IS_WANDB_LOG:
-        wandb.finish()  # type: ignore
-
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
-    discrete_profile.configure_trainer(batch_size=64)
     discret_trainer = experiment.run_discrete_model_with_profile(
         discrete_profile,
         # start_epoch=args.eval_epochs,

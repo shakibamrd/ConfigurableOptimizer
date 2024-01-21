@@ -67,6 +67,9 @@ class ProfileConfig:
         }
         if hasattr(self, "searchspace_config") and self.searchspace_config is not None:
             config.update({"search_space": self.searchspace_config})
+
+        if hasattr(self, "extra_config") and self.extra_config is not None:
+            config.update(self.extra_config)
         return config
 
     @abstractmethod
@@ -188,3 +191,7 @@ class ProfileConfig:
     @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
         self.searchspace_config = config
+
+    @abstractmethod
+    def configure_extra_config(self, config: dict) -> None:
+        self.extra_config = config
