@@ -110,20 +110,20 @@ class DiscreteTrainer:
             # Logging
             search_time.update(time.time() - start_time)
             self.logger.log_metrics(
-                "Train: Model/Network metrics ",
+                "[Discrete] Train: Model/Network metrics ",
                 base_metrics,
                 epoch_str,
                 search_time.sum,
             )
 
             valid_metrics = self.valid_func(val_loader, self.model, self.criterion)
-            self.logger.log_metrics("Evaluation: ", valid_metrics, epoch_str)
+            self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
 
             if is_wandb_log:
                 self.logger.wandb_log_metrics(
-                    "train/model", base_metrics, epoch, search_time.sum
+                    "discrete/train/model", base_metrics, epoch, search_time.sum
                 )
-                self.logger.wandb_log_metrics("eval", valid_metrics, epoch)
+                self.logger.wandb_log_metrics("discrete/eval", valid_metrics, epoch)
 
             (
                 self.valid_losses[epoch],
@@ -283,9 +283,9 @@ class DiscreteTrainer:
 
         test_metrics = TrainingMetrics(test_losses.avg, test_top1.avg, test_top5.avg)
         if is_wandb_log:
-            self.logger.wandb_log_metrics("test", test_metrics)
+            self.logger.wandb_log_metrics("discrete/test", test_metrics)
 
-        self.logger.log_metrics("Test", test_metrics, epoch_str="---")
+        self.logger.log_metrics("[Discrete] Test", test_metrics, epoch_str="---")
 
         return test_metrics
 
