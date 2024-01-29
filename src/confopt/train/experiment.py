@@ -6,6 +6,7 @@ from enum import Enum
 import random
 from typing import Callable
 
+from fvcore.common.checkpoint import Checkpointer
 import numpy as np
 import torch
 from torch.backends import cudnn
@@ -416,6 +417,13 @@ class Experiment:
                 last_run=False,
             )
 
+        if "search_space" in arg_config:  # type: ignore
+            searched_arch_params = self.search_space.arch_parameters
+            self.set_search_space(
+                self.search_space_str, arg_config.get("search_space")  # type: ignore
+            )
+            self.search_space.set_arch_parameters(searched_arch_params)
+
         Arguments = namedtuple(  # type: ignore
             "Configure", " ".join(arg_config.keys())  # type: ignore
         )
@@ -468,6 +476,44 @@ class Experiment:
         trainer.test(is_wandb_log=self.is_wandb_log)
 
         return trainer
+
+    def initialize_from_last_run(
+        self,
+        profile_config: ProfileConfig,
+        last_search_run_time: str = "NOT_VALID",
+    ) -> None:
+        if last_search_run_time != "NOT_VALID":
+            run_time = last_search_run_time
+            last_run_logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                run_time=run_time,
+            )
+        else:
+            last_run_logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                last_run=True,
+            )
+        config = profile_config.get_config()
+        self.set_search_space(self.search_space_str, config.get("search_space"))
+        checkpoint_dir = last_run_logger.path(mode="checkpoints")
+        checkpointer = Checkpointer(
+            model=self.search_space,
+            save_dir=checkpoint_dir,
+            save_to_disk=True,
+        )
+        last_info = last_run_logger.path("last_checkpoint")
+        info = checkpointer._load_file(f=last_info)
+        self.search_space.load_state_dict(info["model"])
+        last_run_logger.log(
+            "=> loading SEARCH checkpoint of the last-info", str(last_info)
+        )
+        last_run_logger.close()
 
 
 if __name__ == "__main__":
