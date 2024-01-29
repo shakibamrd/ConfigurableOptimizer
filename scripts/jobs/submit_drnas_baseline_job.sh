@@ -13,7 +13,12 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-python examples/experiment_drnas.py --search_epochs 100 --eval_epochs 300 --seed $SLURM_ARRAY_TASK_ID --searchspace "nb201" --dataset "cifar10"
+# Search job
+# python examples/experiment_drnas.py --search_epochs 100 --eval_epochs 600 --seed $SLURM_ARRAY_TASK_ID --searchspace "darts" --dataset "cifar10"
+python scripts/baselines/drnas/drnas_search_and_discrete.py --search_epochs 100 --eval_epochs 600 --seed $SLURM_ARRAY_TASK_ID --searchspace "darts" --dataset "cifar10"
+
+#discretize job
+# python scripts/baselines/drnas/drnas_discretized.py  --eval_epochs 600 --seed $SLURM_ARRAY_TASK_ID --searchspace "darts" --dataset "cifar10" --start_epoch=200
 
 end=`date +%s`
 runtime=$((end-start))

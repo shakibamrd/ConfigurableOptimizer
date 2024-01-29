@@ -121,7 +121,6 @@ class ProfileConfig:
             "criterion": "cross_entropy",
             "batch_size": 96,
             "learning_rate_min": 0.0,
-            "weight_decay": 3e-4,
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.7,
