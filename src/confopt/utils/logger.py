@@ -60,7 +60,10 @@ class Logger:
         elif run_time is None:
             run_time = time.strftime("%Y-%d-%h-%H:%M:%S", time.gmtime(time.time()))
         else:
-            print("format not correct")
+            print(
+                "loading from the provided run time."
+                "Please make sure that the run folder is avialable"
+            )
 
         self.log_dir = Path(log_dir) / exp_name / search_space / str(seed) / run_time
         self.seed = int(seed)
