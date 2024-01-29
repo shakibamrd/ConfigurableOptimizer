@@ -67,6 +67,17 @@ class DiscreteTrainer:
         if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
             self._load_model_state_if_exists()
 
+        optimizer_hyperparameters = self.model_optimizer.defaults
+        self.model_optimizer = type(self.model_optimizer)(
+            self.model.model_weight_parameters(),  # type: ignore
+            **optimizer_hyperparameters,
+        )
+        self.scheduler = type(self.scheduler)(
+            self.model_optimizer,
+            self.scheduler.T_max,  # type: ignore
+            self.scheduler.eta_min,  # type: ignore
+        )
+
         if self.use_data_parallel is True:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
