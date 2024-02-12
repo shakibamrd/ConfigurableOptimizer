@@ -59,6 +59,7 @@ def get_gdas_profile(args: argparse.Namespace) -> GDASProfile:
     profile = GDASProfile(
         epochs=args.search_epochs,
         sampler_sample_frequency="step",
+        dropout=0.2,
     )
     # nb201 take in default configs, but for darts, we require different config
     searchspace_config = {
@@ -105,7 +106,8 @@ if __name__ == "__main__":
         {
             "discrete_trainer": discrete_config,
             "project_name": "BASELINES",
-            "run_type": "DRNAS",
+            "run_type": "GDAS",
+            "run_init": "search",
         }
     )
     config = profile.get_config()
@@ -120,7 +122,7 @@ if __name__ == "__main__":
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
-        exp_name="DRNAS_BASELINE",
+        exp_name="GDAS_BASELINE",
     )
 
     trainer = experiment.run_with_profile(profile)
