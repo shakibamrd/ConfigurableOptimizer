@@ -64,18 +64,29 @@ def read_args() -> argparse.Namespace:
         type=str,
     )
 
+    parser.add_argument(
+        "--search_space",
+        default="darts",
+        help="search space to be used (darts, nb201, tnb101, nb1shot1)",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--batch_size", default=64, help="batch size used to train", type=int
+    )
+
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = read_args()
-    searchspace = SearchSpaceType("darts")  # type: ignore
+    searchspace = SearchSpaceType(args.search_space)  # type: ignore
     dataset = DatasetType(args.dataset)  # type: ignore
     seed = args.seed
 
     discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
-    discrete_profile.configure_trainer(batch_size=64)
+    discrete_profile.configure_trainer(batch_size=args.batch_size)
 
     if args.search_space == "darts":
         discretize_search_space_config = {
@@ -96,7 +107,7 @@ if __name__ == "__main__":
     IS_WANDB_LOG = True
 
     if IS_WANDB_LOG:
-        wandb.init(
+        wandb.init(  # type: ignore
             project="BASELINES",
             group="SNAS_" + str(args.search_space),
             config=discrete_config,
