@@ -26,6 +26,13 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--search_space",
+        default="darts",
+        help="search space to be used - darts, nb201, tnb101",
+        type=str,
+    )
+
+    parser.add_argument(
         "--eval_epochs",
         default=600,
         help="number of epochs to train the discrete network",
@@ -70,26 +77,28 @@ if __name__ == "__main__":
     discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
     discrete_profile.configure_trainer(batch_size=64)
 
-    discretize_search_space_config = {
-        "C": 36,
-        "layers": 20,
-        "num_classes": dataset_size[args.dataset],
-    }
-    discrete_profile.train_config.update(
-        {
-            "search_space": discretize_search_space_config,
+    if args.search_space == "darts":
+        discretize_search_space_config = {
+            "C": 36,
+            "layers": 20,
+            "num_classes": dataset_size[args.dataset],
         }
-    )
+        discrete_profile.train_config.update(
+            {
+                "search_space": discretize_search_space_config,
+            }
+        )
 
     discrete_config = discrete_profile.get_trainer_config()
+    discrete_config.update({"run_nature": "discrete"})
     discrete_config.update({"seed": seed})  # for identifying runs in wandb
 
-    IS_WANDB_LOG = False
+    IS_WANDB_LOG = True
 
     if IS_WANDB_LOG:
         wandb.init(
             project="BASELINES",
-            group="SNAS",
+            group="SNAS_" + str(args.search_space),
             config=discrete_config,
         )
 
