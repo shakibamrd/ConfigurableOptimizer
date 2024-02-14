@@ -71,7 +71,7 @@ class TestArchSamplers(unittest.TestCase):
         sampler = GDASSampler(arch_parameters=searchspace.arch_parameters)
 
         alphas_before = searchspace.arch_parameters
-        alphas_after = sampler.sample_alphas(alphas_before)
+        alphas_after = sampler.sample_alphas(alphas_before)[0]
 
         for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
             assert not torch.allclose(arch_param_before, arch_param_after)
