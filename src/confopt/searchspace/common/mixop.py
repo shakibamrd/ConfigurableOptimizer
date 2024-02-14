@@ -54,7 +54,12 @@ class OperationBlock(nn.Module):
         self.is_reduction_cell = is_reduction_cell
         self.dropout = dropout
 
-    def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, alphas: list[torch.Tensor], argmaxs: int | None = None
+    ) -> torch.Tensor:
+        if argmaxs is not None:
+            return self.gdas_forward(x, alphas, argmaxs)
+
         if self.dropout:
             alphas = self.dropout.apply_mask(alphas)
         if self.partial_connector is not None:
@@ -63,7 +68,20 @@ class OperationBlock(nn.Module):
             return self.partial_connector(x, alphas, self.ops)
 
         states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
+        return sum(states)  # type: ignore
 
+    def gdas_forward(self, x: torch.Tensor, alphas: list[torch.Tensor], argmax: int):
+        if self.dropout:
+            alphas = self.dropout.apply_mask(alphas)
+        if self.partial_connector is not None:
+            self.partial_connector.is_reduction_cell = self.is_reduction_cell
+        if self.partial_connector:
+            return self.partial_connector(x, alphas, self.ops)
+
+        states = [
+            alphas[i] * op(x) if i == argmax else alphas[i]
+            for i, op in enumerate(self.ops)
+        ]
         return sum(states)  # type: ignore
 
     def change_op_channel_size(self, wider: int | None = None) -> None:

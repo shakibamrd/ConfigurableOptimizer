@@ -113,6 +113,7 @@ class NAS201SearchCell(nn.Module):
         inputs: torch.Tensor,
         weightss: list[torch.Tensor] | None = None,
         beta_weightss: list[torch.Tensor] | None = None,
+        index: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass through the NAS201SearchCell.
 
@@ -123,6 +124,7 @@ class NAS201SearchCell(nn.Module):
             beta_weightss (list[torch.Tensor] | None, optional): List of beta weights
             tensors for the cell's edges. Defaults to None assuming we do not have
             partial connection.
+            index (torch.Tensor | None, optional): argmax indexes for hardweights
 
         Returns:
             torch.Tensor: The output tensor of the forward pass.
@@ -134,8 +136,16 @@ class NAS201SearchCell(nn.Module):
         """
         if weightss is None:
             return self.discrete_model_forward(inputs)
+
         if beta_weightss is not None:
+            if index is not None:
+                return self.gdas_edge_normalization_forward(
+                    inputs, weightss, beta_weightss, index
+                )
             return self.edge_normalization_forward(inputs, weightss, beta_weightss)
+
+        if index is not None:
+            return self.gdas_forward(inputs, weightss, index)
 
         nodes = [inputs]
         for i in range(1, self.max_nodes):
@@ -154,6 +164,41 @@ class NAS201SearchCell(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 inter_nodes.append(self.edges[node_str](nodes[j]))
+            nodes.append(sum(inter_nodes))  # type: ignore
+        return nodes[-1]
+
+    def gdas_forward(
+        self, inputs: torch.Tensor, weightss: list[torch.Tensor], index: torch.Tensor
+    ) -> torch.Tensor:
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                weights = weightss[self.edge2index[node_str]]
+                argmaxs = index[self.edge2index[node_str]].item()
+                inter_nodes.append(self.edges[node_str](nodes[j], weights, argmaxs))
+            nodes.append(sum(inter_nodes))  # type: ignore
+        return nodes[-1]
+
+    def gdas_edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+        weightss: list[torch.Tensor],
+        beta_weightss: list[torch.Tensor],
+        index: torch.Tensor,
+    ) -> torch.Tensor:
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                weights = weightss[self.edge2index[node_str]]
+                beta_weights = beta_weightss[self.edge2index[node_str]]
+                argmaxs = index[self.edge2index[node_str]].item()
+                inter_nodes.append(
+                    beta_weights * self.edges[node_str](nodes[j], weights, argmaxs)
+                )
             nodes.append(sum(inter_nodes))  # type: ignore
         return nodes[-1]
 

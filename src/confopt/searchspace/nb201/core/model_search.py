@@ -253,10 +253,16 @@ class NB201SearchModel(nn.Module):
         """
         if self.discretized:
             return self.discrete_model_forward(inputs)
+
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
         alphas = self.sample(self.arch_parameters)
+
+        # parse differently for GDAS
+        index = None
+        if isinstance(alphas, list[list]):
+            alphas, index = alphas[0], alphas[1]
 
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
@@ -264,7 +270,7 @@ class NB201SearchModel(nn.Module):
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
-                feature = cell(feature, alphas)
+                feature = cell(feature, alphas, index)
             else:
                 feature = cell(feature)
 
@@ -294,6 +300,11 @@ class NB201SearchModel(nn.Module):
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = self.sample(self.arch_parameters)
+
+        index = None
+        if isinstance(alphas[0], list):
+            alphas, index = alphas[0], alphas[1]
+
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
@@ -311,8 +322,7 @@ class NB201SearchModel(nn.Module):
                     )
                     betas = torch.cat([betas, beta_node_v], dim=0)
 
-                feature = cell(feature, alphas, betas)
-
+                feature = cell(feature, alphas, betas, index=index)
             else:
                 feature = cell(feature)
 
