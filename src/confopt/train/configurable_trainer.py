@@ -224,7 +224,10 @@ class ConfigurableTrainer:
             arch_loss.backward()
             arch_optimizer.step()
 
-            profile.perturb_parameter(network)
+            if isinstance(network, torch.nn.DataParallel):
+                profile.perturb_parameter(network.module)
+            else:
+                profile.perturb_parameter(network)
 
             self._update_meters(
                 inputs=arch_inputs,
