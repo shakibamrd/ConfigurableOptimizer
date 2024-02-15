@@ -113,7 +113,7 @@ class DiscreteTrainer:
                 search_time.sum,
             )
 
-            valid_metrics = self.valid_func(val_loader, self.model, self.criterion)
+            valid_metrics = self.valid_func(val_loader, network, criterion)
             self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
 
             if is_wandb_log:
