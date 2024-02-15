@@ -270,7 +270,7 @@ class NB201SearchModel(nn.Module):
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
-                feature = cell(feature, alphas, index)
+                feature = cell(feature, alphas, index=index)
             else:
                 feature = cell(feature)
 
