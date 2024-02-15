@@ -261,7 +261,7 @@ class NB201SearchModel(nn.Module):
 
         # parse differently for GDAS
         index = None
-        if isinstance(alphas, list[list]):
+        if isinstance(alphas[0], list):
             alphas, index = alphas[0], alphas[1]
 
         if self.mask is not None:

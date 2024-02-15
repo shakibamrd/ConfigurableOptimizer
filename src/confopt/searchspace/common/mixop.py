@@ -70,7 +70,9 @@ class OperationBlock(nn.Module):
         states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
         return sum(states)  # type: ignore
 
-    def gdas_forward(self, x: torch.Tensor, alphas: list[torch.Tensor], argmax: int):
+    def gdas_forward(
+        self, x: torch.Tensor, alphas: list[torch.Tensor], argmax: int
+    ) -> torch.Tensor:
         if self.dropout:
             alphas = self.dropout.apply_mask(alphas)
         if self.partial_connector is not None:
