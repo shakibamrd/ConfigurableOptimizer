@@ -6,8 +6,9 @@ import torch
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 # TODO Change this to real data
-ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,)).to(
-    DEVICE
+ADVERSERIAL_DATA = (
+    torch.randn(2, 3, 32, 32).to(DEVICE),
+    torch.randint(0, 9, (2,)).to(DEVICE),
 )
 
 
@@ -17,12 +18,14 @@ class ProfileConfig:
     def __init__(
         self,
         config_type: str,
+        epochs: int,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
         self.config_type = config_type
+        self.epochs = epochs
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self.set_partial_connector(is_partial_connection)
@@ -64,6 +67,9 @@ class ProfileConfig:
         }
         if hasattr(self, "searchspace_config") and self.searchspace_config is not None:
             config.update({"search_space": self.searchspace_config})
+
+        if hasattr(self, "extra_config") and self.extra_config is not None:
+            config.update(self.extra_config)
         return config
 
     @abstractmethod
@@ -100,19 +106,25 @@ class ProfileConfig:
     def _initialize_trainer_config(self) -> None:
         trainer_config = {
             "lr": 0.025,
+            "arch_lr": 3e-4,
             "epochs": self.epochs,
             "optim": "sgd",
             "arch_optim": "adam",
-            "momentum": 0.9,
-            "nesterov": 0,
+            "optim_config": {
+                "momentum": 0.9,
+                "nesterov": 0,
+                "weight_decay": 3e-4,
+            },
+            "arch_optim_config": {
+                "weight_decay": 1e-3,
+            },
             "criterion": "cross_entropy",
             "batch_size": 96,
             "learning_rate_min": 0.0,
-            "weight_decay": 3e-4,
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.7,
-            "use_data_parallel": 0,
+            "use_data_parallel": True,
             "checkpointing_freq": 1,
         }
 
@@ -171,10 +183,14 @@ class ProfileConfig:
     def configure_dropout(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
             assert (
-                config_key in self.trainer_config
+                config_key in self.dropout_config
             ), f"{config_key} not a valid configuration for the dropout module"
             self.dropout_config[config_key] = kwargs[config_key]
 
     @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
         self.searchspace_config = config
+
+    @abstractmethod
+    def configure_extra_config(self, config: dict) -> None:
+        self.extra_config = config

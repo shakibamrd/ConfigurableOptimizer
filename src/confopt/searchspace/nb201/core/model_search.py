@@ -11,10 +11,13 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils.normalize_params import normalize_params
 
 from .cells import NAS201SearchCell as SearchCell
 from .genotypes import Structure
 from .operations import NAS_BENCH_201, ResNetBasicblock
+
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 class NB201SearchModel(nn.Module):
@@ -71,8 +74,11 @@ class NB201SearchModel(nn.Module):
         self._layerN = N
         self.max_nodes = max_nodes
         self._steps = steps
+        self.affine = affine
+        self.track_running_stats = track_running_stats
         self.edge_normalization = edge_normalization
         self.discretized = discretized
+        self.mask: None | torch.Tensor = None
         self.stem = nn.Sequential(
             nn.Conv2d(3, C, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(C),
@@ -116,7 +122,7 @@ class NB201SearchModel(nn.Module):
         self.lastact = nn.Sequential(nn.BatchNorm2d(C_prev), nn.ReLU())
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(C_prev, num_classes)
-        self.arch_parameters = nn.Parameter(
+        self.arch_parameters: None | nn.Parameter = nn.Parameter(
             1e-3 * torch.randn(num_edge, len(search_space))  # type: ignore
         )
         self.beta_parameters = nn.Parameter(
@@ -145,7 +151,7 @@ class NB201SearchModel(nn.Module):
             list[torch.Tensor]: A list containing the architecture parameters, such as
             alpha values.
         """
-        return [self.arch_parameters]
+        return [self.arch_parameters]  # type: ignore
 
     def get_betas(self) -> list[torch.Tensor]:
         """Get a list containing the beta parameters of partial connection used for
@@ -157,7 +163,7 @@ class NB201SearchModel(nn.Module):
         return [self.beta_parameters]
 
     def show_alphas(self) -> str:
-        """Get a human-readable string representation of the architecture parameters
+        """Gets a string representation of the architecture parameters
         (alphas).
 
         Returns:
@@ -166,11 +172,13 @@ class NB201SearchModel(nn.Module):
         """
         with torch.no_grad():
             return "arch-parameters :\n{:}".format(
-                nn.functional.softmax(self.arch_parameters, dim=-1).cpu()
+                nn.functional.softmax(
+                    self.arch_parameters, dim=-1
+                ).cpu()  # type: ignore
             )
 
     def show_betas(self) -> str:
-        """Get a human-readable string representation of the beta parameters.
+        """Gets a string representation of the beta parameters.
 
         Returns:
             str: A string representing the beta parameters after softmax operation.
@@ -181,7 +189,7 @@ class NB201SearchModel(nn.Module):
             )
 
     def get_message(self) -> str:
-        """Get a human-readable message describing the model and its cells.
+        """Gets a message describing the model and its cells.
 
         Returns:
             str: A string message containing information about the model and its cells.
@@ -219,7 +227,9 @@ class NB201SearchModel(nn.Module):
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 with torch.no_grad():
-                    weights = self.arch_parameters[self.edge2index[node_str]]
+                    weights = self.arch_parameters[  # type: ignore
+                        self.edge2index[node_str]
+                    ]
                     # betas = self.beta_parameters[self.edge2index[node_str]]
                     op_name = self.op_names[weights.argmax().item()]  # type: ignore
                 xlist.append((op_name, j))
@@ -242,28 +252,19 @@ class NB201SearchModel(nn.Module):
             - The logits tensor produced by the model.
         """
         if self.discretized:
-            alphas = self.arch_parameters
-        else:
-            alphas = self.sample(self.arch_parameters)
+            return self.discrete_model_forward(inputs)
+        if self.edge_normalization:
+            return self.edge_normalization_forward(inputs)
+
+        alphas = self.sample(self.arch_parameters)
+
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
-                if self.edge_normalization:
-                    betas = torch.empty((0,)).to(self.beta_parameters.device)
-                    for v in range(1, self.max_nodes):
-                        idx_nodes = []
-                        for u in range(v):
-                            node_str = f"{v}<-{u}"
-                            idx_nodes.append(cell.edge2index[node_str])
-                        beta_node_v = nn.functional.softmax(
-                            self.beta_parameters[idx_nodes], dim=-1
-                        )
-                        betas = torch.cat([betas, beta_node_v], dim=0)
-
-                    feature = cell(feature, alphas, betas)
-                else:
-                    feature = cell(feature, alphas)
+                feature = cell(feature, alphas)
             else:
                 feature = cell(feature)
 
@@ -274,8 +275,56 @@ class NB201SearchModel(nn.Module):
 
         return out, logits
 
-    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
-        """Discretize architecture parameters to enforce sparsity.
+    def discrete_model_forward(
+        self, inputs: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        feature = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            feature = cell(feature)
+
+        out = self.lastact(feature)
+        out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
+        logits = self.classifier(out)
+
+        return out, logits
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        alphas = self.sample(self.arch_parameters)
+        if self.mask is not None:
+            alphas = normalize_params(alphas, self.mask)
+
+        feature = self.stem(inputs)
+        for _i, cell in enumerate(self.cells):
+            if isinstance(cell, SearchCell):
+                betas = torch.empty((0,)).to(alphas[0].device)  # type: ignore
+                for v in range(1, self.max_nodes):
+                    idx_nodes = []
+                    for u in range(v):
+                        node_str = f"{v}<-{u}"
+                        idx_nodes.append(cell.edge2index[node_str])
+                    beta_node_v = nn.functional.softmax(
+                        self.beta_parameters[idx_nodes], dim=-1
+                    )
+                    betas = torch.cat([betas, beta_node_v], dim=0)
+
+                feature = cell(feature, alphas, betas)
+
+            else:
+                feature = cell(feature)
+
+        out = self.lastact(feature)
+        out = self.global_pooling(out)
+        out = out.view(out.size(0), -1)
+        logits = self.classifier(out)
+
+        return out, logits
+
+    def _prune(self, op_sparsity: float, wider: int | None = None) -> None:
+        """Masks architecture parameters to enforce sparsity.
 
         Args:
             op_sparsity (float): The desired sparsity level, represented as a
@@ -290,17 +339,50 @@ class NB201SearchModel(nn.Module):
             It modifies the architecture parameters in-place to achieve the desired
             sparsity.
         """
-        self.edge_normalization = False
+        if self.arch_parameters is None:
+            ValueError("cannot prune discretized search space")
+        # self.edge_normalization = False TODO: we could have partial connections and
+        # prune
         for _name, module in self.named_modules():
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
-        self.discretized = True
-        sorted_arch_params, _ = torch.sort(self.arch_parameters, dim=1, descending=True)
+
+        sorted_arch_params, _ = torch.sort(
+            self.arch_parameters.data, dim=1, descending=True  # type: ignore
+        )
         top_k = int(op_sparsity * len(self.op_names))
         thresholds = sorted_arch_params[:, :top_k]
-        mask = self.arch_parameters >= thresholds
+        self.mask = self.arch_parameters.data >= thresholds  # type: ignore
 
-        self.arch_parameters.data *= mask.float()
-        self.arch_parameters.data[~mask].requires_grad = False
-        if self.arch_parameters.data[~mask].grad:
-            self.arch_parameters.data[~mask].grad.zero_()
+        self.arch_parameters.data *= self.mask.float()  # type: ignore
+        self.arch_parameters.data[~self.mask].requires_grad = False  # type: ignore
+        if self.arch_parameters.data[~self.mask].grad:  # type: ignore
+            self.arch_parameters.data[~self.mask].grad.zero_()  # type: ignore
+
+    def _discretize(self) -> NB201SearchModel:
+        discrete_model = NB201SearchModel(
+            C=self._C,
+            N=self._layerN,
+            max_nodes=self.max_nodes,
+            num_classes=self.classifier.out_features,
+            steps=self._steps,
+            search_space=NAS_BENCH_201,
+            affine=self.affine,
+            track_running_stats=self.track_running_stats,
+            edge_normalization=False,
+            discretized=True,  # TODO: do we need this?
+        ).to(next(self.parameters()).device)
+
+        for cell in discrete_model.cells:
+            if isinstance(cell, SearchCell):
+                cell._discretize(self.arch_parameters)  # type: ignore
+        discrete_model.arch_parameters = None
+
+        return discrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        params -= set(self.beta_parameters)
+        if self.arch_parameters is not None:
+            params -= set(self.arch_parameters)
+        return list(params)

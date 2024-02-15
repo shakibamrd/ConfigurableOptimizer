@@ -13,6 +13,7 @@ class TestProfileConfig(unittest.TestCase):
     def test_config_change(self) -> None:
         profile = ProfileConfig(
             "TEST",
+            epochs=1,
             is_partial_connection=True,
             dropout=0.5,
             perturbation="random",
@@ -41,6 +42,7 @@ class TestProfileConfig(unittest.TestCase):
     def test_invalid_configuration(self) -> None:
         profile = ProfileConfig(
             "TEST",
+            epochs=1,
             is_partial_connection=True,
             dropout=0.5,
             perturbation="random",
@@ -78,6 +80,7 @@ class TestDartsProfile(unittest.TestCase):
         }
         profile = DartsProfile(
             is_partial_connection=True,
+            epochs=1,
             perturbation="random",
             sampler_sample_frequency="step",
             partial_connector_config=partial_connector_config,
@@ -97,6 +100,7 @@ class TestDartsProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = DartsProfile(  # noqa: F841
                 is_partial_connection=True,
+                epochs=1,
                 perturbation="random",
                 sampler_sample_frequency="step",
                 partial_connector_config=partial_connector_config,
@@ -106,6 +110,7 @@ class TestDartsProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = DartsProfile(
             sampler_sample_frequency="step",
+            epochs=1,
         )
         sampler_config = {"sample_frequency": "epoch"}
         profile.configure_sampler(**sampler_config)
@@ -126,6 +131,7 @@ class TestDRNASProfile(unittest.TestCase):
         }
         profile = DRNASProfile(
             is_partial_connection=True,
+            epochs=1,
             perturbation="random",
             sampler_sample_frequency="step",
             partial_connector_config=partial_connector_config,
@@ -145,6 +151,7 @@ class TestDRNASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = DRNASProfile(  # noqa: F841
                 is_partial_connection=True,
+                epochs=1,
                 perturbation="random",
                 sampler_sample_frequency="step",
                 partial_connector_config=partial_connector_config,
@@ -154,6 +161,7 @@ class TestDRNASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = DRNASProfile(
             sampler_sample_frequency="step",
+            epochs=1,
         )
         sampler_config = {"sample_frequency": "epoch"}
         profile.configure_sampler(**sampler_config)
@@ -174,6 +182,7 @@ class TestGDASProfile(unittest.TestCase):
         }
         profile = GDASProfile(
             is_partial_connection=True,
+            epochs=1,
             perturbation="random",
             sampler_sample_frequency="step",
             partial_connector_config=partial_connector_config,
@@ -193,6 +202,7 @@ class TestGDASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = GDASProfile(  # noqa: F841
                 is_partial_connection=True,
+                epochs=1,
                 perturbation="random",
                 sampler_sample_frequency="step",
                 partial_connector_config=partial_connector_config,
@@ -202,6 +212,7 @@ class TestGDASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = GDASProfile(
             sampler_sample_frequency="step",
+            epochs=1,
         )
         sampler_config = {"tau_max": 12, "tau_min": 0.3}
         profile.configure_sampler(**sampler_config)
@@ -221,6 +232,7 @@ class TestSNASProfile(unittest.TestCase):
         }
         profile = SNASProfile(
             is_partial_connection=True,
+            epochs=1,
             perturbation="random",
             sampler_sample_frequency="step",
             partial_connector_config=partial_connector_config,
@@ -240,6 +252,7 @@ class TestSNASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = SNASProfile(  # noqa: F841
                 is_partial_connection=True,
+                epochs=1,
                 perturbation="random",
                 sampler_sample_frequency="step",
                 partial_connector_config=partial_connector_config,
@@ -249,6 +262,7 @@ class TestSNASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = SNASProfile(
             sampler_sample_frequency="step",
+            epochs=1,
         )
         sampler_config = {"temp_min": 0.5, "temp_init": 1.3}
         profile.configure_sampler(**sampler_config)

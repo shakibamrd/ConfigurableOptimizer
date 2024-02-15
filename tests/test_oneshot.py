@@ -250,7 +250,9 @@ class TestDropout(unittest.TestCase):
         output = dropout.apply_mask(arch_parameters)
         dropped_percent = (1000 - torch.count_nonzero(output)) / 1000
 
-        self.assertAlmostEqual(probability, dropped_percent.numpy(), places=1)
+        self.assertAlmostEqual(
+            probability, dropped_percent.numpy(), places=1
+        )  # type: ignore
 
     def test_negative_probability(self) -> None:
         self._test_probabilities(-1.0)

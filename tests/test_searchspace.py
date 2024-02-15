@@ -15,10 +15,7 @@ from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell
-from confopt.searchspace.nb201.core.operations import (
-    ReLUConvBN,
-    ResNetBasicblock,
-)
+from confopt.searchspace.nb201.core.operations import ReLUConvBN, ResNetBasicblock
 from confopt.searchspace.tnb101.core.model_search import TNB101SearchCell
 from utils import get_modules_of_type
 
@@ -76,7 +73,7 @@ class TestNASBench201SearchSpace(unittest.TestCase):
         resnet_cells = get_modules_of_type(search_space.model, ResNetBasicblock)
         assert len(resnet_cells) == 2
 
-        first_cell_edge_ops = search_cells[0].edges["1<-0"].ops
+        first_cell_edge_ops = search_cells[0].edges["1<-0"].ops  # type: ignore
         for op in first_cell_edge_ops:
             if isinstance(op, ReLUConvBN):
                 assert op.op[1].in_channels == C
@@ -87,10 +84,33 @@ class TestNASBench201SearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
-    def test_discretize(self) -> None:
+    def test_discretize_supernet(self) -> None:
+        C = 32
+        N = 3
+        num_classes = 11
+        search_space = NASBench201SearchSpace(C=C, N=N, num_classes=num_classes)
+
+        search_cells = get_modules_of_type(search_space.model, NAS201SearchCell)
+        assert len(search_cells) == N * 3
+        # for cell in search_cells:
+        #     cell._discretize(search_space.arch_parameters[0])
+
+        resnet_cells = get_modules_of_type(search_space.model, ResNetBasicblock)
+        assert len(resnet_cells) == 2
+
+        # search_cells[0].edges["1<-0"]
+        # assert type(first_cell_edge_ops) in OPS.values()
+        new_model = search_space.discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = new_model(x)
+
+        assert logits.shape == torch.Size([2, num_classes])
+
+    def test_prune(self) -> None:
         search_space = NASBench201SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize()
+        search_space.prune()
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
@@ -127,6 +147,35 @@ class TestNASBench201SearchSpace(unittest.TestCase):
             assert not torch.allclose(arch_param_before, arch_param_after)
         for beta_param_before, beta_param_after in zip(betas_before, betas_after):
             assert not torch.allclose(beta_param_before, beta_param_after)
+
+
+"""
+    def test_optim_forward_pass(self) -> None:
+        search_space = NASBench201SearchSpace(edge_normalization=True)
+        loss_fn = torch.nn.CrossEntropyLoss().to(DEVICE)
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        y = torch.randint(low=0, high=9, size=(2,)).to(DEVICE)
+        arch_optim = torch.optim.Adam(
+            [*search_space.arch_parameters, *search_space.beta_parameters]
+        )
+        arch_optim.zero_grad()
+        out = search_space(x)
+        loss = loss_fn(out[1], y)
+        loss.backward()
+        alphas_before = []
+        # betas_before = []
+        for alpha in search_space.arch_parameters:
+            alphas_before.append(alpha.clone().detach())
+        # for beta in search_space.beta_parameters:
+        #     betas_before.append(beta.clone().detach())
+        arch_optim.step()
+        alphas_after = search_space.arch_parameters
+        # betas_after = search_space.beta_parameters
+        for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
+            assert not torch.allclose(arch_param_before, arch_param_after)
+        # for beta_param_before, beta_param_after in zip(betas_before, betas_after):
+        #     assert not torch.allclose(beta_param_before, beta_param_after)
+"""
 
 
 class TestDARTSSearchSpace(unittest.TestCase):
@@ -187,10 +236,10 @@ class TestDARTSSearchSpace(unittest.TestCase):
 
         assert logits.shape == torch.Size([2, num_classes])
 
-    def test_discretize(self) -> None:
+    def test_prune(self) -> None:
         search_space = DARTSSearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 64, 64).to(DEVICE)
-        search_space.discretize()
+        search_space.prune()
         arch_params = search_space.arch_parameters
         for p in arch_params:
             assert torch.count_nonzero(p) == len(p)
@@ -206,6 +255,22 @@ class TestDARTSSearchSpace(unittest.TestCase):
         assert isinstance(out[1], torch.Tensor)
         assert out[0].shape == torch.Size([2, 256])
         assert out[1].shape == torch.Size([2, 10])
+
+    def test_discretize_supernet(self) -> None:
+        # TODO: check to have one operation on each edge of the search space
+        C = 32
+        layers = 6
+        num_classes = 11
+        search_space = DARTSSearchSpace(
+            C=C, layers=layers, num_classes=num_classes, edge_normalization=True
+        )
+
+        new_model = search_space.discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out, logits = new_model(x)
+
+        assert logits.shape == torch.Size([2, num_classes])
 
     def test_optim_forward_pass(self) -> None:
         search_space = DARTSSearchSpace(edge_normalization=True)
@@ -291,14 +356,23 @@ class TestNASBench1Shot1SearchSpace(unittest.TestCase):
     def test_discretize(self) -> None:
         search_space = NASBench1Shot1SearchSpace(
             num_intermediate_nodes=4, search_space_type="S2"
-        )  # edge_normalization=True
+        )
         search_space.discretize()
-        arch_params = search_space.arch_parameters
-        for p in arch_params:
-            assert torch.count_nonzero(p) == len(p)
-            assert torch.equal(
-                torch.count_nonzero(p, dim=-1), torch.ones(len(p)).to(DEVICE)
-            )
+
+        self._test_forward_pass(search_space)
+
+    def test_prune(self) -> None:
+        search_space = NASBench1Shot1SearchSpace(
+            num_intermediate_nodes=4, search_space_type="S2"
+        )
+        search_space.prune()
+        alphas_mixed_op = search_space.arch_parameters[0]
+
+        assert torch.count_nonzero(alphas_mixed_op) == len(alphas_mixed_op)
+        assert torch.equal(
+            torch.count_nonzero(alphas_mixed_op, dim=-1),
+            torch.ones(len(alphas_mixed_op)).to(DEVICE),
+        )
 
         self._test_forward_pass(search_space)
 
@@ -371,10 +445,10 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
         assert out[0].shape == torch.Size([2, 10])
         assert out[1].shape == torch.Size([2, 10])
 
-    def test_discretize(self) -> None:
+    def test_prune(self) -> None:
         search_space = TransNASBench101SearchSpace(edge_normalization=True)
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
-        search_space.discretize()
+        search_space.prune()
         arch_params = search_space.arch_parameters[0]
         assert torch.count_nonzero(arch_params) == len(arch_params)
         assert torch.equal(
@@ -382,6 +456,21 @@ class TestTransNASBench101SearchSpace(unittest.TestCase):
             torch.ones(len(arch_params)).to(DEVICE),
         )
         out = search_space(x)
+
+        assert isinstance(out, tuple)
+        assert len(out) == 2
+        assert isinstance(out[0], torch.Tensor)
+        assert isinstance(out[1], torch.Tensor)
+        assert out[0].shape == torch.Size([2, 10])
+        assert out[1].shape == torch.Size([2, 10])
+
+    def test_discretize_supernet(self) -> None:
+        search_space = TransNASBench101SearchSpace()
+
+        new_model = search_space.discretize()
+
+        x = torch.randn(2, 3, 32, 32).to(DEVICE)
+        out = new_model(x)
 
         assert isinstance(out, tuple)
         assert len(out) == 2

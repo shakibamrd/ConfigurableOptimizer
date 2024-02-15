@@ -34,7 +34,7 @@ class ConfigurableTrainer:
         scheduler: LRSchedulerType,
         criterion: CriterionType,
         logger: Logger,
-        batchsize: int,
+        batch_size: int,
         use_data_parallel: bool = False,
         print_freq: int = 20,
         drop_path_prob: float = 0.1,
@@ -53,12 +53,11 @@ class ConfigurableTrainer:
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
-
         self.logger = logger
         self.criterion = criterion
         self.use_data_parallel = use_data_parallel
         self.print_freq = print_freq
-        self.batch_size = batchsize
+        self.batch_size = batch_size
         self.drop_path_prob = drop_path_prob
         self.load_saved_model = load_saved_model
         self.load_best_model = load_best_model
@@ -70,6 +69,12 @@ class ConfigurableTrainer:
     def train(self, profile: Profile, epochs: int, is_wandb_log: bool = True) -> None:
         self.epochs = epochs
         profile.adapt_search_space(self.model)
+
+        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
+            self._load_model_state_if_exists()
+        else:
+            self._init_empty_model_state_info()
+
         if self.use_data_parallel:
             network, criterion = self._load_onto_data_parallel(
                 self.model, self.criterion
@@ -77,11 +82,6 @@ class ConfigurableTrainer:
         else:
             network: nn.Module = self.model  # type: ignore
             criterion = self.criterion
-
-        if self.load_saved_model or self.load_best_model or self.start_epoch != 0:
-            self._load_model_state_if_exists()
-        else:
-            self._init_empty_model_state_info()
 
         start_time = time.time()
         search_time, epoch_time = AverageMeter(), AverageMeter()
@@ -209,8 +209,9 @@ class ConfigurableTrainer:
 
             arch_inputs, arch_targets = next(iter(valid_loader))
 
-            base_inputs, arch_inputs = base_inputs.to(self.device), arch_inputs.to(
-                self.device
+            base_inputs, arch_inputs = (
+                base_inputs.to(self.device),
+                arch_inputs.to(self.device),
             )
             base_targets = base_targets.to(self.device, non_blocking=True)
             arch_targets = arch_targets.to(self.device, non_blocking=True)
@@ -354,6 +355,7 @@ class ConfigurableTrainer:
 
         self._init_periodic_checkpointer()
         self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
+        self.logger.set_up_run()
 
     def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
         checkpoint_dir = self.logger.path(mode=mode)  # todo: check this
@@ -417,7 +419,7 @@ class ConfigurableTrainer:
             info = self.best_model_checkpointer._load_file(f=last_info)
         elif self.start_epoch != 0:
             last_info = self.logger.path("checkpoints")
-            last_info = last_info / "{}_{:07d}.pth".format("model", self.start_epoch)
+            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", self.start_epoch)
             info = self.checkpointer._load_file(f=last_info)
         elif self.load_saved_model:
             last_info = self.logger.path("last_checkpoint")

@@ -6,6 +6,7 @@ from enum import Enum
 import random
 from typing import Callable
 
+from fvcore.common.checkpoint import Checkpointer
 import numpy as np
 import torch
 from torch.backends import cudnn
@@ -27,6 +28,7 @@ from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.profiles import (
+    DiscreteProfile,
     GDASProfile,
     ProfileConfig,
 )
@@ -36,15 +38,15 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train.configurable_trainer import ConfigurableTrainer
-from confopt.train.searchprofile import Profile
+from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
 from confopt.utils import Logger
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # TODO Change this to real data
-ADVERSERIAL_DATA = torch.randn(2, 3, 32, 32).to(DEVICE), torch.randint(0, 9, (2,)).to(
-    DEVICE
+ADVERSERIAL_DATA = (
+    torch.randn(2, 3, 32, 32).to(DEVICE),
+    torch.randint(0, 9, (2,)).to(DEVICE),
 )
 
 
@@ -129,6 +131,7 @@ class Experiment:
         load_best_model: bool = False,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
+
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
@@ -150,18 +153,24 @@ class Experiment:
         load_saved_model: bool = False,
         load_best_model: bool = False,
     ) -> ConfigurableTrainer:
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+
         self.set_seed(self.seed)
 
         if load_saved_model or load_best_model or start_epoch > 0:
             self.logger = Logger(
                 log_dir="logs",
                 seed=self.seed,
-                exp_name=self.search_space_str.value,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
                 last_run=True,
             )
         else:
             self.logger = Logger(
-                log_dir="logs", seed=self.seed, exp_name=self.search_space_str.value
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
             )
 
         self._enum_to_objects(
@@ -228,7 +237,7 @@ class Experiment:
             scheduler=w_scheduler,
             criterion=criterion,
             logger=self.logger,
-            batchsize=arg_config.batch_size,  # type: ignore
+            batch_size=arg_config.batch_size,  # type: ignore
             use_data_parallel=arg_config.use_data_parallel,  # type: ignore
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
@@ -358,6 +367,154 @@ class Experiment:
             return torch.optim.ASGD
         return None
 
+    def run_discrete_model_with_profile(
+        self,
+        profile: DiscreteProfile,
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> DiscreteTrainer:
+        config = profile.get_trainer_config()
+
+        return self.run_discrete_model(
+            config,
+            start_epoch,
+            load_saved_model,
+            load_best_model,
+        )
+
+    def run_discrete_model(
+        self,
+        arg_config: dict | None = None,
+        start_epoch: int = 0,
+        load_saved_model: bool = False,
+        load_best_model: bool = False,
+    ) -> DiscreteTrainer:
+        assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
+
+        self.set_seed(self.seed)
+
+        if not hasattr(self, "search_space"):
+            self.set_search_space(
+                self.search_space_str,
+                arg_config.get("search_space", {}),  # type: ignore
+            )
+
+        if load_saved_model or load_best_model or start_epoch > 0:
+            self.logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                last_run=True,
+            )
+        else:
+            self.logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                last_run=False,
+            )
+
+        if "search_space" in arg_config:  # type: ignore
+            searched_arch_params = self.search_space.arch_parameters
+            self.set_search_space(
+                self.search_space_str, arg_config.get("search_space")  # type: ignore
+            )
+            self.search_space.set_arch_parameters(searched_arch_params)
+
+        Arguments = namedtuple(  # type: ignore
+            "Configure", " ".join(arg_config.keys())  # type: ignore
+        )
+        arg_config = Arguments(**arg_config)  # type: ignore
+
+        data = self._get_dataset(self.dataset_str)(
+            root="datasets",
+            cutout=arg_config.cutout,  # type: ignore
+            train_portion=arg_config.train_portion,  # type: ignore
+        )
+
+        model = self.search_space
+        w_optimizer = self._get_optimizer(arg_config.optim)(  # type: ignore
+            model.model_weight_parameters(),
+            arg_config.lr,  # type: ignore
+            **arg_config.optim_config,  # type: ignore
+        )
+
+        w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=w_optimizer,
+            T_max=float(arg_config.epochs),  # type: ignore
+            eta_min=arg_config.learning_rate_min,  # type: ignore
+        )
+
+        criterion = self._get_criterion(
+            criterion_str=arg_config.criterion  # type: ignore
+        )
+
+        trainer = DiscreteTrainer(
+            model=model,
+            data=data,
+            model_optimizer=w_optimizer,
+            scheduler=w_scheduler,
+            criterion=criterion,
+            logger=self.logger,
+            batch_size=arg_config.batch_size,  # type: ignore
+            use_data_parallel=arg_config.use_data_parallel,  # type: ignore
+            load_saved_model=load_saved_model,
+            load_best_model=load_best_model,
+            start_epoch=start_epoch,
+            checkpointing_freq=arg_config.checkpointing_freq,  # type: ignore
+            epochs=arg_config.epochs,  # type: ignore
+        )
+
+        trainer.train(
+            epochs=arg_config.epochs,  # type: ignore
+            is_wandb_log=self.is_wandb_log,
+        )
+
+        trainer.test(is_wandb_log=self.is_wandb_log)
+
+        return trainer
+
+    def initialize_from_last_run(
+        self,
+        profile_config: ProfileConfig,
+        last_search_run_time: str = "NOT_VALID",
+    ) -> None:
+        if last_search_run_time != "NOT_VALID":
+            run_time = last_search_run_time
+            last_run_logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                run_time=run_time,
+            )
+        else:
+            last_run_logger = Logger(
+                log_dir="logs",
+                seed=self.seed,
+                exp_name=self.exp_name,
+                search_space=self.search_space_str.value,
+                last_run=True,
+            )
+        config = profile_config.get_config()
+        self.set_search_space(self.search_space_str, config.get("search_space"))
+        checkpoint_dir = last_run_logger.path(mode="checkpoints")
+        checkpointer = Checkpointer(
+            model=self.search_space,
+            save_dir=checkpoint_dir,
+            save_to_disk=True,
+        )
+        last_info = last_run_logger.path("last_checkpoint")
+        info = checkpointer._load_file(f=last_info)
+        self.search_space.load_state_dict(info["model"])
+        last_run_logger.log(
+            "=> loading SEARCH checkpoint of the last-info", str(last_info)
+        )
+        last_run_logger.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -396,6 +553,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default="cifar10", type=str)
     parser.add_argument("--logdir", default="./logs", type=str)
     parser.add_argument("--seed", default=444, type=int)
+    parser.add_argument("--exp_name", default="test", type=str)
     parser.add_argument(
         "--load_best_model",
         action="store_true",
@@ -423,10 +581,13 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
 
     profile = GDASProfile(
+        epochs=args.epochs,
         is_partial_connection=args.is_partial_connector,
         perturbation=args.perturbator,
         dropout=args.dropout,
     )
+
+    config = profile.get_config()
 
     experiment = Experiment(
         search_space=searchspace,
@@ -434,9 +595,23 @@ if __name__ == "__main__":
         seed=args.seed,
         is_wandb_log=is_wandb_log,
         debug_mode=IS_DEBUG_MODE,
+        exp_name=args.exp_name,
     )
 
-    trainer = experiment.run_with_profile(profile)
+    trainer = experiment.run_with_profile(
+        profile,
+        start_epoch=args.start_epoch,
+        load_saved_model=args.load_saved_model,
+        load_best_model=args.load_best_model,
+    )
+
+    profile = DiscreteProfile()
+    discret_trainer = experiment.run_discrete_model_with_profile(
+        profile,
+        start_epoch=args.start_epoch,
+        load_saved_model=args.load_saved_model,
+        load_best_model=args.load_best_model,
+    )
 
     if is_wandb_log:
         wandb.finish()  # type: ignore

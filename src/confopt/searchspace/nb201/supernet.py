@@ -47,7 +47,7 @@ class NASBench201SearchSpace(SearchSpace):
         Returns:
             list[nn.Parameter]: A list containing the beta parameters for the model.
         """
-        return [self.model.beta_parameters]
+        return [self.model.beta_parameters]  # type: ignore
 
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         """Set the architectural parameters of the model.
@@ -62,7 +62,7 @@ class NASBench201SearchSpace(SearchSpace):
         """
         self.model.arch_parameters.data = arch_parameters[0]
 
-    def discretize(self, wider: int | None = None) -> None:
+    def prune(self, wider: int | None = None) -> None:
         """Discretize the model's architecture parameters to enforce sparsity.
 
         Note:
@@ -70,5 +70,10 @@ class NASBench201SearchSpace(SearchSpace):
             sparsity. It sets the sparsity level to 0.2 (20% of operations will be kept)
             and calls the `_discretize` method to apply the discretization.
         """
+        # TODO: add a function that would return valid sparsity values based on search
+        # space
         sparsity = 0.2
-        self.model._discretize(sparsity, wider)
+        self.model._prune(sparsity, wider)  # type: ignore
+
+    def discretize(self) -> nn.Module:
+        return self.model._discretize()  # type: ignore

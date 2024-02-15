@@ -5,6 +5,7 @@ from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils.normalize_params import normalize_params
 
 from .genotypes import PRIMITIVES
 from .operations import OPS, ConvBnRelu, ReLUConvBN
@@ -45,8 +46,11 @@ class ChoiceBlock(nn.Module):
         self,
         inputs: list,
         input_weights: torch.Tensor,
-        weights: list[torch.Tensor],
+        weights: list[torch.Tensor] | None = None,
     ) -> torch.Tensor:
+        if weights is None:
+            return self.discrete_model_forward(inputs, input_weights)
+
         if input_weights is not None:
             # Weigh the input to the choice block
             inputs = [w * t for w, t in zip(input_weights.squeeze(0), inputs)]
@@ -58,6 +62,25 @@ class ChoiceBlock(nn.Module):
         # Apply Mixed Op
         output = self.mixed_op(input_to_mixed_op, alphas=weights)
         return output
+
+    def discrete_model_forward(
+        self, inputs: list, input_weights: torch.Tensor
+    ) -> torch.Tensor:
+        if input_weights is not None:
+            # Weigh the input to the choice block
+            inputs = [w * t for w, t in zip(input_weights.squeeze(0), inputs)]
+
+        # Sum input to choice block
+        # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L298
+        input_to_mixed_op = sum(inputs)
+
+        # Apply Mixed Op
+        output = self.mixed_op(input_to_mixed_op)
+        return output
+
+    def _discretize(self, weights: torch.Tensor) -> None:
+        max_idx = torch.argmax(weights, dim=-1)
+        self.mixed_op = self.mixed_op.ops[max_idx]  # type: ignore
 
 
 class Cell(nn.Module):
@@ -105,11 +128,14 @@ class Cell(nn.Module):
     def forward(
         self,
         s0: torch.Tensor,
-        weights: list,
+        weights: list | None,
         output_weights: list,
         input_weights: list,
     ) -> torch.Tensor:
         # Adaption to NASBench
+        if weights is None:
+            return self.discrete_model_forward(s0, output_weights, input_weights)
+
         # Only use a single input, from the previous cell
         states: list = []
 
@@ -156,6 +182,67 @@ class Cell(nn.Module):
             tensor_list, dim=1
         )
 
+    def discrete_model_forward(
+        self,
+        s0: torch.Tensor,
+        output_weights: list,
+        input_weights: list,
+    ) -> torch.Tensor:
+        # Adaption to NASBench
+        # Only use a single input, from the previous cell
+        states: list = []
+
+        # Loop through the choice blocks of each cell
+        for choice_block_idx in range(self._steps):
+            # Select the current weighting for input edges to each choice block
+            if input_weights is not None:
+                # Node 1 has no choice with respect to its input
+                if (choice_block_idx == 0) or (
+                    choice_block_idx == 1
+                    and self.search_space_info["search_space_type"] == "S1"
+                ):
+                    input_weight = None
+                else:
+                    input_weight = input_weights.pop(0)
+
+            # Iterate over the choice blocks
+            # Apply 1x1 projection only to edges from input of the cell
+            # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L289
+            s = self._choice_blocks[choice_block_idx](
+                inputs=[
+                    self._input_projections[choice_block_idx](s0),
+                    *states,
+                ],
+                input_weights=input_weight,
+            )
+            states.append(s)
+
+        # Add projected input to the state
+        # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L328
+        input_to_output_edge = self._input_projections[-1](s0)
+        assert len(input_weights) == 0, "Something went wrong here."
+
+        if output_weights is None:
+            tensor_list = states
+        else:
+            # Create weighted concatenation at the output of the cell
+            tensor_list = [w * t for w, t in zip(output_weights[0][1:], states)]
+
+        # Concatenate to form output tensor
+        # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L325
+        return output_weights[0][0] * input_to_output_edge + torch.cat(
+            tensor_list, dim=1
+        )
+
+    def _discretize(self, weights: list[torch.Tensor] | None) -> None:
+        for choice_block_idx in range(self._steps):
+            # Iterate over the choice blocks
+            # Apply 1x1 projection only to edges from input of the cell
+            # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L289
+            self._choice_blocks[choice_block_idx]._discretize(
+                weights[choice_block_idx]  # type: ignore
+            )
+
 
 class Network(nn.Module):
     def __init__(
@@ -167,6 +254,7 @@ class Network(nn.Module):
         criterion: nn.modules.loss._Loss = nn.CrossEntropyLoss,
         output_weights: bool = True,
         steps: int = 4,
+        discretized: bool = False,
     ):
         super().__init__()
         self._C = C
@@ -176,6 +264,8 @@ class Network(nn.Module):
         self._steps = steps
         self._output_weights = output_weights
         self.search_space_info = search_space_info
+        self.mask: None | torch.Tensor = None
+        self._discretized = discretized
 
         # In NASBench the stem has 128 output channels
         C_curr = C
@@ -230,8 +320,9 @@ class Network(nn.Module):
             raise ValueError("architecture can't be discrete and normalized")
         # If using discrete architecture from random_ws search with weight sharing
         # then pass through architecture weights directly.
-        if discrete or (hasattr(self, "discretized") and self.discretized):
+        if discrete:
             return x
+        # TODO: why is this normalization only done when arch_sum > 0 not < 0
         elif normalize:  # noqa: RET505
             arch_sum = torch.sum(x, dim=-1)
             if arch_sum > 0:
@@ -241,6 +332,8 @@ class Network(nn.Module):
         else:
             # Normal search softmax over the inputs and mixed ops.
             return F.softmax(x, dim=-1)
+
+        # TODO: add when we did pruning and should normalize.
 
     def forward(
         self,
@@ -260,7 +353,8 @@ class Network(nn.Module):
             mixed_op_weights = self._preprocess_op(
                 self._arch_parameters[0], discrete=discrete, normalize=False
             )
-
+            if self.mask is not None:
+                mixed_op_weights = normalize_params(mixed_op_weights, self.mask)
             # Normalize the output weights
             output_weights = (
                 self._preprocess_op(self._arch_parameters[1], discrete, normalize)
@@ -283,6 +377,41 @@ class Network(nn.Module):
         logits = self.classifier(out.view(out.size(0), -1))
         return out, logits
 
+    def discrete_model_forward(
+        self,
+        discrete: bool = False,
+        normalize: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        # NASBench only has one input to each cell
+        s0 = self.stem(input)
+        for i, cell in enumerate(self.cells):
+            if i in [self._layers // 3, 2 * self._layers // 3]:
+                # Perform down-sampling by factor 1/2
+                # Equivalent to https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L68
+                s0 = nn.MaxPool2d(kernel_size=2, stride=2, padding=1)(s0)
+
+            # Normalize the output weights
+            output_weights = (
+                self._preprocess_op(self._arch_parameters[1], discrete, normalize)
+                if self._output_weights
+                else None
+            )
+            # Normalize the input weights for the nodes in the cell
+            input_weights = [
+                self._preprocess_op(alpha, discrete, normalize)
+                for alpha in self._arch_parameters[2:]
+            ]
+            s0 = cell(s0, output_weights, input_weights)
+
+        # Include one more preprocessing step here
+        s0 = self.postprocess(s0)  # [N, C_max * (steps + 1), w, h] -> [N, C_max, w, h]
+
+        # Global Average Pooling by averaging over last two remaining spatial dimensions
+        # https://github.com/google-research/nasbench/blob/master/nasbench/lib/model_builder.py#L92
+        out = s0.view(*s0.shape[:2], -1).mean(-1)
+        logits = self.classifier(out.view(out.size(0), -1))
+        return out, logits
+
     def _loss(
         self, input: torch.Tensor, target: torch.Tensor  # noqa: A002
     ) -> torch.Tensor:
@@ -292,7 +421,7 @@ class Network(nn.Module):
     def _initialize_alphas(self) -> None:
         # Initializes the weights for the mixed ops.
         num_ops = len(PRIMITIVES)
-        self.alphas_mixed_op = nn.Parameter(
+        self.alphas_mixed_op: None | nn.Parameter = nn.Parameter(
             1e-3 * torch.randn(self._steps, num_ops).to(DEVICE),
             requires_grad=True,
         )
@@ -321,7 +450,7 @@ class Network(nn.Module):
     def arch_parameters(self) -> list[nn.Parameter]:
         return self._arch_parameters
 
-    def _discretize(self, op_sparsity: float, wider: int | None = None) -> None:
+    def _prune(self, op_sparsity: float, wider: int | None = None) -> None:
         """Discretize architecture parameters to enforce sparsity.
 
         Args:
@@ -337,19 +466,59 @@ class Network(nn.Module):
             It modifies the architecture parameters in-place to achieve the desired
             sparsity.
         """
-        # self.edge_normalization = False
-        self.discretized = True
+        if self.alphas_mixed_op is None:
+            ValueError("cannot prune discretized search space")
+
+        # TODO: should be removed from prune function to a seperate function
+        # TODO: write wider function for ops
         for _name, module in self.named_modules():
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
 
-        for p in self._arch_parameters:
-            top_k = max(int(op_sparsity * p.data.shape[-1]), 1)
-            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
-            thresholds = sorted_arch_params[:, :top_k]
-            mask = p.data >= thresholds
+        # TODO: does pruning only make sense for mixed_op arch_parameters?
+        if self.alphas_mixed_op is None:
+            ValueError("cannot prune discretized search space")
 
-            p.data *= mask.float()
-            p.data[~mask].requires_grad = False
-            if p.data[~mask].grad:
-                p.data[~mask].grad.zero_()
+        top_k = max(int(op_sparsity * len(PRIMITIVES)), 1)
+        sorted_arch_params, _ = torch.sort(
+            self.alphas_mixed_op.data, dim=-1, descending=True  # type: ignore
+        )
+        thresholds = sorted_arch_params[:, :top_k]
+        self.mask = self.alphas_mixed_op.data >= thresholds  # type: ignore
+
+        self.alphas_mixed_op.data *= self.mask.float()  # type: ignore
+        self.alphas_mixed_op.data[~self.mask].requires_grad = False  # type: ignore
+        if self.alphas_mixed_op.data[~self.mask].grad:  # type: ignore
+            self.alphas_mixed_op.data[~self.mask].grad.zero_()  # type: ignore
+
+    def _discretize(self) -> Network:
+        discrete_model = Network(
+            search_space_info=self.search_space_info,
+            C=self._C,
+            num_classes=self._num_classes,
+            layers=self._layers,
+            criterion=self._criterion,
+            output_weights=self._output_weights,
+            steps=self._steps,
+            discretized=True,
+        ).to(next(self.parameters()).device)
+        for cell in discrete_model.cells:
+            cell._discretize(self.alphas_mixed_op)  # type: ignore
+
+        discrete_model.alphas_mixed_op = None
+
+        # TODO: freeze alphas input/output so they don't train
+        for param in discrete_model.alphas_inputs:
+            param.requires_grad = False
+        discrete_model.alphas_output.requires_grad = False
+
+        return discrete_model
+
+    def model_weight_parameters(self) -> list[nn.Parameter]:
+        params = set(self.parameters())
+        # TODO: remove some of the input and output alphas!
+        if self.alphas_mixed_op is not None:
+            params -= set(self.alphas_mixed_op)
+        return list(params)
+        ...
+        return None

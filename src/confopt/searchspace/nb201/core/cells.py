@@ -93,7 +93,7 @@ class NAS201SearchCell(nn.Module):
         self.num_edges: int = len(self.edges)
 
     def extra_repr(self) -> str:
-        """Return an informative string representation of the NAS201SearchCell.
+        """Return a string representation of the NAS201SearchCell.
 
         Returns:
             str: A string containing information about the cell's number of nodes, input
@@ -111,7 +111,7 @@ class NAS201SearchCell(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        weightss: list[torch.Tensor],
+        weightss: list[torch.Tensor] | None = None,
         beta_weightss: list[torch.Tensor] | None = None,
     ) -> torch.Tensor:
         """Forward pass through the NAS201SearchCell.
@@ -130,23 +130,60 @@ class NAS201SearchCell(nn.Module):
         Note:
             This method performs a forward pass through the NAS201SearchCell, applying
             operations to input tensors based on the provided weights and beta weights
-            (if available) for each edge.
+            (if edge normalization is required) for each edge.
         """
+        if weightss is None:
+            return self.discrete_model_forward(inputs)
+        if beta_weightss is not None:
+            return self.edge_normalization_forward(inputs, weightss, beta_weightss)
+
         nodes = [inputs]
         for i in range(1, self.max_nodes):
             inter_nodes = []
             for j in range(i):
                 node_str = f"{i}<-{j}"
                 weights = weightss[self.edge2index[node_str]]
-                if beta_weightss is not None:
-                    beta_weights = beta_weightss[self.edge2index[node_str]]
-                    inter_nodes.append(
-                        beta_weights * self.edges[node_str](nodes[j], weights)
-                    )
-                else:
-                    inter_nodes.append(self.edges[node_str](nodes[j], weights))
-            nodes.append(sum(inter_nodes))
+                inter_nodes.append(self.edges[node_str](nodes[j], weights))
+            nodes.append(sum(inter_nodes))  # type: ignore
         return nodes[-1]
+
+    def discrete_model_forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                inter_nodes.append(self.edges[node_str](nodes[j]))
+            nodes.append(sum(inter_nodes))  # type: ignore
+        return nodes[-1]
+
+    def edge_normalization_forward(
+        self,
+        inputs: torch.Tensor,
+        weightss: list[torch.Tensor],
+        beta_weightss: list[torch.Tensor],
+    ) -> torch.Tensor:
+        nodes = [inputs]
+        for i in range(1, self.max_nodes):
+            inter_nodes = []
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                weights = weightss[self.edge2index[node_str]]
+                beta_weights = beta_weightss[self.edge2index[node_str]]
+                inter_nodes.append(
+                    beta_weights * self.edges[node_str](nodes[j], weights)
+                )
+            nodes.append(sum(inter_nodes))  # type: ignore
+        return nodes[-1]
+
+    def _discretize(self, weightss: list[torch.Tensor]) -> None:
+        for i in range(1, self.max_nodes):
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                max_idx = torch.argmax(weightss[self.edge2index[node_str]], dim=-1)
+                self.edges[node_str] = (self.edges[node_str].ops)[  # type: ignore
+                    max_idx
+                ]
 
 
 class InferCell(nn.Module):

@@ -275,11 +275,13 @@ class Trainer:
             network.new_step()
             arch_inputs, arch_targets = next(iter(valid_loader))
 
-            base_targets, arch_targets = base_targets.to(self.device), arch_targets.to(
-                self.device
+            base_targets, arch_targets = (
+                base_targets.to(self.device),
+                arch_targets.to(self.device),
             )
-            arch_inputs, base_inputs = arch_inputs.to(self.device), base_inputs.to(
-                self.device
+            arch_inputs, base_inputs = (
+                arch_inputs.to(self.device),
+                base_inputs.to(self.device),
             )
 
             # measure data loading time

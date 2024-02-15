@@ -20,6 +20,11 @@ class SearchSpace(nn.Module, ABC):
     def arch_parameters(self) -> list[nn.Parameter]:
         pass
 
+    @property
+    @abstractmethod
+    def beta_parameters(self) -> list[nn.Parameter] | None:
+        pass
+
     @abstractmethod
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         pass
@@ -29,13 +34,17 @@ class SearchSpace(nn.Module, ABC):
 
     def model_weight_parameters(self) -> list[nn.Parameter]:
         all_parameters = set(self.model.parameters())
-        arch_parameters = set(self.arch_parameters)
-
-        if hasattr(self, "beta_parameters"):
-            beta_params = set(self.beta_parameters)
-            return list(all_parameters - arch_parameters - beta_params)
-
-        return list(all_parameters - arch_parameters)
+        if hasattr(self, "arch_parameters") and self.arch_parameters:
+            arch_parameters = set(self.arch_parameters)
+            all_parameters -= arch_parameters
+        if (
+            hasattr(self, "beta_parameters")
+            and self.arch_parameters
+            and self.beta_parameters
+        ):
+            beta_parameters = set(self.beta_parameters)  # type: ignore
+            all_parameters -= beta_parameters
+        return list(all_parameters)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.model(x)  # type: ignore

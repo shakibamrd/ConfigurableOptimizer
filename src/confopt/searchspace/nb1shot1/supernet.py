@@ -116,6 +116,10 @@ class NASBench1Shot1SearchSpace(SearchSpace):
     def arch_parameters(self) -> list[nn.Parameter]:
         return self.model.arch_parameters()  # type: ignore
 
+    @property
+    def beta_parameters(self) -> list[nn.Parameter] | None:
+        return None
+
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         (
             self.model.alphas_mixed_op.data,
@@ -178,8 +182,9 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             adjacency_matrix_sample = upscale_to_nasbench_format(
                 adjacency_matrix_sample
             )
-        return adjacency_matrix_sample, random.choices(
-            PRIMITIVES, k=self.num_intermediate_nodes
+        return (
+            adjacency_matrix_sample,
+            random.choices(PRIMITIVES, k=self.num_intermediate_nodes),
         )
 
     def _sample_adjacency_matrix_with_loose_ends(self) -> np.ndarray:
@@ -493,7 +498,7 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             nasbench_data["training_time"],
         )
 
-    def discretize(self, wider: int | None = None) -> None:
+    def prune(self, wider: int | None = None) -> None:
         """Discretize the model's architecture parameters to enforce sparsity.
 
         Note:
@@ -502,4 +507,7 @@ class NASBench1Shot1SearchSpace(SearchSpace):
             and calls the `_discretize` method to apply the discretization.
         """
         sparsity = 0.2
-        self.model._discretize(sparsity, wider)
+        self.model._prune(sparsity, wider)  # type: ignore
+
+    def discretize(self) -> nn.Module:
+        return self.model._discretize()  # type: ignore

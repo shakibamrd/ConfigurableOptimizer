@@ -26,9 +26,12 @@ class TransNASBench101SearchSpace(SearchSpace):
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         self.model._arch_parameters.data = arch_parameters[0]
 
-    def discretize(self, wider: int | None = None) -> None:
+    def prune(self, wider: int | None = None) -> None:
         sparsity = 0.25
-        self.model._discretize(sparsity, wider)
+        self.model._prune(sparsity, wider)
+
+    def discretize(self) -> nn.Module:
+        return self.model._discretize()  # type: ignore
 
 
 if __name__ == "__main__":
