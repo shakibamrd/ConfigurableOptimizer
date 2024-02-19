@@ -5,10 +5,11 @@ from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils import drop_path
 from confopt.utils.normalize_params import normalize_params
 
 from .genotypes import PRIMITIVES, Genotype
-from .operations import OPS, FactorizedReduce, ReLUConvBN
+from .operations import OPS, FactorizedReduce, Identity, ReLUConvBN
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -87,6 +88,7 @@ class Cell(nn.Module):
         s1: torch.Tensor,
         weights: list[torch.Tensor] | None = None,
         beta_weights: torch.Tensor | None = None,
+        drop_prob: float | None = 0.2,
     ) -> torch.Tensor:
         """Forward pass of the cell.
 
@@ -95,12 +97,14 @@ class Cell(nn.Module):
             s1 (torch.Tensor): Second input tensor to the model.
             weights (list[torch.Tensor]): Alpha weights to the edges.
             beta_weights (torch.Tensor): Beta weights for the edge.
+            drop_prob: (float|None): the droping probability of a path.
+
 
         Returns:
             torch.Tensor: state ouptut from the cell
         """
         if weights is None:
-            return self.discrete_model_forward(s0, s1)
+            return self.discrete_model_forward(s0, s1, drop_prob)
         if beta_weights is not None:
             return self.edge_normalization_forward(s0, s1, weights, beta_weights)
 
@@ -123,25 +127,39 @@ class Cell(nn.Module):
         self,
         s0: torch.Tensor,
         s1: torch.Tensor,
+        drop_prob: float | None = None,
     ) -> torch.Tensor:
+        if self._indices is None or self._concat is None:
+            raise ValueError(
+                "could not do forward pass for discrete darts search space"
+            )
+
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
 
         states = [s0, s1]
-        offset = 0
-        for _i in range(self._steps):
-            s = sum(self._ops[offset + j](h) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-
-        return torch.cat(states[-self._multiplier :], dim=1)
+        for i in range(self._steps):
+            h1 = states[self._indices[2 * i]]
+            h2 = states[self._indices[2 * i + 1]]
+            op1 = self._ops[2 * i]
+            op2 = self._ops[2 * i + 1]
+            h1 = op1(h1)
+            h2 = op2(h2)
+            if self.training and drop_prob is not None and drop_prob > 0:
+                if not isinstance(op1, Identity):
+                    h1 = drop_path(h1, drop_prob)
+                if not isinstance(op2, Identity):
+                    h2 = drop_path(h2, drop_prob)
+            s = h1 + h2
+            states += [s]
+        return torch.cat([states[i] for i in self._concat], dim=1)
 
     def edge_normalization_forward(
         self,
         s0: torch.Tensor,
         s1: torch.Tensor,
         weights: list[torch.Tensor],
-        beta_weights: list[torch.Tensor],
+        beta_weights: torch.Tensor,
     ) -> torch.Tensor:
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
@@ -158,10 +176,40 @@ class Cell(nn.Module):
 
         return torch.cat(states[-self._multiplier :], dim=1)
 
-    def _discretize(self, weights: list[torch.Tensor]) -> None:
-        for i, edge in enumerate(self._ops):
-            max_idx = torch.argmax(weights[i], dim=-1)
-            self._ops[i] = edge.ops[max_idx]  # type: ignore
+    def _discretize(self, genotype: Genotype) -> None:
+        # TODO: create indices and concat
+        if self.reduction:
+            op_names, indices = zip(*genotype.reduce)
+            concat = genotype.reduce_concat
+        else:
+            op_names, indices = zip(*genotype.normal)
+            concat = genotype.normal_concat
+        C = self.preprocess1.op[1].out_channels
+        self._compile(C, op_names, indices, concat, self.reduction)
+
+        # for i, edge in enumerate(self._ops):
+        #     max_idx = torch.argmax(weights[i], dim=-1)
+        #     self._ops[i] = edge.ops[max_idx]  # type: ignore
+
+    def _compile(
+        self,
+        C: int,
+        op_names: list[str],
+        indices: list[int],
+        concat: range,
+        reduction: bool,
+    ) -> None:
+        assert len(op_names) == len(indices)
+        self._steps = len(op_names) // 2
+        self._concat = concat
+        self.multiplier = len(concat)
+
+        self._ops = nn.ModuleList()
+        for name, index in zip(op_names, indices):
+            stride = 2 if reduction and index < 2 else 1
+            op = OPS[name](C, stride, True)
+            self._ops += [op]
+        self._indices = indices
 
 
 class Network(nn.Module):
@@ -270,11 +318,15 @@ class Network(nn.Module):
         # Replace this function on the fly to change the sampling method
         return F.softmax(alphas, dim=-1)
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor, drop_prob: float | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the network model.
 
         Args:
             x (torch.Tensor): Input x tensor to the model.
+            drop_prob (float|None): the droping probability of a path.
+
 
         Returns:
             tuple[torch.Tensor, torch.Tensor]: A tuple containing two tensors:
@@ -282,7 +334,7 @@ class Network(nn.Module):
             - The logits tensor produced by the model.
         """
         if self.discretized:
-            return self.discrete_model_forward(x)
+            return self.discrete_model_forward(x, drop_prob=drop_prob)
         if self.edge_normalization:
             return self.edge_normalization_forward(x)
 
@@ -302,11 +354,13 @@ class Network(nn.Module):
         return torch.squeeze(out, dim=(-1, -2)), logits
 
     def discrete_model_forward(
-        self, inputs: torch.Tensor
+        self,
+        inputs: torch.Tensor,
+        drop_prob: float | None = 0.2,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         s0 = s1 = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
-            s0, s1 = s1, cell(s0, s1)
+            s0, s1 = s1, cell(s0, s1, drop_prob=drop_prob)
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
         return torch.squeeze(out, dim=(-1, -2)), logits
@@ -491,6 +545,7 @@ class Network(nn.Module):
             self.mask.append(mask)
 
     def _discretize(self) -> Network:
+        genotype = self.genotype()
         discrete_model = Network(
             C=self._C,
             num_classes=self._num_classes,
@@ -501,13 +556,14 @@ class Network(nn.Module):
             stem_multiplier=self.stem[-1].num_features,  # type: ignore
             edge_normalization=False,
             discretized=True,
-        ).to(next(self.parameters()).device)
+        )
         for cell in discrete_model.cells:
             if cell.reduction:
-                cell._discretize(self.alphas_reduce)  # type: ignore
+                cell._discretize(genotype)  # type: ignore
             else:
-                cell._discretize(self.alphas_normal)  # type: ignore
-        discrete_model._arch_parameters = None
+                cell._discretize(genotype)  # type: ignore
+        discrete_model._arch_parameters = None  # type: ignore
+        discrete_model.to(next(self.parameters()).device)
 
         return discrete_model
 

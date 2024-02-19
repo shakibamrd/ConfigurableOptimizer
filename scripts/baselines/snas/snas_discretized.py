@@ -65,13 +65,6 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--search_space",
-        default="darts",
-        help="search space to be used (darts, nb201, tnb101, nb1shot1)",
-        type=str,
-    )
-
-    parser.add_argument(
         "--batch_size", default=64, help="batch size used to train", type=int
     )
 

@@ -59,6 +59,19 @@ def get_device(model: torch.nn.Module) -> torch.device:
     return next(model.parameters()).device
 
 
+def drop_path(x: torch.Tensor, drop_prob: float) -> torch.Tensor:
+    if drop_prob > 0.0:
+        keep_prob = 1.0 - drop_prob
+        mask = torch.nn.Parameter(
+            torch.cuda.FloatTensor(x.size(0), 1, 1, 1, dtype=torch.float32).bernoulli_(
+                keep_prob
+            )
+        ).to(device=x.device)
+        x.div_(keep_prob)
+        x.mul_(mask)
+    return x
+
+
 __all__ = [
     "calc_accuracy",
     "save_checkpoint",
