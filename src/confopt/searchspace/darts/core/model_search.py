@@ -89,6 +89,7 @@ class Cell(nn.Module):
         weights: list[torch.Tensor] | None = None,
         beta_weights: torch.Tensor | None = None,
         drop_prob: float | None = 0.2,
+        index: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the cell.
 
@@ -97,8 +98,8 @@ class Cell(nn.Module):
             s1 (torch.Tensor): Second input tensor to the model.
             weights (list[torch.Tensor]): Alpha weights to the edges.
             beta_weights (torch.Tensor): Beta weights for the edge.
-            drop_prob: (float|None): the droping probability of a path.
-
+            drop_prob: (float|None): the droping probability of a path (for discrete).
+            index: (torch.Tensor | None): max output from gdas sampler
 
         Returns:
             torch.Tensor: state ouptut from the cell
@@ -106,7 +107,14 @@ class Cell(nn.Module):
         if weights is None:
             return self.discrete_model_forward(s0, s1, drop_prob)
         if beta_weights is not None:
+            if index is not None:
+                return self.gdas_edge_normalization_forward(
+                    s0, s1, weights, beta_weights, index
+                )
             return self.edge_normalization_forward(s0, s1, weights, beta_weights)
+
+        if index is not None:
+            return self.gdas_forward(s0, s1, weights, index)
 
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
@@ -153,6 +161,54 @@ class Cell(nn.Module):
             s = h1 + h2
             states += [s]
         return torch.cat([states[i] for i in self._concat], dim=1)
+
+    def gdas_forward(
+        self,
+        s0: torch.Tensor,
+        s1: torch.Tensor,
+        weights: list[torch.Tensor],
+        index: torch.Tensor,
+    ) -> torch.Tensor:
+        s0 = self.preprocess0(s0)
+        s1 = self.preprocess1(s1)
+
+        states = [s0, s1]
+        offset = 0
+        for _i in range(self._steps):
+            s = sum(
+                self._ops[offset + j](h, weights[offset + j], index[offset + j].item())
+                for j, h in enumerate(states)
+            )
+            offset += len(states)
+            states.append(s)
+
+        return torch.cat(states[-self._multiplier :], dim=1)
+
+    def gdas_edge_normalization_forward(
+        self,
+        s0: torch.Tensor,
+        s1: torch.Tensor,
+        weights: list[torch.Tensor],
+        beta_weights: torch.Tensor,
+        index: torch.Tensor,
+    ) -> torch.Tensor:
+        s0 = self.preprocess0(s0)
+        s1 = self.preprocess1(s1)
+
+        states = [s0, s1]
+        offset = 0
+        for _i in range(self._steps):
+            s = sum(
+                beta_weights[offset + j]
+                * self._ops[offset + j](
+                    h, weights[offset + j], index[offset + j].item()
+                )
+                for j, h in enumerate(states)
+            )
+            offset += len(states)
+            states.append(s)
+
+        return torch.cat(states[-self._multiplier :], dim=1)
 
     def edge_normalization_forward(
         self,
@@ -342,13 +398,19 @@ class Network(nn.Module):
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
                 weights = self.sample(self.alphas_reduce)
+                index = None
+                if isinstance(weights[0], list):
+                    weights, index = weights[0], weights[1]
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
             else:
                 weights = self.sample(self.alphas_normal)
+                index = None
+                if isinstance(weights[0], list):
+                    weights, index = weights[0], weights[1]
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
-            s0, s1 = s1, cell(s0, s1, weights)
+            s0, s1 = s1, cell(s0, s1, weights, index=index)
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
         return torch.squeeze(out, dim=(-1, -2)), logits
@@ -375,6 +437,9 @@ class Network(nn.Module):
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
                 weights = self.sample(self.alphas_reduce)
+                index = None
+                if isinstance(weights[0], list):
+                    weights, index = weights[0], weights[1]
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[1])
                 n = 3
@@ -388,6 +453,9 @@ class Network(nn.Module):
                     weights2 = torch.cat([weights2, tw2], dim=0)
             else:
                 weights = self.sample(self.alphas_normal)
+                index = None
+                if isinstance(weights[0], list):
+                    weights, index = weights[0], weights[1]
                 if self.mask is not None:
                     weights = normalize_params(weights, self.mask[0])
                 n = 3
@@ -399,7 +467,7 @@ class Network(nn.Module):
                     start = end
                     n += 1
                     weights2 = torch.cat([weights2, tw2], dim=0)
-            s0, s1 = s1, cell(s0, s1, weights, weights2)
+            s0, s1 = s1, cell(s0, s1, weights, weights2, index=index)
 
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
