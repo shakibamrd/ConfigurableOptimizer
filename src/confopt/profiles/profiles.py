@@ -95,7 +95,6 @@ class SNASProfile(ProfileConfig, ABC):
         temp_init: float = 1.0,
         temp_min: float = 0.33,
         temp_annealing: bool = True,
-        total_epochs: int = 250,
         partial_connector_config: dict | None = None,
         perturbator_config: dict | None = None,
     ) -> None:
@@ -105,7 +104,6 @@ class SNASProfile(ProfileConfig, ABC):
         self.temp_init = temp_init
         self.temp_min = temp_min
         self.temp_annealing = temp_annealing
-        self.total_epochs = total_epochs
         super().__init__(
             PROFILE_TYPE,
             epochs,
@@ -127,7 +125,7 @@ class SNASProfile(ProfileConfig, ABC):
             "temp_init": self.temp_init,
             "temp_min": self.temp_min,
             "temp_annealing": self.temp_annealing,
-            "total_epochs": self.total_epochs,
+            "epochs": self.epochs,
         }
         self.sampler_config = snas_config  # type: ignore
 
