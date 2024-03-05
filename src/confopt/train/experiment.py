@@ -38,7 +38,13 @@ from confopt.searchspace import (
     NASBench201SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
+from confopt.train import (
+    DiscreteTrainer,
+    Profile,
+)
+from confopt.train.single_level_configurable_trainer import (
+    ConfigurableTrainerSingleLevel as ConfigurableTrainer,
+)
 from confopt.utils import Logger
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -181,9 +187,11 @@ class Experiment:
         )
         if self.is_wandb_log:
             wandb.init(  # type: ignore
-                project=config.get("project_name", "Configurable_Optimizer")
-                if config is not None
-                else "Configurable_Optimizer",
+                project=(
+                    config.get("project_name", "Configurable_Optimizer")
+                    if config is not None
+                    else "Configurable_Optimizer"
+                ),
                 config=config,
             )
 
