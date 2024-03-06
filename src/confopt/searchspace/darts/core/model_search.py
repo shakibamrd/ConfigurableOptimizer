@@ -8,17 +8,20 @@ from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import drop_path
 from confopt.utils.normalize_params import normalize_params
 
-from .genotypes import PRIMITIVES, Genotype
+from .genotypes import BABY_PRIMITIVES, PRIMITIVES, Genotype
 from .operations import OPS, FactorizedReduce, Identity, ReLUConvBN
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+
+PRIMITIVE_LIST = PRIMITIVES
 
 
 class MixedOp(nn.Module):
     def __init__(self, C: int, stride: int):
         super().__init__()
         self._ops = nn.ModuleList()
-        for primitive in PRIMITIVES:
+        for primitive in PRIMITIVE_LIST:
             op = OPS[primitive](C, stride, False)
             # TODO: is it okay to remove this?
             # if "pool" in primitive:
@@ -224,6 +227,7 @@ class Network(nn.Module):
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
         discretized: bool = False,
+        is_baby_darts: bool = False,
     ) -> None:
         """Implementation of DARTS search space's network model.
 
@@ -238,6 +242,7 @@ class Network(nn.Module):
             edge_normalization (bool): Whether to use edge normalization. Defaults to False.
             discretized (bool): Whether supernet is discretized to only have one operation on
             each edge or not.
+            is_baby_darts (bool): Controls which primitive list to use
 
         Attributes:
             stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
@@ -271,6 +276,10 @@ class Network(nn.Module):
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
             nn.BatchNorm2d(C_curr),
         )
+
+        if is_baby_darts:
+            global PRIMITIVE_LIST  # noqa: PLW0603
+            PRIMITIVE_LIST = BABY_PRIMITIVES
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
@@ -426,7 +435,7 @@ class Network(nn.Module):
         the neural cell.
         """
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
-        num_ops = len(PRIMITIVES)
+        num_ops = len(PRIMITIVE_LIST)
 
         self.alphas_normal = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
         self.alphas_reduce = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
