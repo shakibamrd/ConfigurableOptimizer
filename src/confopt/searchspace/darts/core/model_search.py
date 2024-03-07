@@ -14,14 +14,11 @@ from .operations import OPS, FactorizedReduce, Identity, ReLUConvBN
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-PRIMITIVE_LIST = PRIMITIVES
-
-
 class MixedOp(nn.Module):
-    def __init__(self, C: int, stride: int):
+    def __init__(self, C: int, stride: int, primitive_list: list[str] = PRIMITIVES):
         super().__init__()
         self._ops = nn.ModuleList()
-        for primitive in PRIMITIVE_LIST:
+        for primitive in primitive_list:
             op = OPS[primitive](C, stride, False)
             # TODO: is it okay to remove this?
             # if "pool" in primitive:
@@ -42,6 +39,7 @@ class Cell(nn.Module):
         C: int,
         reduction: bool,
         reduction_prev: bool,
+        primitive_list: list[str] = PRIMITIVES,
     ):
         """Neural Cell for DARTS.
 
@@ -55,6 +53,7 @@ class Cell(nn.Module):
             C (int): Number of channels in the current cell.
             reduction (bool): Whether the cell is a reduction cell.
             reduction_prev (bool): Whether the previous cell is a reduction cell.
+            primitive_list (list): The list of primitives to use for generating cell.
 
         Attributes:
             preprocess0(nn.Module): Preprocess for input from previous-previous cell.
@@ -81,7 +80,7 @@ class Cell(nn.Module):
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                ops = MixedOp(C, stride)._ops
+                ops = MixedOp(C, stride, primitive_list)._ops
                 op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
 
@@ -277,9 +276,11 @@ class Network(nn.Module):
             nn.BatchNorm2d(C_curr),
         )
 
+        self.is_baby_darts = is_baby_darts
         if is_baby_darts:
-            global PRIMITIVE_LIST  # noqa: PLW0603
-            PRIMITIVE_LIST = BABY_PRIMITIVES
+            self.primitive_list = BABY_PRIMITIVES
+        else:
+            self.primitive_list = PRIMITIVES
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
@@ -298,6 +299,7 @@ class Network(nn.Module):
                 C_curr,
                 reduction,
                 reduction_prev,
+                self.primitive_list,
             )
             reduction_prev = reduction
             self.cells += [cell]
@@ -435,7 +437,7 @@ class Network(nn.Module):
         the neural cell.
         """
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
-        num_ops = len(PRIMITIVE_LIST)
+        num_ops = len(self.primitive_list)
 
         self.alphas_normal = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
         self.alphas_reduce = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
@@ -490,17 +492,17 @@ class Network(nn.Module):
                     key=lambda x: -max(
                         W[x][k]
                         for k in range(len(W[x]))  # type: ignore
-                        if k != PRIMITIVES.index("none")
+                        if k != self.primitive_list.index("none")
                     ),
                 )[:2]
                 for j in edges:
                     k_best = None
                     for k in range(len(W[j])):
-                        if k != PRIMITIVES.index("none") and (
+                        if k != self.primitive_list.index("none") and (
                             k_best is None or W[j][k] > W[j][k_best]
                         ):
                             k_best = k
-                    gene.append((PRIMITIVES[k_best], j))  # type: ignore
+                    gene.append((self.primitive_list[k_best], j))  # type: ignore
                 start = end
                 n += 1
             return gene
@@ -540,7 +542,7 @@ class Network(nn.Module):
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
 
-        top_k = int(op_sparsity * len(PRIMITIVES))
+        top_k = int(op_sparsity * len(self.primitive_list))
         for p in self._arch_parameters:
             sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
             thresholds = sorted_arch_params[:, :top_k]
@@ -565,6 +567,7 @@ class Network(nn.Module):
             stem_multiplier=self.stem[-1].num_features,  # type: ignore
             edge_normalization=False,
             discretized=True,
+            is_baby_darts=self.is_baby_darts,
         )
         for cell in discrete_model.cells:
             if cell.reduction:
