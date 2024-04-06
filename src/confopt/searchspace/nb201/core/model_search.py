@@ -259,18 +259,13 @@ class NB201SearchModel(nn.Module):
 
         alphas = self.sample(self.arch_parameters)
 
-        # parse differently for GDAS
-        index = None
-        if isinstance(alphas[0], list):
-            alphas, index = alphas[0], alphas[1]
-
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
         feature = self.stem(inputs)
         for _i, cell in enumerate(self.cells):
             if isinstance(cell, SearchCell):
-                feature = cell(feature, alphas, index=index)
+                feature = cell(feature, alphas)
             else:
                 feature = cell(feature)
 
@@ -301,10 +296,6 @@ class NB201SearchModel(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = self.sample(self.arch_parameters)
 
-        index = None
-        if isinstance(alphas[0], list):
-            alphas, index = alphas[0], alphas[1]
-
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
@@ -322,7 +313,7 @@ class NB201SearchModel(nn.Module):
                     )
                     betas = torch.cat([betas, beta_node_v], dim=0)
 
-                feature = cell(feature, alphas, betas, index=index)
+                feature = cell(feature, alphas, betas)
             else:
                 feature = cell(feature)
 

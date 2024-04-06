@@ -127,16 +127,12 @@ class TNB101SearchModel(nn.Module):
 
         alphas = self.sample(self._arch_parameters)
 
-        index = None
-        if isinstance(alphas[0], list):
-            alphas, index = alphas[0], alphas[1]
-
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
         feature = self.stem(inputs)
         for cell in self.cells:
-            feature = cell(feature, alphas, index=index)
+            feature = cell(feature, alphas)
 
         out = self.decoder(feature)
 
@@ -166,10 +162,6 @@ class TNB101SearchModel(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = self.sample(self._arch_parameters)
 
-        index = None
-        if isinstance(alphas[0], list):
-            alphas, index = alphas[0], alphas[1]
-
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
@@ -185,7 +177,7 @@ class TNB101SearchModel(nn.Module):
                     self._beta_parameters[idx_nodes], dim=-1
                 )
                 betas = torch.cat([betas, beta_node_v], dim=0)
-            feature = cell(feature, alphas, betas, index=index)
+            feature = cell(feature, alphas, betas)
 
         out = self.decoder(feature)
 
@@ -363,19 +355,11 @@ class TNB101SearchCell(nn.Module):
         inputs: torch.Tensor,
         alphas: torch.Tensor | None = None,
         betas: list[torch.Tensor] | None = None,
-        index: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if alphas is None:
             return self.discrete_model_forward(inputs)
         if betas is not None:
-            if index is not None:
-                return self.gdas_edge_normalization_forward(
-                    inputs, alphas, betas, index
-                )
             return self.edge_normalization_forward(inputs, alphas, betas)
-
-        if index is not None:
-            return self.gdas_forward(inputs, alphas, index)
 
         nodes = [inputs]
         for i in range(1, self.max_nodes):
@@ -395,44 +379,6 @@ class TNB101SearchCell(nn.Module):
                 node_str = f"{i}<-{j}"
                 inter_nodes.append(self.edges[node_str](nodes[j]))
             nodes.append(sum(inter_nodes))  # type: ignore
-        return nodes[-1]
-
-    def gdas_forward(
-        self,
-        inputs: torch.Tensor,
-        alphas: list[torch.Tensor],
-        index: torch.Tensor,
-    ) -> torch.Tensor:
-        nodes = [inputs]
-        for i in range(1, self.max_nodes):
-            inter_nodes = []
-            for j in range(i):
-                node_str = f"{i}<-{j}"
-                weights = alphas[self.edge2index[node_str]]
-                argmaxs = index[self.edge2index[node_str]].item()
-                inter_nodes.append(self.edges[node_str](nodes[j], weights, argmaxs))
-            nodes.append(sum(inter_nodes))
-        return nodes[-1]
-
-    def gdas_edge_normalization_forward(
-        self,
-        inputs: torch.Tensor,
-        alphas: list[torch.Tensor],
-        betas: list[torch.Tensor],
-        index: torch.Tensor,
-    ) -> torch.Tensor:
-        nodes = [inputs]
-        for i in range(1, self.max_nodes):
-            inter_nodes = []
-            for j in range(i):
-                node_str = f"{i}<-{j}"
-                weights = alphas[self.edge2index[node_str]]
-                beta_weights = betas[self.edge2index[node_str]]
-                argmaxs = index[self.edge2index[node_str]].item()
-                inter_nodes.append(
-                    beta_weights * self.edges[node_str](nodes[j], weights, argmaxs)
-                )
-            nodes.append(sum(inter_nodes))
         return nodes[-1]
 
     def edge_normalization_forward(

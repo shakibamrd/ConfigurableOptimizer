@@ -35,24 +35,13 @@ class GDASSampler(BaseSampler):
     def set_total_epochs(self, total_epochs: int) -> None:
         self.total_epochs = total_epochs
 
-    def _sample_and_update_alphas(self) -> None:  # type: ignore
-        sampled_alphas = self.sample_alphas(self.arch_parameters)
-        hardwts = sampled_alphas[0]
-        # print(sampled_alphas)
-        if sampled_alphas is not None:
-            self.sampled_alphas = hardwts
-
-    def sample_alphas(
-        self, arch_parameters: list[torch.Tensor]
-    ) -> list[list[torch.Tensor]]:
+    def sample_alphas(self, arch_parameters: list[torch.Tensor]) -> list[torch.Tensor]:
         sampled_hardwt = []
-        sampled_indexes = []
         for alpha in arch_parameters:
             sampled_alpha = self.sample(alpha)
-            hardwt, index = sampled_alpha[0], sampled_alpha[1]
+            hardwt, index = sampled_alpha[0], sampled_alpha[1]  # noqa: F841
             sampled_hardwt.append(hardwt)
-            sampled_indexes.append(index)
-        return [sampled_hardwt, sampled_indexes]
+        return sampled_hardwt
 
     def sample(self, alpha: torch.Tensor) -> tuple:
         tau = self.tau_curr.to(alpha.device)  # type: ignore
