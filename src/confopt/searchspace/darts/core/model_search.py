@@ -99,8 +99,7 @@ class Cell(nn.Module):
             s1 (torch.Tensor): Second input tensor to the model.
             weights (list[torch.Tensor]): Alpha weights to the edges.
             beta_weights (torch.Tensor): Beta weights for the edge.
-            drop_prob: (float|None): the droping probability of a path.
-
+            drop_prob: (float|None): the droping probability of a path (for discrete).
 
         Returns:
             torch.Tensor: state ouptut from the cell
