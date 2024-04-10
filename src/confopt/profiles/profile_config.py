@@ -18,7 +18,7 @@ class ProfileConfig:
     def __init__(
         self,
         config_type: str,
-        epochs: int,
+        epochs: int = 100,
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
@@ -119,7 +119,7 @@ class ProfileConfig:
                 "weight_decay": 1e-3,
             },
             "criterion": "cross_entropy",
-            "batch_size": 96,
+            "batch_size": 64,
             "learning_rate_min": 0.0,
             "cutout": -1,
             "cutout_length": 16,
