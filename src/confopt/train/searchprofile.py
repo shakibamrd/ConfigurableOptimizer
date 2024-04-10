@@ -8,6 +8,7 @@ from confopt.oneshot.partial_connector import PartialConnector
 from confopt.oneshot.perturbator import BasePerturbator
 from confopt.searchspace import DARTSSearchSpace
 from confopt.searchspace.common import (
+    LoRALayer,
     OperationBlock,
     OperationChoices,
     SearchSpace,
@@ -22,12 +23,14 @@ class Profile:
         partial_connector: PartialConnector | None = None,
         perturbation: BasePerturbator | None = None,
         dropout: Dropout | None = None,
+        lora_configs: dict | None = None,
     ) -> None:
         self.sampler = sampler
         self.edge_normalization = edge_normalization
         self.partial_connector = partial_connector
         self.perturbation = perturbation
         self.dropout = dropout
+        self.lora_configs = lora_configs
 
         self.is_argmax_sampler = False
         if isinstance(self.sampler, GDASSampler):
@@ -80,6 +83,24 @@ class Profile:
             is_argmax_sampler=self.is_argmax_sampler,
         )
         return op_block
+
+    def activate_lora(
+        self,
+        searchspace: SearchSpace,
+        r: int,
+        lora_alpha: int = 1,
+        lora_dropout: float = 0,
+        merge_weights: bool = True,
+    ) -> None:
+        if r > 0:
+            for _, module in searchspace.named_modules(remove_duplicate=False):
+                if isinstance(module, LoRALayer):
+                    module.activate_lora(
+                        r=r,
+                        lora_alpha=lora_alpha,
+                        lora_dropout_rate=lora_dropout,
+                        merge_weights=merge_weights,
+                    )
 
     def get_parent_and_attribute(self, module_name: str) -> tuple[str, str]:
         split_index = module_name.rfind(".")

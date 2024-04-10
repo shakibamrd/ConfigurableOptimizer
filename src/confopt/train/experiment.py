@@ -32,9 +32,9 @@ from confopt.profiles import (
     ProfileConfig,
 )
 from confopt.searchspace import (
+    BabyDARTSSearchSpace,
     DARTSImageNetModel,
     DARTSModel,
-    BabyDARTSSearchSpace,
     DARTSSearchSpace,
     NAS201Genotype,
     NASBench1Shot1SearchSpace,
@@ -108,6 +108,11 @@ class OptimizerType(Enum):
     ADAM = "adam"
     SGD = "sgd"
     ASGD = "asgd"
+
+
+class SchedulerType(Enum):
+    CosineAnnealingLR = "cosine_annealing_lr"
+    CosineAnnealingWarmRestart = "cosine_annealing_warm_restart"
 
 
 class Experiment:
@@ -237,10 +242,12 @@ class Experiment:
             **config["trainer"].get("optim_config", {}),  # type: ignore
         )
 
-        w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        w_scheduler = self._get_scheduler(
+            scheduler_str=arg_config.scheduler,  # type: ignore
             optimizer=w_optimizer,
-            T_max=float(arg_config.epochs),  # type: ignore
+            num_epochs=arg_config.epochs,  # type: ignore
             eta_min=arg_config.learning_rate_min,  # type: ignore
+            config=config["trainer"].get("scheduler_config", {}),  # type: ignore
         )
 
         if self.edge_normalization and hasattr(model, "beta_parameters"):
@@ -278,6 +285,9 @@ class Experiment:
             profile=self.profile,  # type: ignore
             epochs=arg_config.epochs,  # type: ignore
             is_wandb_log=self.is_wandb_log,
+            lora_warm_epochs=config["trainer"].get(  # type: ignore
+                "lora_warm_epochs", 0
+            ),
         )
 
         return trainer
@@ -298,7 +308,7 @@ class Experiment:
 
         self.set_partial_connector(config.get("partial_connector", {}))
         self.set_dropout(config.get("dropout", {}))
-        self.set_profile()
+        self.set_profile(config)
 
     def set_search_space(
         self,
@@ -358,7 +368,7 @@ class Experiment:
         else:
             self.dropout = None
 
-    def set_profile(self) -> None:
+    def set_profile(self, config: dict) -> None:
         assert self.sampler is not None
 
         self.profile = Profile(
@@ -367,6 +377,7 @@ class Experiment:
             partial_connector=self.partial_connector,
             perturbation=self.perturbator,
             dropout=self.dropout,
+            lora_configs=config.get("lora"),
         )
 
     def _get_dataset(self, dataset: DatasetType) -> Callable | None:
@@ -384,7 +395,8 @@ class Experiment:
         criterion = CriterionType(criterion_str)
         if criterion == CriterionType.CROSS_ENTROPY:
             return torch.nn.CrossEntropyLoss()
-        return None
+
+        raise NotImplementedError
 
     def _get_optimizer(self, optim_str: str) -> Callable | None:
         optim = OptimizerType(optim_str)
@@ -394,6 +406,32 @@ class Experiment:
             return torch.optim.SGD
         if optim == OptimizerType.ASGD:
             return torch.optim.ASGD
+        return None
+
+    def _get_scheduler(
+        self,
+        scheduler_str: str,
+        optimizer: torch.optim.Optimizer,
+        num_epochs: int,
+        eta_min: float = 0.0,
+        config: dict | None = None,
+    ) -> Callable | None:
+        if config is None:
+            config = {}
+        scheduler = SchedulerType(scheduler_str)
+        if scheduler == SchedulerType.CosineAnnealingLR:
+            return torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer=optimizer,
+                T_max=config.get("T_max", num_epochs),
+                eta_min=config.get("eta_min", eta_min),
+            )
+        elif scheduler == SchedulerType.CosineAnnealingWarmRestart:  # noqa: RET505
+            return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer=optimizer,
+                T_0=config.get("T_0", 10),
+                T_mult=config.get("T_mult", 1),
+                eta_min=config.get("eta_min", eta_min),
+            )
         return None
 
     def run_discrete_model_with_profile(
@@ -609,6 +647,7 @@ class Experiment:
         Arguments = namedtuple(  # type: ignore
             "Configure", " ".join(arg_config.keys())  # type: ignore
         )
+        config = arg_config
         arg_config = Arguments(**arg_config)  # type: ignore
 
         data = self._get_dataset(self.dataset_str)(
@@ -623,10 +662,12 @@ class Experiment:
             **arg_config.optim_config,  # type: ignore
         )
 
-        w_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        w_scheduler = self._get_scheduler(
+            scheduler_str=arg_config.scheduler,  # type: ignore
             optimizer=w_optimizer,
-            T_max=float(arg_config.epochs),  # type: ignore
+            num_epochs=arg_config.epochs,  # type: ignore
             eta_min=arg_config.learning_rate_min,  # type: ignore
+            config=config.get("scheduler_config", {}),  # type: ignore
         )
 
         criterion = self._get_criterion(
