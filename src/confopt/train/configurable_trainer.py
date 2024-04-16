@@ -69,11 +69,10 @@ class ConfigurableTrainer:
         self.checkpointing_freq = checkpointing_freq
         self.epochs = epochs
         self.debug_mode = debug_mode
-
         self.query_dataset = query_dataset
         self.benchmark_api = benchmark_api
 
-    def train(  # noqa: C901, PLR0915
+    def train(  # noqa: C901, PLR0915, PLR0912
         self,
         profile: Profile,
         epochs: int,
@@ -112,11 +111,17 @@ class ConfigurableTrainer:
                 profile.lora_configs.get("r", 0) > 0
             ), "Value of r should be greater than 0"
             is_warm_epoch = True
-
+        warm_epochs = lora_warm_epochs
+        if profile.partial_connector:
+            warm_epochs = max(
+                profile.partial_connector.num_warm_epoch, lora_warm_epochs
+            )
+            is_warm_epoch = True
         for epoch in range(self.start_epoch + 1, self.epochs + 1):
             epoch_str = f"{epoch:03d}-{self.epochs:03d}"
-            if lora_warm_epochs > 0 and epoch == lora_warm_epochs:
-                self._initialize_lora_modules(lora_warm_epochs, profile, network)
+            if epoch == warm_epochs + 1:
+                if lora_warm_epochs > 0:
+                    self._initialize_lora_modules(lora_warm_epochs, profile, network)
                 is_warm_epoch = False
 
             self._component_new_step_or_epoch(network, calling_frequency="epoch")
@@ -206,7 +211,7 @@ class ConfigurableTrainer:
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
 
-    def train_func(
+    def train_func(  # noqa: PLR0912, PLR0915, C901
         self,
         profile: Profile,
         train_loader: DataLoaderType,
@@ -272,9 +277,15 @@ class ConfigurableTrainer:
                     top5_meter=arch_top5,
                 )
 
-                # update the model weights
-                w_optimizer.zero_grad()
-                arch_optimizer.zero_grad()
+            # calculate gm_score
+            if isinstance(network, nn.DataParallel):
+                network.module.check_grads_cosine()  # type: ignore
+            else:
+                network.check_grads_cosine()  # type: ignore
+
+            # update the model weights
+            w_optimizer.zero_grad()
+            arch_optimizer.zero_grad()
 
             _, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
@@ -288,6 +299,12 @@ class ConfigurableTrainer:
                 torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
             w_optimizer.step()
+
+            # save grads of operations
+            if isinstance(network, nn.DataParallel):
+                network.module.preserve_grads()  # type: ignore
+            else:
+                network.preserve_grads()  # type: ignore
 
             w_optimizer.zero_grad()
             if not is_warm_epoch:
