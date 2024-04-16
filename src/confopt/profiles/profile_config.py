@@ -10,6 +10,7 @@ ADVERSERIAL_DATA = (
     torch.randn(2, 3, 32, 32).to(DEVICE),
     torch.randint(0, 9, (2,)).to(DEVICE),
 )
+INIT_CHANNEL_NUM = 16
 
 
 class ProfileConfig:
@@ -217,7 +218,10 @@ class ProfileConfig:
 
     @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
-        self.searchspace_config = config
+        if not hasattr(self, "searchspcae_config"):
+            self.searchspace_config = config
+        else:
+            self.searchspace_config.update(config)
 
     @abstractmethod
     def configure_extra_config(self, config: dict) -> None:
