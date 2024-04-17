@@ -118,6 +118,7 @@ if __name__ == "__main__":
     profile_arg_dict = {
         "search_epochs": 1,
         "dataset": args.dataset,
+        "batch_size": 64,
     }
     profile_args = argparse.Namespace(**profile_arg_dict)
     profile = get_snas_profile(profile_args)
