@@ -213,7 +213,7 @@ class DiscreteProfile:
     def _initialize_trainer_config(self) -> None:
         default_train_config = {
             "lr": 0.025,
-            "epochs": 100,
+            "epochs": 600,
             "optim": "sgd",
             "optim_config": {
                 "momentum": 0.9,
@@ -221,15 +221,14 @@ class DiscreteProfile:
                 "weight_decay": 3e-4,
             },
             "criterion": "cross_entropy",
-            "batch_size": 96,
+            "batch_size": 64,
             "learning_rate_min": 0.0,
-            "channel": 36,
             "print_freq": 2,
             "drop_path_prob": 0.2,
             "cutout": -1,
             "cutout_length": 16,
-            "train_portion": 0.7,
-            "use_data_parallel": True,
+            "train_portion": 0.9,
+            "use_data_parallel": False,
             "checkpointing_freq": 2,
         }
         self.train_config = default_train_config
