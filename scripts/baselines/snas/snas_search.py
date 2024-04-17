@@ -69,7 +69,7 @@ def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
     profile.set_searchspace_config(searchspace_config)
 
     train_config = {
-        "train_portion": 0.5,
+        "train_portion": 0.9,
         "batch_size": args.batch_size,
         "optim_config": {
             "weight_decay": 3e-4,
