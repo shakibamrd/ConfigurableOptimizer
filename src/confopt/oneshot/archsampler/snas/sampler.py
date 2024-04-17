@@ -16,7 +16,7 @@ class SNASSampler(BaseSampler):
         temp_init: float = 1.0,
         temp_min: float = 0.33,
         temp_annealing: bool = True,
-        total_epochs: int = 250,
+        epochs: int = 250,
     ) -> None:
         super().__init__(arch_parameters, sample_frequency)
 
@@ -27,9 +27,9 @@ class SNASSampler(BaseSampler):
         self.temp_init = temp_init
         self.temp_annealing = temp_annealing
         self.temp_min = temp_min
-        self.total_epochs = total_epochs
+        self.epochs = epochs
 
-        self.curr_temp = (1 - self._epoch / self.total_epochs) * (
+        self.curr_temp = (1 - self._epoch / self.epochs) * (
             self.temp_init - self.temp_min
         ) + self.temp_min
 
@@ -47,7 +47,7 @@ class SNASSampler(BaseSampler):
 
     def new_epoch(self) -> None:
         if self.temp_annealing is True:
-            self.curr_temp = (1 - self._epoch / self.total_epochs) * (
+            self.curr_temp = (1 - self._epoch / self.epochs) * (
                 self.temp_init - self.temp_min
             ) + self.temp_min
 
