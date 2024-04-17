@@ -209,7 +209,7 @@ class ConfigurableTrainer:
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
 
-    def train_func(  # noqa: PLR0912, PLR0915, C901
+    def train_func(
         self,
         profile: Profile,
         train_loader: DataLoaderType,
@@ -276,10 +276,10 @@ class ConfigurableTrainer:
                 )
 
             # calculate gm_score
-            if isinstance(network, nn.DataParallel):
-                network.module.check_grads_cosine()  # type: ignore
-            else:
-                network.check_grads_cosine()  # type: ignore
+            # if isinstance(network, nn.DataParallel):
+            #     network.module.check_grads_cosine()  # type: ignore
+            # else:
+            #     network.check_grads_cosine()  # type: ignore
 
             # update the model weights
             w_optimizer.zero_grad()
@@ -299,10 +299,10 @@ class ConfigurableTrainer:
             w_optimizer.step()
 
             # save grads of operations
-            if isinstance(network, nn.DataParallel):
-                network.module.preserve_grads()  # type: ignore
-            else:
-                network.preserve_grads()  # type: ignore
+            # if isinstance(network, nn.DataParallel):
+            #     network.module.preserve_grads()  # type: ignore
+            # else:
+            #     network.preserve_grads()  # type: ignore
 
             w_optimizer.zero_grad()
             if not is_warm_epoch:
