@@ -3,19 +3,18 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from confopt.utils.reduce_channels import (
-    reduce_bn_features,
-    reduce_conv_channels,
-)
+from confopt.oneshot.weightentangler import ConvolutionalWEModule
+from confopt.searchspace.common import Conv2DLoRA
+import confopt.utils.reduce_channels as rc
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 OPS = {
     "none": lambda C, stride, affine: Zero(stride),  # noqa: ARG005
     "avg_pool_3x3": lambda C, stride, affine: Pooling(C, stride, "avg", affine=affine),
     "max_pool_3x3": lambda C, stride, affine: Pooling(C, stride, "max", affine=affine),
-    "skip_connect": lambda C, stride, affine: Identity()
-    if stride == 1
-    else FactorizedReduce(C, C, affine=affine),
+    "skip_connect": lambda C, stride, affine: (
+        Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine)
+    ),
     "sep_conv_3x3": lambda C, stride, affine: SepConv(
         C, C, 3, stride, 1, affine=affine
     ),
@@ -68,7 +67,7 @@ class ReLUConvBN(nn.Module):
         super().__init__()
         self.op = nn.Sequential(
             nn.ReLU(inplace=False),
-            nn.Conv2d(
+            Conv2DLoRA(
                 C_in,
                 C_out,
                 kernel_size,
@@ -108,8 +107,11 @@ class ReLUConvBN(nn.Module):
             This method dynamically changes the number of output channels in the
             ReLUConvBN block.
         """
-        self.op[1] = reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = reduce_bn_features(self.op[2], k, device)
+        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
+        self.op[2] = rc.reduce_bn_features(self.op[2], k, device)
+
+    def activate_lora(self, r: int) -> None:
+        self.op[1].activate_lora(r)
 
 
 class Pooling(nn.Module):
@@ -170,15 +172,15 @@ class Pooling(nn.Module):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        self.op[1] = reduce_bn_features(self.op[1], k, device)
+        self.op[1] = rc.reduce_bn_features(self.op[1], k, device)
 
 
-class DilConv(nn.Module):
+class DilConv(ConvolutionalWEModule):
     def __init__(
         self,
         C_in: int,
         C_out: int,
-        kernel_size: int,
+        kernel_size: int | tuple[int, int],
         stride: int,
         padding: int,
         dilation: int,
@@ -204,9 +206,13 @@ class DilConv(nn.Module):
             BatchNorm2d.
         """
         super().__init__()
+        self.kernel_size = (
+            kernel_size if isinstance(kernel_size, int) else kernel_size[0]
+        )
+        self.stride = stride
         self.op = nn.Sequential(
             nn.ReLU(inplace=False),
-            nn.Conv2d(
+            Conv2DLoRA(
                 C_in,
                 C_in,
                 kernel_size=kernel_size,
@@ -216,9 +222,14 @@ class DilConv(nn.Module):
                 groups=C_in,
                 bias=False,
             ),
-            nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+            Conv2DLoRA(C_in, C_out, kernel_size=1, padding=0, bias=False),
             nn.BatchNorm2d(C_out, affine=affine),
         )
+
+        self.__post__init__()
+
+    def mark_entanglement_weights(self) -> None:
+        self.op[1].can_entangle_weight = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a forward pass through the Dilated Convolution operation.
@@ -240,17 +251,21 @@ class DilConv(nn.Module):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        self.op[1] = reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = reduce_bn_features(self.op[3], k, device)
+        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
+        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
+        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
+
+    def activate_lora(self, r: int) -> None:
+        self.op[1].activate_lora(r)
+        self.op[2].activate_lora(r)
 
 
-class SepConv(nn.Module):
+class SepConv(ConvolutionalWEModule):
     def __init__(
         self,
         C_in: int,
         C_out: int,
-        kernel_size: int,
+        kernel_size: int | tuple[int, int],
         stride: int,
         padding: int,
         affine: bool = True,
@@ -276,9 +291,13 @@ class SepConv(nn.Module):
             neural network architectures.
         """
         super().__init__()
+        self.kernel_size = (
+            kernel_size if isinstance(kernel_size, int) else kernel_size[0]
+        )
+        self.stride = stride
         self.op = nn.Sequential(
             nn.ReLU(inplace=False),
-            nn.Conv2d(
+            Conv2DLoRA(
                 C_in,
                 C_in,
                 kernel_size=kernel_size,
@@ -287,10 +306,10 @@ class SepConv(nn.Module):
                 groups=C_in,
                 bias=False,
             ),
-            nn.Conv2d(C_in, C_in, kernel_size=1, padding=0, bias=False),
+            Conv2DLoRA(C_in, C_in, kernel_size=1, padding=0, bias=False),
             nn.BatchNorm2d(C_in, affine=affine),
             nn.ReLU(inplace=False),
-            nn.Conv2d(
+            Conv2DLoRA(
                 C_in,
                 C_in,
                 kernel_size=kernel_size,
@@ -299,9 +318,15 @@ class SepConv(nn.Module):
                 groups=C_in,
                 bias=False,
             ),
-            nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+            Conv2DLoRA(C_in, C_out, kernel_size=1, padding=0, bias=False),
             nn.BatchNorm2d(C_out, affine=affine),
         )
+
+        self.__post__init__()
+
+    def mark_entanglement_weights(self) -> None:
+        self.op[1].can_entangle_weight = True
+        self.op[5].can_entangle_weight = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a forward pass through the Seperated Convolution operation.
@@ -323,12 +348,18 @@ class SepConv(nn.Module):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        self.op[1] = reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = reduce_bn_features(self.op[3], k, device)
-        self.op[5] = reduce_conv_channels(self.op[5], k, device)
-        self.op[6] = reduce_conv_channels(self.op[6], k, device)
-        self.op[7] = reduce_bn_features(self.op[7], k, device)
+        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
+        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
+        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
+        self.op[5] = rc.reduce_conv_channels(self.op[5], k, device)
+        self.op[6] = rc.reduce_conv_channels(self.op[6], k, device)
+        self.op[7] = rc.reduce_bn_features(self.op[7], k, device)
+
+    def activate_lora(self, r: int) -> None:
+        self.op[1].activate_lora(r)
+        self.op[2].activate_lora(r)
+        self.op[5].activate_lora(r)
+        self.op[6].activate_lora(r)
 
 
 class Identity(nn.Module):
@@ -445,8 +476,12 @@ class FactorizedReduce(nn.Module):
         super().__init__()
         assert C_out % 2 == 0
         self.relu = nn.ReLU(inplace=False)
-        self.conv_1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.conv_2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+        self.conv_1 = Conv2DLoRA(
+            C_in, C_out // 2, kernel_size=1, stride=2, padding=0, bias=False
+        )
+        self.conv_2 = Conv2DLoRA(
+            C_in, C_out // 2, kernel_size=1, stride=2, padding=0, bias=False
+        )
         self.bn = nn.BatchNorm2d(C_out, affine=affine)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -477,9 +512,13 @@ class FactorizedReduce(nn.Module):
             This method dynamically changes the number of output channels in the block's
             convolutional layers and BatchNorm.
         """
-        self.conv_1 = reduce_conv_channels(self.conv_1, k, device)
-        self.conv_2 = reduce_conv_channels(self.conv_2, k, device)
-        self.bn = reduce_bn_features(self.bn, k, device)
+        self.conv_1 = rc.reduce_conv_channels(self.conv_1, k, device)
+        self.conv_2 = rc.reduce_conv_channels(self.conv_2, k, device)
+        self.bn = rc.reduce_bn_features(self.bn, k, device)
+
+    def activate_lora(self, r: int) -> None:
+        self.conv_1.activate_lora(r)
+        self.conv_2.activate_lora(r)
 
 
 class Conv7x1Conv1x7BN(nn.Module):
@@ -530,6 +569,9 @@ class Conv7x1Conv1x7BN(nn.Module):
         Note: This method is used for architectural search and adjusts the number of
         channels in the Convolution operation.
         """
-        self.op[1] = reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = reduce_bn_features(self.op[3], k, device)
+        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
+        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
+        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
+
+
+OLES_OPS = [Zero, Pooling, Identity, SepConv, DilConv]

@@ -16,6 +16,7 @@ if __name__ == "__main__":
         perturbator_sample_frequency="epoch",
         tau_max=20,
         tau_min=0.2,
+        epochs=1,
     )
 
     config = profile.get_config()

@@ -11,11 +11,12 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+from confopt.utils import freeze
 from confopt.utils.normalize_params import normalize_params
 
 from .cells import NAS201SearchCell as SearchCell
 from .genotypes import Structure
-from .operations import NAS_BENCH_201, ResNetBasicblock
+from .operations import NAS_BENCH_201, OLES_OPS, ResNetBasicblock
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -253,6 +254,7 @@ class NB201SearchModel(nn.Module):
         """
         if self.discretized:
             return self.discrete_model_forward(inputs)
+
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
 
@@ -294,6 +296,7 @@ class NB201SearchModel(nn.Module):
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         alphas = self.sample(self.arch_parameters)
+
         if self.mask is not None:
             alphas = normalize_params(alphas, self.mask)
 
@@ -312,7 +315,6 @@ class NB201SearchModel(nn.Module):
                     betas = torch.cat([betas, beta_node_v], dim=0)
 
                 feature = cell(feature, alphas, betas)
-
             else:
                 feature = cell(feature)
 
@@ -386,3 +388,86 @@ class NB201SearchModel(nn.Module):
         if self.arch_parameters is not None:
             params -= set(self.arch_parameters)
         return list(params)
+
+
+def preserve_grads(m: nn.Module) -> None:
+    if isinstance(
+        m,
+        (
+            OperationBlock,
+            OperationChoices,
+            SearchCell,
+            NB201SearchModel,
+        ),
+    ):
+        return
+
+    flag = 0
+    # for op in OLES_OPS:
+    #     if isinstance(m, op):
+    #         flag = 1
+    #         break
+
+    if isinstance(m, tuple(OLES_OPS)):
+        flag = 1
+
+    if flag == 0:
+        return
+
+    if not hasattr(m, "pre_grads"):
+        m.pre_grads = []
+
+    for param in m.parameters():
+        if param.requires_grad and param.grad is not None:
+            g = param.grad.detach().cpu()
+            m.pre_grads.append(g)
+
+
+# TODO: break function from OLES paper to have less branching.
+def check_grads_cosine(m: nn.Module) -> None:
+    if (
+        isinstance(
+            m,
+            (
+                OperationBlock,
+                OperationChoices,
+                SearchCell,
+                NB201SearchModel,
+            ),
+        )
+        or not isinstance(m, tuple(OLES_OPS))
+        or not hasattr(m, "pre_grads")
+        or not m.pre_grads
+    ):
+        return
+
+    i = 0
+    true_i = 0
+    temp = 0
+
+    for param in m.parameters():
+        if param.requires_grad and param.grad is not None:
+            g = param.grad.detach().cpu()
+            if len(g) != 0:
+                temp += torch.cosine_similarity(g, m.pre_grads[i], dim=0).mean()
+                true_i += 1
+            i += 1
+
+    if true_i != 0:
+        sim_avg = temp / true_i
+    m.pre_grads.clear()
+
+    if not hasattr(m, "avg"):
+        m.avg = 0
+    m.avg += sim_avg
+
+    if not hasattr(m, "count"):
+        m.count = 0
+
+    if m.count == 20:
+        if m.avg / m.count < 0.4:
+            freeze(m)
+        m.count = 0
+        m.avg = 0
+    else:
+        m.count += 1

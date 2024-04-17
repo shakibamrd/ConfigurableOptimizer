@@ -5,20 +5,25 @@ from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
-from confopt.utils import drop_path
+from confopt.utils import drop_path, freeze
 from confopt.utils.normalize_params import normalize_params
 
-from .genotypes import PRIMITIVES, Genotype
-from .operations import OPS, FactorizedReduce, Identity, ReLUConvBN
+from .genotypes import BABY_PRIMITIVES, PRIMITIVES, DARTSGenotype
+from .model import NetworkCIFAR, NetworkImageNet
+from .operations import OLES_OPS, OPS, FactorizedReduce, Identity, ReLUConvBN
 
+
+NUM_CIFAR_CLASSES = 10
+NUM_CIFAR100_CLASSES = 100
+NUM_IMAGENET_CLASSES = 120
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 class MixedOp(nn.Module):
-    def __init__(self, C: int, stride: int):
+    def __init__(self, C: int, stride: int, primitives: list[str] = PRIMITIVES):
         super().__init__()
         self._ops = nn.ModuleList()
-        for primitive in PRIMITIVES:
+        for primitive in primitives:
             op = OPS[primitive](C, stride, False)
             # TODO: is it okay to remove this?
             # if "pool" in primitive:
@@ -39,6 +44,7 @@ class Cell(nn.Module):
         C: int,
         reduction: bool,
         reduction_prev: bool,
+        primitives: list[str] = PRIMITIVES,
     ):
         """Neural Cell for DARTS.
 
@@ -52,6 +58,7 @@ class Cell(nn.Module):
             C (int): Number of channels in the current cell.
             reduction (bool): Whether the cell is a reduction cell.
             reduction_prev (bool): Whether the previous cell is a reduction cell.
+            primitives (list): The list of primitives to use for generating cell.
 
         Attributes:
             preprocess0(nn.Module): Preprocess for input from previous-previous cell.
@@ -78,7 +85,7 @@ class Cell(nn.Module):
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                ops = MixedOp(C, stride)._ops
+                ops = MixedOp(C, stride, primitives)._ops
                 op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
 
@@ -97,8 +104,7 @@ class Cell(nn.Module):
             s1 (torch.Tensor): Second input tensor to the model.
             weights (list[torch.Tensor]): Alpha weights to the edges.
             beta_weights (torch.Tensor): Beta weights for the edge.
-            drop_prob: (float|None): the droping probability of a path.
-
+            drop_prob: (float|None): the droping probability of a path (for discrete).
 
         Returns:
             torch.Tensor: state ouptut from the cell
@@ -176,7 +182,7 @@ class Cell(nn.Module):
 
         return torch.cat(states[-self._multiplier :], dim=1)
 
-    def _discretize(self, genotype: Genotype) -> None:
+    def _discretize(self, genotype: DARTSGenotype) -> None:
         # TODO: create indices and concat
         if self.reduction:
             op_names, indices = zip(*genotype.reduce)
@@ -224,6 +230,7 @@ class Network(nn.Module):
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
         discretized: bool = False,
+        is_baby_darts: bool = False,
     ) -> None:
         """Implementation of DARTS search space's network model.
 
@@ -238,6 +245,7 @@ class Network(nn.Module):
             edge_normalization (bool): Whether to use edge normalization. Defaults to False.
             discretized (bool): Whether supernet is discretized to only have one operation on
             each edge or not.
+            is_baby_darts (bool): Controls which primitive list to use
 
         Attributes:
             stem (nn.Sequential): Stem network composed of Conv2d and BatchNorm2d layers.
@@ -272,6 +280,12 @@ class Network(nn.Module):
             nn.BatchNorm2d(C_curr),
         )
 
+        self.is_baby_darts = is_baby_darts
+        if is_baby_darts:
+            self.primitives = BABY_PRIMITIVES
+        else:
+            self.primitives = PRIMITIVES
+
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
         reduction_prev = False
@@ -289,6 +303,7 @@ class Network(nn.Module):
                 C_curr,
                 reduction,
                 reduction_prev,
+                self.primitives,
             )
             reduction_prev = reduction
             self.cells += [cell]
@@ -426,7 +441,7 @@ class Network(nn.Module):
         the neural cell.
         """
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
-        num_ops = len(PRIMITIVES)
+        num_ops = len(self.primitives)
 
         self.alphas_normal = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
         self.alphas_reduce = nn.Parameter(1e-3 * torch.randn(k, num_ops).to(DEVICE))
@@ -460,7 +475,7 @@ class Network(nn.Module):
         """
         return self._betas
 
-    def genotype(self) -> Genotype:
+    def genotype(self) -> DARTSGenotype:
         """Get the genotype of the model, representing the architecture.
 
         Returns:
@@ -481,17 +496,17 @@ class Network(nn.Module):
                     key=lambda x: -max(
                         W[x][k]
                         for k in range(len(W[x]))  # type: ignore
-                        if k != PRIMITIVES.index("none")
+                        if k != self.primitives.index("none")
                     ),
                 )[:2]
                 for j in edges:
                     k_best = None
                     for k in range(len(W[j])):
-                        if k != PRIMITIVES.index("none") and (
+                        if k != self.primitives.index("none") and (
                             k_best is None or W[j][k] > W[j][k_best]
                         ):
                             k_best = k
-                    gene.append((PRIMITIVES[k_best], j))  # type: ignore
+                    gene.append((self.primitives[k_best], j))  # type: ignore
                 start = end
                 n += 1
             return gene
@@ -500,7 +515,7 @@ class Network(nn.Module):
         gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
 
         concat = range(2 + self._steps - self._multiplier, self._steps + 2)
-        genotype = Genotype(
+        genotype = DARTSGenotype(
             normal=gene_normal,
             normal_concat=concat,
             reduce=gene_reduce,
@@ -531,7 +546,7 @@ class Network(nn.Module):
             if isinstance(module, (OperationBlock, OperationChoices)):
                 module.change_op_channel_size(wider)
 
-        top_k = int(op_sparsity * len(PRIMITIVES))
+        top_k = int(op_sparsity * len(self.primitives))
         for p in self._arch_parameters:
             sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
             thresholds = sorted_arch_params[:, :top_k]
@@ -544,25 +559,50 @@ class Network(nn.Module):
 
             self.mask.append(mask)
 
-    def _discretize(self) -> Network:
+    def _discretize(self) -> NetworkCIFAR | NetworkImageNet:
         genotype = self.genotype()
-        discrete_model = Network(
-            C=self._C,
-            num_classes=self._num_classes,
-            layers=self._layers,
-            criterion=self._criterion,  # TODO: what is this
-            steps=self._steps,
-            multiplier=self._multiplier,
-            stem_multiplier=self.stem[-1].num_features,  # type: ignore
-            edge_normalization=False,
-            discretized=True,
-        )
-        for cell in discrete_model.cells:
-            if cell.reduction:
-                cell._discretize(genotype)  # type: ignore
-            else:
-                cell._discretize(genotype)  # type: ignore
-        discrete_model._arch_parameters = None  # type: ignore
+        if (
+            self._num_classes == NUM_CIFAR_CLASSES
+            or self._num_classes == NUM_CIFAR100_CLASSES
+        ):
+            discrete_model = NetworkCIFAR(
+                C=self._C,
+                num_classes=self._num_classes,
+                layers=self._layers,
+                auxiliary=False,
+                genotype=genotype,
+            )
+        elif self._num_classes == NUM_IMAGENET_CLASSES:
+            discrete_model = NetworkImageNet(
+                C=self._C,
+                num_classes=self._num_classes,
+                layers=self._layers,
+                auxiliary=False,
+                genotype=genotype,
+            )
+        else:
+            raise ValueError(
+                "number of classes is not a valid number of any of the datasets"
+            )
+        #         discrete_model = Network(
+        #             C=self._C,
+        #             num_classes=self._num_classes,
+        #             layers=self._layers,
+        #             criterion=self._criterion,  # TODO: what is this
+        #             steps=self._steps,
+        #             multiplier=self._multiplier,
+        #             stem_multiplier=self.stem[-1].num_features,  # type: ignore
+        #             edge_normalization=False,
+        #             discretized=True,
+        #             is_baby_darts=self.is_baby_darts,
+        #         )
+        #         for cell in discrete_model.cells:
+        #             if cell.reduction:
+        #                 cell._discretize(genotype)  # type: ignore
+        #             else:
+        #                 cell._discretize(genotype)  # type: ignore
+        #         discrete_model._arch_parameters = None  # type: ignore
+
         discrete_model.to(next(self.parameters()).device)
 
         return discrete_model
@@ -570,7 +610,79 @@ class Network(nn.Module):
     def model_weight_parameters(self) -> list[nn.Parameter]:
         params = set(self.parameters())
         params -= set(self._betas)
-        if self._arch_parameters is not None:
+        if self._arch_parameters != [None]:
             params -= set(self.alphas_reduce)
             params -= set(self.alphas_normal)
         return list(params)
+
+
+def preserve_grads(m: nn.Module) -> None:
+    if isinstance(
+        m,
+        (
+            OperationBlock,
+            OperationChoices,
+            Cell,
+            MixedOp,
+            Network,
+        ),
+    ):
+        return
+
+    flag = 0
+
+    if isinstance(m, tuple(OLES_OPS)):
+        flag = 1
+
+    if flag == 0:
+        return
+
+    if not hasattr(m, "pre_grads"):
+        m.pre_grads = []
+
+    for param in m.parameters():
+        if param.requires_grad and param.grad is not None:
+            g = param.grad.detach().cpu()
+            m.pre_grads.append(g)
+
+
+# TODO: break function from OLES paper to have less branching.
+def check_grads_cosine(m: nn.Module) -> None:
+    if (
+        isinstance(m, (OperationBlock, OperationChoices, Cell, MixedOp, Network))
+        or not isinstance(m, tuple(OLES_OPS))
+        or not hasattr(m, "pre_grads")
+        or not m.pre_grads
+    ):
+        return
+
+    i = 0
+    true_i = 0
+    temp = 0
+
+    for param in m.parameters():
+        if param.requires_grad and param.grad is not None:
+            g = param.grad.detach().cpu()
+            if len(g) != 0:
+                temp += torch.cosine_similarity(g, m.pre_grads[i], dim=0).mean()
+                true_i += 1
+            i += 1
+
+    if true_i != 0:
+        sim_avg = temp / true_i
+    m.pre_grads.clear()
+
+    if not hasattr(m, "avg"):
+        m.avg = 0
+    m.avg += sim_avg
+
+    if not hasattr(m, "count"):
+        m.count = 0
+
+    if m.count == 20:
+        if m.avg / m.count < 0.4:
+            freeze(m)
+        m.count = 0
+        m.avg = 0
+    else:
+        m.count += 1
