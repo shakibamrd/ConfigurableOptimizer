@@ -15,30 +15,30 @@ conda activate confopt
 
 # use lora experiment name 
 #darts sampler
-python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s1"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s2"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s3"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s4"
+python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s1" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s3" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "darts" --wandb_log --space "s4" --seed $SLURM_ARRAY_TASK_ID
 
 # drnas sampler
-# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s1"
-# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s2"
-# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s3"
-# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s4"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s1"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s2"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s3"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s4"
+# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s1" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s3" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --sampler "drnas" --wandb_log --space "s4" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s1" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s3" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "drnas" --wandb_log --space "s4" --seed $SLURM_ARRAY_TASK_ID
 
 # gdas sampler
 # python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s1"
-# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s2"
-# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s3"
-# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s4"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s1"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s2"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s3"
-# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s4"
+# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s3" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --sampler "gdas" --wandb_log --space "s4" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s1" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s3" --seed $SLURM_ARRAY_TASK_ID
+# python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler "gdas" --wandb_log --space "s4" --seed $SLURM_ARRAY_TASK_ID
 
 end=`date +%s`
 runtime=$((end-start))
