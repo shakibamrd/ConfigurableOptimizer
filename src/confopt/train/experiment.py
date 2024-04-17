@@ -47,7 +47,10 @@ from confopt.searchspace import (
     SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
+from confopt.train import DiscreteTrainer, Profile
+from confopt.train.configurable_trainer_single_level import (
+    ConfigurableTrainerSingleLevel as ConfigurableTrainer,
+)
 from confopt.utils import Logger
 from confopt.utils.time import check_date_format
 
