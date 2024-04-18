@@ -44,7 +44,7 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_merge_weights --sampler $sampler --wandb_log --space $searchspace --seed $SLURM_ARRAY_TASK_ID $entanglement
+python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --space $searchspace --seed $SLURM_ARRAY_TASK_ID $entanglement
 
 end=`date +%s`
 runtime=$((end-start))
