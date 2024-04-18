@@ -2,9 +2,14 @@
 
 spaces=("darts" "nb201")
 samplers=("darts" "drnas" "gdas")
+we=("true" "false")
 
 for space in "${spaces[@]}"; do
     for sampler in "${samplers[@]}"; do
-        sbatch -J LoRA-${sampler}-${space}-WE scripts/jobs/submit_lora_experiment.sh $space $sampler
+        for entanglement in "${we[@]}"; do
+            echo Submitting job: $space $sampler WE:$entanglement
+            sbatch -J LoRA-${sampler}-${space}-WE-${entanglement} scripts/jobs/submit_lora_experiment.sh $space $sampler $entanglement
+        done
     done
 done
+
