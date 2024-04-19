@@ -25,10 +25,14 @@ class ProfileConfig:
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
+        seed: int = 100,
+        searchspace_str: str = "nb201",
     ) -> None:
         self.config_type = config_type
         self.epochs = epochs
         self.lora_warm_epochs = lora_warm_epochs
+        self.seed = seed
+        self.searchspace_str = searchspace_str
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self._set_partial_connector(is_partial_connection)
@@ -36,6 +40,8 @@ class ProfileConfig:
         self._set_dropout(dropout)
         self._set_perturb(perturbation, perturbator_sample_frequency)
         self.entangle_op_weights = entangle_op_weights
+        PROFILE_TYPE = "BASE"
+        self.sampler_type = str.lower(PROFILE_TYPE)
 
     def _set_lora_configs(
         self,
@@ -77,6 +83,9 @@ class ProfileConfig:
         assert (
             self.sampler_config is not None
         ), "atleast a sampler is needed to initialize the search space"
+        weight_type = (
+            "weight_entanglement" if self.entangle_op_weights else "weight_sharing"
+        )
         config = {
             "sampler": self.sampler_config,
             "perturbator": self.perturb_config,
@@ -84,7 +93,11 @@ class ProfileConfig:
             "dropout": self.dropout_config,
             "trainer": self.trainer_config,
             "lora": self.lora_config,
+            "sampler_type": self.sampler_type,
+            "searchspace_str": self.searchspace_str,
+            "weight_type": weight_type,
         }
+
         if hasattr(self, "searchspace_config") and self.searchspace_config is not None:
             config.update({"search_space": self.searchspace_config})
 
@@ -149,6 +162,7 @@ class ProfileConfig:
             "train_portion": 0.5,
             "use_data_parallel": False,
             "checkpointing_freq": 1,
+            "seed": self.seed,
         }
 
         self.trainer_config = trainer_config
@@ -227,3 +241,19 @@ class ProfileConfig:
     @abstractmethod
     def configure_extra_config(self, config: dict) -> None:
         self.extra_config = config
+
+    def get_name_wandb_run(self) -> str:
+        name_wandb_run = []
+        name_wandb_run.append(f"ss_{self.searchspace_str}")
+        if self.entangle_op_weights:
+            name_wandb_run.append("type_we")
+        else:
+            name_wandb_run.append("type_ws")
+        name_wandb_run.append(f"opt_{self.sampler_type}")
+        if self.lora_warm_epochs > 0:
+            name_wandb_run.append(f"lorarank_{self.lora_config.get('r')}")
+            name_wandb_run.append(f"lorawarmup_{self.lora_warm_epochs}")
+        name_wandb_run.append(f"epochs_{self.trainer_config.get('epochs')}")
+        name_wandb_run.append(f"seed_{self.seed}")
+        name_wandb_run_str = "-".join(name_wandb_run)
+        return name_wandb_run_str

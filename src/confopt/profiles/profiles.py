@@ -24,9 +24,10 @@ class DartsProfile(ProfileConfig, ABC):
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
+        seed: int = 100,
+        searchspace_str: str = "nb201",
     ) -> None:
         PROFILE_TYPE = "DARTS"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.sampler_sample_frequency = sampler_sample_frequency
         super().__init__(
             PROFILE_TYPE,
@@ -38,7 +39,10 @@ class DartsProfile(ProfileConfig, ABC):
             entangle_op_weights,
             lora_rank,
             lora_warm_epochs,
+            seed,
+            searchspace_str,
         )
+        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -67,9 +71,10 @@ class GDASProfile(ProfileConfig, ABC):
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
+        seed: int = 100,
+        searchspace_str: str = "nb201",
     ) -> None:
         PROFILE_TYPE = "GDAS"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.sampler_sample_frequency = sampler_sample_frequency
         self.tau_min = tau_min
         self.tau_max = tau_max
@@ -83,7 +88,10 @@ class GDASProfile(ProfileConfig, ABC):
             entangle_op_weights,
             lora_rank,
             lora_warm_epochs,
+            seed,
+            searchspace_str,
         )
+        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -118,9 +126,10 @@ class SNASProfile(ProfileConfig, ABC):
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
+        seed: int = 100,
+        searchspace_str: str = "nb201",
     ) -> None:
         PROFILE_TYPE = "SNAS"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.sampler_sample_frequency = sampler_sample_frequency
         self.temp_init = temp_init
         self.temp_min = temp_min
@@ -136,7 +145,10 @@ class SNASProfile(ProfileConfig, ABC):
             entangle_op_weights,
             lora_rank,
             lora_warm_epochs,
+            seed,
+            searchspace_str,
         )
+        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -169,9 +181,10 @@ class DRNASProfile(ProfileConfig, ABC):
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
+        seed: int = 100,
+        searchspace_str: str = "nb201",
     ) -> None:
         PROFILE_TYPE = "DRNAS"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.sampler_sample_frequency = sampler_sample_frequency
         super().__init__(  # type: ignore
             PROFILE_TYPE,
@@ -183,7 +196,10 @@ class DRNASProfile(ProfileConfig, ABC):
             entangle_op_weights,
             lora_rank,
             lora_warm_epochs,
+            seed,
+            searchspace_str,
         )
+        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
