@@ -69,12 +69,10 @@ class Cell(nn.Module):
         self,
         s0: torch.Tensor,
         s1: torch.Tensor,
-        weights: list[torch.Tensor] | None = None,
+        weights: list[torch.Tensor],
         beta_weights: torch.Tensor | None = None,
         drop_prob: float = 0.2,
     ) -> torch.Tensor:
-        if weights is None:
-            return self.discrete_model_forward(s0, s1, drop_prob)
         if beta_weights is not None:
             return self.edge_normalization_forward(s0, s1, weights, beta_weights)
 
@@ -120,17 +118,6 @@ class Cell(nn.Module):
                 Robust-DARTS Search Space"
         )
 
-    def discrete_model_forward(
-        self,
-        s0: torch.Tensor,
-        s1: torch.Tensor,
-        drop_prob: float = 0.0,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplementedError(
-            "Discrete model forward is not yet implemented for \
-                Robust-DARTS Search Space"
-        )
-
 
 class Network(nn.Module):
     def __init__(
@@ -145,7 +132,6 @@ class Network(nn.Module):
         stem_multiplier: int = 3,
         drop_path_prob: float = 0.0,
         edge_normalization: bool = False,
-        discretized: bool = False,
     ):
         super().__init__()
         self._C = C
@@ -157,7 +143,6 @@ class Network(nn.Module):
         self._stem_multiplier = stem_multiplier
         self.drop_path_prob = drop_path_prob
         self.edge_normalization = edge_normalization
-        self.discretized = discretized
         self.primitives = primitives
 
         C_curr = stem_multiplier * C
@@ -205,16 +190,16 @@ class Network(nn.Module):
             stem_multiplier=self._stem_multiplier,
             drop_path_prob=self.drop_path_prob,
             edge_normalization=self.edge_normalization,
-            discretized=self.discretized,
         ).cuda()
         for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
             x.data.copy_(y.data)
         return model_new
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.discretized:
-            return self.discrete_model_forward(x)
+    def sample(self, alphas: torch.Tensor) -> torch.Tensor:
+        # Replace this function on the fly to change the sampling method
+        return F.softmax(alphas, dim=-1)
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.edge_normalization:
             return self.edge_normalized_forward(x)
 
@@ -225,23 +210,16 @@ class Network(nn.Module):
 
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
-                weights = F.softmax(self.alphas_reduce, dim=-1)
+                weights = self.sample(self.alphas_reduce)
             else:
-                weights = F.softmax(self.alphas_normal, dim=-1)
+                weights = self.sample(self.alphas_normal)
+
             s0, s1 = s1, cell(s0, s1, weights, drop_prob=self.drop_path_prob)
 
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
 
         return out.view(out.size(0), -1), logits
-
-    def discrete_model_forward(
-        self, x: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplementedError(
-            "Discrete model forward is not yet implemented for \
-                Robust-DARTS Search Space"
-        )
 
     def edge_normalized_forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(
@@ -307,12 +285,15 @@ class Network(nn.Module):
                 for j in edges:
                     k_best = None
                     for k in range(len(W[j])):
-                        if ("none" in primitives[j]) and (
-                            k != primitives[j].index("none")
+                        if (
+                            ("none" in primitives[j])
+                            and (k != primitives[j].index("none"))
+                            and (k_best is None or W[j][k] > W[j][k_best])
                         ):
-                            if k_best is None or W[j][k] > W[j][k_best]:
-                                k_best = k
-                        elif k_best is None or W[j][k] > W[j][k_best]:
+                            k_best = k
+                        if "none" not in primitives[j] and (
+                            k_best is None or W[j][k] > W[j][k_best]
+                        ):
                             k_best = k
                     gene.append((primitives[start + j][k_best], j))
                 start = end

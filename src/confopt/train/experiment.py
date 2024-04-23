@@ -5,6 +5,7 @@ from collections import namedtuple
 from enum import Enum
 import random
 from typing import Callable
+import warnings
 
 import numpy as np
 import torch
@@ -35,7 +36,7 @@ from confopt.profiles import (
 )
 from confopt.searchspace import (
     BabyDARTSSearchSpace,
-    DARTSGenotype,  # noqa: F401  # noqa: F401
+    DARTSGenotype,  # noqa: F401
     DARTSImageNetModel,
     DARTSModel,
     DARTSSearchSpace,
@@ -159,6 +160,7 @@ class Experiment:
         use_benchmark: bool = True,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
+        run_name = profile.get_name_wandb_run()
 
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
@@ -174,6 +176,7 @@ class Experiment:
             load_saved_model,
             load_best_model,
             use_benchmark,
+            run_name,
         )
 
     def runner(
@@ -183,6 +186,7 @@ class Experiment:
         load_saved_model: bool = False,
         load_best_model: bool = False,
         use_benchmark: bool = True,
+        run_name: str = "supernet_run",
     ) -> ConfigurableTrainer:
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
@@ -223,6 +227,7 @@ class Experiment:
         )
         if self.is_wandb_log:
             wandb.init(  # type: ignore
+                name=run_name,
                 project=(
                     config.get("project_name", "Configurable_Optimizer")
                     if config is not None
@@ -327,7 +332,18 @@ class Experiment:
         self.set_dropout(config.get("dropout", {}))
 
         if use_benchmark:
-            self.set_benchmark_api(search_space_enum, config.get("benchmark", {}))
+            if (
+                search_space_enum == SearchSpaceType.RobustDARTS
+                and config.get("search_space", {}).get("space") == "s4"
+            ):
+                warnings.warn(
+                    "Argument use_benchmark was set to True with s4 space of"
+                    + " RobustDARTSSearchSpace. Consider setting it to False",
+                    stacklevel=1,
+                )
+                self.benchmark_api = None
+            else:
+                self.set_benchmark_api(search_space_enum, config.get("benchmark", {}))
         else:
             self.benchmark_api = None
 
@@ -359,10 +375,14 @@ class Experiment:
     ) -> None:
         if search_space == SearchSpaceType.NB201:
             self.benchmark_api = NB201Benchmark()
-        elif search_space == SearchSpaceType.DARTS:
+        elif (
+            search_space == SearchSpaceType.DARTS
+            or search_space == SearchSpaceType.RobustDARTS
+        ):
             self.benchmark_api = NB301Benchmark(**config)
         else:
             print(f"Benchmark does not exist for the {search_space.value} searchspace")
+            self.benchmark_api = None
 
     def set_sampler(
         self,
