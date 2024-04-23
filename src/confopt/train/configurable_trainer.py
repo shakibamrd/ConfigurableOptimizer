@@ -425,7 +425,8 @@ class ConfigurableTrainer:
             save_to_disk=True,
             # **checkpointables,
         )
-        checkpointer.add_checkpointable("w_scheduler", self.scheduler)
+        if self.scheduler is not None:
+            checkpointer.add_checkpointable("w_scheduler", self.scheduler)
         checkpointer.add_checkpointable("w_optimizer", self.model_optimizer)
         if self.arch_optimizer is not None:
             checkpointer.add_checkpointable("arch_optimizer", self.arch_optimizer)

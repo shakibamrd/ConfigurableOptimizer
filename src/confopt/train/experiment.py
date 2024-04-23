@@ -122,6 +122,7 @@ class OptimizerType(Enum):
 class SchedulerType(Enum):
     CosineAnnealingLR = "cosine_annealing_lr"
     CosineAnnealingWarmRestart = "cosine_annealing_warm_restart"
+    NoScheduler = "none"
 
 
 class Experiment:

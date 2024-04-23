@@ -69,7 +69,7 @@ def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
     profile.set_searchspace_config(searchspace_config)
 
     train_config = {
-        "train_portion": 0.5,
+        "train_portion": 0.9,
         "batch_size": args.batch_size,
         "optim_config": {
             "weight_decay": 3e-4,
@@ -81,6 +81,7 @@ def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
             "weight_decay": 1e-3,
         },
         "learning_rate_min": 0.001,
+        "scheduler": "none",
     }
     profile.configure_trainer(**train_config)
     profile.configure_extra_config(
@@ -112,7 +113,7 @@ if __name__ == "__main__":
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
-        exp_name="SNAS_BASELINE",
+        exp_name="SNAS_BASELINE_Single",
     )
 
     trainer = experiment.run_with_profile(profile)
