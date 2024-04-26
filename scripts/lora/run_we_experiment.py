@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import argparse
 import json
 
 from confopt.profiles.profiles import DartsProfile, DRNASProfile, GDASProfile
 from confopt.train import Experiment
-from confopt.train.experiment import SearchSpaceType, DatasetType
+from confopt.train.experiment import DatasetType, SearchSpaceType
 
 dataset_size = {
     "cifar10": 10,
@@ -17,7 +19,7 @@ def read_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("DRNAS Baseline run", add_help=False)
 
     parser.add_argument(
-        "--space",
+        "--searchspace",
         default="darts",
         help="choose the search space (darts, nb201)",
         type=str,
@@ -118,6 +120,9 @@ def get_darts_configuration(args: argparse.Namespace) -> DartsProfile:
         lora_rank=args.lora_rank,
         lora_warm_epochs=args.lora_warm_epochs,
         entangle_op_weights=args.entangle_op_weights,
+        searchspace_str=args.searchspace,
+        calc_gm_score=True,
+        seed=args.seed,
     )
     return profile
 
@@ -128,6 +133,9 @@ def get_drnas_configuration(args: argparse.Namespace) -> DRNASProfile:
         lora_rank=args.lora_rank,
         lora_warm_epochs=args.lora_warm_epochs,
         entangle_op_weights=args.entangle_op_weights,
+        searchspace_str=args.searchspace,
+        calc_gm_score=True,
+        seed=args.seed,
     )
     return profile
 
@@ -138,6 +146,9 @@ def get_gdas_configuration(args: argparse.Namespace) -> GDASProfile:
         lora_rank=args.lora_rank,
         lora_warm_epochs=args.lora_warm_epochs,
         entangle_op_weights=args.entangle_op_weights,
+        searchspace_str=args.searchspace,
+        calc_gm_score=True,
+        seed=args.seed,
     )
     return profile
 
@@ -145,7 +156,7 @@ def get_gdas_configuration(args: argparse.Namespace) -> GDASProfile:
 if __name__ == "__main__":
     args = read_args()
 
-    assert args.space in ["darts", "nb201"], f"Does not support space of type {args.space}"  # type: ignore
+    assert args.searchspace in ["darts", "nb201"], f"Does not support space of type {args.searchspace}"  # type: ignore
     assert args.dataset in ["cifar10", "cifar100", "imagenet"], f"Soes not support dataset of type {args.dataset}"  # type: ignore
 
     if args.use_lora:
@@ -177,20 +188,17 @@ if __name__ == "__main__":
     profile.configure_extra_config(
         {
             "project_name": project_name,
-            "searchspace_str": args.space,
             "experiment_type": f"{lora_or_vanilla}",
-            "seed": args.seed,  # type: ignore
-            "sampler_type": args.sampler,  # type: ignore
         }
     )
 
     print(json.dumps(profile.get_config(), indent=2, default=str))
 
     # Experiment name for logging
-    experiment_name = f"{args.space}_{args.sampler}_{lora_or_vanilla}"
+    experiment_name = f"{args.sampler}_{lora_or_vanilla}"
 
     experiment = Experiment(
-        search_space=SearchSpaceType(args.space),
+        search_space=SearchSpaceType(args.searchspace),
         dataset=DatasetType(args.dataset),
         seed=args.seed,
         is_wandb_log=args.wandb_log,
