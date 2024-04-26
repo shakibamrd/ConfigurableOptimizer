@@ -62,24 +62,20 @@ class ConvLoRA(nn.Module, LoRALayer):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        r: int = 0,
-        lora_alpha: int = 1,
-        lora_dropout: float = 0.0,
-        merge_weights: bool = True,
         **kwargs,
     ) -> None:
-        # FIXME does not support dropout
         super().__init__()  # type: ignore
         self.conv = conv_module(in_channels, out_channels, kernel_size, **kwargs)
         self.in_channels = in_channels
         self.out_channels = out_channels
 
+        # TODO Refactor this line for a better design
         LoRALayer.__init__(
             self,
-            r=r,
-            lora_alpha=lora_alpha,
-            lora_dropout=lora_dropout,
-            merge_weights=merge_weights,
+            r=0,
+            lora_alpha=1,
+            lora_dropout=0.0,
+            merge_weights=True,
         )
         if not isinstance(kernel_size, int):
             if isinstance(kernel_size, tuple):
@@ -95,8 +91,9 @@ class ConvLoRA(nn.Module, LoRALayer):
             self.kernel_size = kernel_size
 
         # Actual trainable parameters
-        if r > 0:
-            self._initialize_AB()
+        # TODO Refactor ConvLoRA to think of a better way to initialize lora parameters
+        # if r > 0:
+        #     self._initialize_AB()
         self.reset_parameters()
         self.merged = False
 
@@ -180,13 +177,6 @@ class Conv2DLoRA(ConvLoRA):
             in_channels (int): The number of input channels.
             out_channels (int): The number of output channels.
             kernel_size (int or tuple): The size of the convolution kernel.
-            r (int): The rank for the LoRA module. Default is 8.
-            lora_alpha (int) : The value used to determine the scaling parameter.
-            Default is 1
-            lora_dropout (float): The value of dropout to apply for lora parameters.
-            Default is 0.
-            merge_weights (bool): Whether merging of weights is enabled or not.
-            Default is True
             stride (int or tuple, optional): The stride of the convolution operation.
             Default is 1.
             padding (int or tuple, optional): The amount of zero padding. Default is 0.
@@ -207,6 +197,8 @@ class Conv2DLoRA(ConvLoRA):
             (kernel_height, kernel_width).
             - If `bias` is True, the layer learns an additive bias term for each output
             channel.
+            - The LoRA modules are not initialized by default
+            - One can call activate_lora() function to initialize LoRA components
             - For more information, see the PyTorch documentation:
               https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
         """
