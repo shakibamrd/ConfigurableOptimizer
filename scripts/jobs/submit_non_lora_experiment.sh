@@ -26,15 +26,6 @@ if [ "$2" != "darts" ] && [ "$2" != "drnas" ] && [ "$2" != "gdas" ]; then
 fi
 
 
-# Check if the samplers are darts, drnas or gdas
-if [ "$3" == "true" ]; then
-    $entanglement="--entangle_op_weights"
-elif [ "$3" == "false" ]; then
-    $entanglement=""
-else
-    echo "Error: weight-entanglement must be 'true' or 'false'"
-    exit 1
-fi
 
 searchspace=$1
 sampler=$2
@@ -44,7 +35,14 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID $entanglement
+if [ "$3" == "true" ]; then
+    python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --seed --entangle_op_weights $SLURM_ARRAY_TASK_ID
+elif [ "$3" == "false" ]; then
+    python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID
+else
+    echo "Error: weight-entanglement must be 'true' or 'false'"
+    exit 1
+fi
 
 end=`date +%s`
 runtime=$((end-start))
