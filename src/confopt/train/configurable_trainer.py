@@ -71,7 +71,8 @@ class ConfigurableTrainer:
         self.query_dataset = query_dataset
         self.benchmark_api = benchmark_api
 
-        self.scaler = torch.cuda.amp.GradScaler()
+        self.arch_scaler = torch.cuda.amp.GradScaler()
+        self.model_scaler = torch.cuda.amp.GradScaler()
 
     def train(  # noqa: C901, PLR0915, PLR0912
         self,
@@ -287,8 +288,9 @@ class ConfigurableTrainer:
                     _, logits = network(arch_inputs)
                     arch_loss = criterion(logits, arch_targets)
 
-                self.scaler.scale(arch_loss).backward()
-                self.scaler.step(arch_optimizer)
+                self.arch_scaler.scale(arch_loss).backward()
+                self.arch_scaler.step(arch_optimizer)
+                self.arch_scaler.update()
 
                 if self.use_data_parallel:
                     profile.perturb_parameter(network.module)
@@ -320,7 +322,7 @@ class ConfigurableTrainer:
                 _, logits = network(base_inputs)
                 base_loss = criterion(logits, base_targets)
 
-            self.scaler.scale(base_loss).backward()
+            self.model_scaler.scale(base_loss).backward()
 
             if self.use_data_parallel:
                 torch.nn.utils.clip_grad_norm_(
@@ -329,7 +331,8 @@ class ConfigurableTrainer:
             else:
                 torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
-            self.scaler.step(w_optimizer)
+            self.model_scaler.step(w_optimizer)
+            self.model_scaler.update()
 
             # save grads of operations
             if calc_gm_score:
