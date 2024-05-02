@@ -195,7 +195,7 @@ if __name__ == "__main__":
     print(json.dumps(profile.get_config(), indent=2, default=str))
 
     # Experiment name for logging
-    experiment_name = f"{args.sampler}_{lora_or_vanilla}"
+    experiment_name = f"{args.sampler}_{lora_or_vanilla}_half_precision"
 
     experiment = Experiment(
         search_space=SearchSpaceType(args.searchspace),
