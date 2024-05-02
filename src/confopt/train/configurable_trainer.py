@@ -6,6 +6,7 @@ import time
 from fvcore.common.checkpoint import Checkpointer, PeriodicCheckpointer
 import torch
 from torch import nn
+from torch.profiler import profile as torch_profile, record_function, ProfilerActivity
 from typing_extensions import TypeAlias
 
 from confopt.benchmarks import BenchmarkBase
@@ -280,50 +281,68 @@ class ConfigurableTrainer:
             # measure data loading time
             data_time.update(time.time() - end)
 
-            if not is_warm_epoch:
-                _, logits = network(arch_inputs)
-                arch_loss = criterion(logits, arch_targets)
-                arch_loss.backward()
-                arch_optimizer.step()
+            with torch_profile(
+                activities=[ProfilerActivity.CUDA, ProfilerActivity.CPU],
+                profile_memory=True,
+                record_shapes=True,
+            ) as prof:
+                if not is_warm_epoch:
+                    with record_function("Arch step model forward pass"):
+                        _, logits = network(arch_inputs)
+
+                    arch_loss = criterion(logits, arch_targets)
+
+                    with record_function("Arch step model backward pass"):
+                        arch_loss.backward()
+
+                    with record_function("Arch step optimizer step"):
+                        arch_optimizer.step()
+
+                    if self.use_data_parallel:
+                        profile.perturb_parameter(network.module)
+                    else:
+                        profile.perturb_parameter(network)
+
+                    self._update_meters(
+                        inputs=arch_inputs,
+                        logits=logits,
+                        targets=arch_targets,
+                        loss=arch_loss,
+                        loss_meter=arch_losses,
+                        top1_meter=arch_top1,
+                        top5_meter=arch_top5,
+                    )
+
+                # calculate gm_score
+                if calc_gm_score:
+                    if self.use_data_parallel:
+                        network.module.check_grads_cosine(oles)  # type: ignore
+                    else:
+                        network.check_grads_cosine(oles)  # type: ignore
+
+                # update the model weights
+                w_optimizer.zero_grad()
+                arch_optimizer.zero_grad()
+
+                with record_function("Model step model forward pass"):
+                    _, logits = network(base_inputs)
+
+                base_loss = criterion(logits, base_targets)
+
+                with record_function("Model step model backward pass"):
+                    base_loss.backward()
 
                 if self.use_data_parallel:
-                    profile.perturb_parameter(network.module)
+                    torch.nn.utils.clip_grad_norm_(
+                        network.module.model_weight_parameters(), 5
+                    )
                 else:
-                    profile.perturb_parameter(network)
+                    torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
-                self._update_meters(
-                    inputs=arch_inputs,
-                    logits=logits,
-                    targets=arch_targets,
-                    loss=arch_loss,
-                    loss_meter=arch_losses,
-                    top1_meter=arch_top1,
-                    top5_meter=arch_top5,
-                )
+                with record_function("Model step optimizer step"):
+                    w_optimizer.step()
 
-            # calculate gm_score
-            if calc_gm_score:
-                if self.use_data_parallel:
-                    network.module.check_grads_cosine(oles)  # type: ignore
-                else:
-                    network.check_grads_cosine(oles)  # type: ignore
-
-            # update the model weights
-            w_optimizer.zero_grad()
-            arch_optimizer.zero_grad()
-
-            _, logits = network(base_inputs)
-            base_loss = criterion(logits, base_targets)
-            base_loss.backward()
-
-            if self.use_data_parallel:
-                torch.nn.utils.clip_grad_norm_(
-                    network.module.model_weight_parameters(), 5
-                )
-            else:
-                torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
-
-            w_optimizer.step()
+            print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=100))
 
             # save grads of operations
             if calc_gm_score:
