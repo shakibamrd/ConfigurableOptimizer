@@ -71,6 +71,8 @@ class ConfigurableTrainer:
         self.query_dataset = query_dataset
         self.benchmark_api = benchmark_api
 
+        self.scaler = torch.cuda.amp.GradScaler()
+
     def train(  # noqa: C901, PLR0915, PLR0912
         self,
         profile: Profile,
@@ -281,10 +283,12 @@ class ConfigurableTrainer:
             data_time.update(time.time() - end)
 
             if not is_warm_epoch:
-                _, logits = network(arch_inputs)
-                arch_loss = criterion(logits, arch_targets)
-                arch_loss.backward()
-                arch_optimizer.step()
+                with torch.autocast(device_type=str(self.device), dtype=torch.float16):
+                    _, logits = network(arch_inputs)
+                    arch_loss = criterion(logits, arch_targets)
+
+                self.scaler.scale(arch_loss).backward()
+                self.scaler.step(arch_optimizer)
 
                 if self.use_data_parallel:
                     profile.perturb_parameter(network.module)
@@ -312,9 +316,11 @@ class ConfigurableTrainer:
             w_optimizer.zero_grad()
             arch_optimizer.zero_grad()
 
-            _, logits = network(base_inputs)
-            base_loss = criterion(logits, base_targets)
-            base_loss.backward()
+            with torch.autocast(device_type=str(self.device), dtype=torch.float16):
+                _, logits = network(base_inputs)
+                base_loss = criterion(logits, base_targets)
+
+            self.scaler.scale(base_loss).backward()
 
             if self.use_data_parallel:
                 torch.nn.utils.clip_grad_norm_(
@@ -323,7 +329,7 @@ class ConfigurableTrainer:
             else:
                 torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
-            w_optimizer.step()
+            self.scaler.step(w_optimizer)
 
             # save grads of operations
             if calc_gm_score:
