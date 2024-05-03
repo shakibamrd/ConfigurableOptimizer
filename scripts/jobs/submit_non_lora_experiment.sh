@@ -36,7 +36,7 @@ source ~/.bashrc
 conda activate confopt
 
 if [ "$3" == "true" ]; then
-    python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --seed --entangle_op_weights $SLURM_ARRAY_TASK_ID
+    python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID
 elif [ "$3" == "false" ]; then
     python scripts/lora/run_we_experiment.py --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID
 else
