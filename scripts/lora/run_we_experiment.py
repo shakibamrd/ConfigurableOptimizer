@@ -180,6 +180,7 @@ if __name__ == "__main__":
         lora_dropout=args.lora_dropout,  # type: ignore
         merge_weights=args.lora_merge_weights,  # type: ignore
         lora_alpha=args.lora_alpha,  # type: ignore
+        toggle_epochs=[20, 30, 40, 50, 60, 70, 80, 90, 100],  # type: ignore
     )
 
     # Extra info for wandb tracking
