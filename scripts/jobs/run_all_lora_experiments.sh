@@ -1,7 +1,7 @@
 #!/bin/bash
 
 spaces=("darts" "nb201")
-samplers=("darts" "drnas" "gdas")
+samplers=("darts" "drnas")
 we=("true" "false")
 
 for space in "${spaces[@]}"; do

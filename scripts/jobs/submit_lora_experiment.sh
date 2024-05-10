@@ -3,6 +3,7 @@
 #SBATCH -o logs/%x.%N.%j.out # STDOUT
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 1-3 # array size
+#SBATCH --cpus-per-task 8
 #SBATCH -J LoRA-DARTS-DARTS-WE # sets the job name.
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
@@ -34,6 +35,8 @@ start=`date +%s`
 
 source ~/.bashrc
 conda activate confopt
+
+export WANDB_MODE="offline"
 
 if [ "$3" == "true" ]; then
     python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_alpha 4 --lora_merge_weights --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID
