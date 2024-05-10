@@ -65,18 +65,9 @@ class NASBench201SearchSpace(SearchSpace):
         """
         self.model.arch_parameters.data = arch_parameters[0]
 
-    def prune(self, wider: int | None = None) -> None:
-        """Discretize the model's architecture parameters to enforce sparsity.
-
-        Note:
-            This method discretizes the model's architecture parameters to enforce
-            sparsity. It sets the sparsity level to 0.2 (20% of operations will be kept)
-            and calls the `_discretize` method to apply the discretization.
-        """
-        # TODO: add a function that would return valid sparsity values based on search
-        # space
-        sparsity = 0.2
-        self.model._prune(sparsity, wider)  # type: ignore
+    def prune(self, num_keep: int) -> None:
+        """Prune the model's architecture parameters."""
+        self.model.prune(num_keep=num_keep)  # type: ignore
 
     def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore
@@ -106,13 +97,10 @@ class NASBench201SearchSpace(SearchSpace):
             if hasattr(module, "running_sim"):
                 module.running_sim.reset()
 
-    def reset_gm_score_attributes(self) -> None:
-        for module in self.model.modules():
-            if hasattr(module, "count"):
-                module.count = 0
-            if hasattr(module, "avg"):
-                module.avg = 0
-            if hasattr(module, "pre_grads"):
-                module.pre_grads.clear()
-            if hasattr(module, "running_sim"):
-                module.running_sim.reset()
+    def get_mean_layer_alignment_score(self) -> tuple[float, float]:
+        return self.model._get_mean_layer_alignment_score(), 0
+
+    def get_num_skip_ops(self) -> tuple[int, int]:
+        alphas_normal = self.model.arch_parameters
+        count_skip = lambda alphas: sum(alphas.argmax(dim=-1) == 1)
+        return count_skip(alphas_normal), -1

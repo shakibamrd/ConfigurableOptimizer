@@ -98,9 +98,8 @@ class DARTSSearchSpace(SearchSpace):
             self.model.alphas_reduce,
         ]
 
-    def prune(self, wider: int | None = None) -> None:
-        sparsity = 0.125
-        self.model._prune(sparsity, wider)  # type: ignore
+    def prune(self, num_keep: int) -> None:
+        self.model.prune(num_keep)  # type: ignore
 
     def discretize(self) -> nn.Module:
         return self.model.discretize()  # type: ignore
@@ -125,18 +124,15 @@ class DARTSSearchSpace(SearchSpace):
         avg_gm_score = sum(sim_avg) / len(sim_avg)
         return avg_gm_score
 
+    def get_mean_layer_alignment_score(self) -> tuple[float, float]:
+        return self.model._get_mean_layer_alignment_score()
+
     def reset_gm_scores(self) -> None:
         for module in self.model.modules():
             if hasattr(module, "running_sim"):
                 module.running_sim.reset()
 
-    def reset_gm_score_attributes(self) -> None:
-        for module in self.model.modules():
-            if hasattr(module, "count"):
-                module.count = 0
-            if hasattr(module, "avg"):
-                module.avg = 0
-            if hasattr(module, "pre_grads"):
-                module.pre_grads.clear()
-            if hasattr(module, "running_sim"):
-                module.running_sim.reset()
+    def get_num_skip_ops(self) -> tuple[int, int]:
+        alphas_normal, alphas_reduce = self.model.arch_parameters()
+        count_skip = lambda alphas: sum(alphas.argmax(dim=-1) == 3)
+        return count_skip(alphas_normal), count_skip(alphas_reduce)
