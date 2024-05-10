@@ -30,6 +30,7 @@ from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.lora_toggler import LoRAToggler
 from confopt.oneshot.partial_connector import PartialConnector
 from confopt.oneshot.perturbator import SDARTSPerturbator
+from confopt.oneshot.pruner.pruner import Pruner
 from confopt.oneshot.weightentangler import WeightEntangler
 from confopt.profiles import (
     DiscreteProfile,
@@ -347,6 +348,7 @@ class Experiment:
         self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
         self.set_partial_connector(config.get("partial_connector", {}))
         self.set_dropout(config.get("dropout", {}))
+        self.set_pruner(config.get("pruner", {}))
 
         if use_benchmark:
             if (
@@ -393,10 +395,7 @@ class Experiment:
     ) -> None:
         if search_space == SearchSpaceType.NB201:
             self.benchmark_api = NB201Benchmark()
-        elif (
-            search_space == SearchSpaceType.DARTS
-            or search_space == SearchSpaceType.RobustDARTS
-        ):
+        elif search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
             self.benchmark_api = NB301Benchmark(**config)
         else:
             print(f"Benchmark does not exist for the {search_space.value} searchspace")
@@ -447,6 +446,16 @@ class Experiment:
     def set_weight_entangler(self) -> None:
         self.weight_entangler = WeightEntangler() if self.entangle_op_weights else None
 
+    def set_pruner(self, config: dict) -> None:
+        if config is not None:
+            self.pruner = Pruner(
+                searchspace=self.search_space,
+                prune_epochs=config.get("prune_epochs", []),
+                prune_num_keeps=config.get("prune_num_keeps", []),
+            )
+        else:
+            self.pruner = None
+
     def set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
         if lora_config.get("r", 0) == 0:
             self.lora_toggler = None
@@ -478,6 +487,7 @@ class Experiment:
             weight_entangler=self.weight_entangler,
             lora_toggler=self.lora_toggler,
             lora_configs=config.get("lora"),
+            pruner=self.pruner,
         )
 
     def _get_dataset(self, dataset: DatasetType) -> Callable | None:
@@ -569,15 +579,9 @@ class Experiment:
             discrete_model = NASBench201Model(**searchspace_config)
         elif search_space_str == ModelType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
-            if (
-                self.dataset_str.value == "cifar10"
-                or self.dataset_str.value == "cifar100"
-            ):
+            if self.dataset_str.value in ("cifar10", "cifar100"):
                 discrete_model = DARTSModel(**searchspace_config)
-            elif (
-                self.dataset_str.value == "imgnet16"
-                or self.dataset_str.value == "imgnet16_120"
-            ):
+            elif self.dataset_str.value in ("imgnet16", "imgnet16_120"):
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")

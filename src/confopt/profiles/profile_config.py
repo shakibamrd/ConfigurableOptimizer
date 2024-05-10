@@ -32,6 +32,8 @@ class ProfileConfig:
         searchspace_str: str = "nb201",
         oles: bool = False,
         calc_gm_score: bool = False,
+        prune_epochs: list[int] | None = None,
+        prune_num_keeps: list[int] | None = None,
     ) -> None:
         self.config_type = config_type
         self.epochs = epochs
@@ -51,8 +53,26 @@ class ProfileConfig:
         self._set_perturb(perturbation, perturbator_sample_frequency)
         self.entangle_op_weights = entangle_op_weights
         self._set_oles_configs(oles, calc_gm_score)
+        self._set_pruner_configs(prune_epochs, prune_num_keeps)
         PROFILE_TYPE = "BASE"
         self.sampler_type = str.lower(PROFILE_TYPE)
+
+    def _set_pruner_configs(
+        self,
+        prune_epochs: list[int] | None = None,
+        prune_num_keeps: list[int] | None = None,
+    ) -> None:
+        if prune_epochs is not None:
+            assert (
+                prune_num_keeps is not None
+            ), "Please provide epochs numkeeps to prune with"
+            assert len(prune_num_keeps) == len(
+                prune_epochs
+            ), "Length of both prune_epochs and prune_num_keeps must be same"
+            self.pruner_config = {
+                "prune_epochs": prune_epochs,
+                "prune_num_keeps": prune_num_keeps,
+            }
 
     def _set_lora_configs(
         self,
@@ -132,6 +152,9 @@ class ProfileConfig:
             "weight_type": weight_type,
             "oles": self.oles_config,
         }
+
+        if hasattr(self, "pruner_config"):
+            config.update({"pruner": self.pruner_config})
 
         if hasattr(self, "searchspace_config") and self.searchspace_config is not None:
             config.update({"search_space": self.searchspace_config})
