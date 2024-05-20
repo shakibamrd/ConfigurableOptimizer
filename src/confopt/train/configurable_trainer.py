@@ -281,7 +281,7 @@ class ConfigurableTrainer:
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
 
-    def train_func(  # noqa: PLR0912, PLR0915, C901
+    def train_func(  # noqa: C901, PLR0912, PLR0915
         self,
         profile: Profile,
         train_loader: DataLoaderType,
