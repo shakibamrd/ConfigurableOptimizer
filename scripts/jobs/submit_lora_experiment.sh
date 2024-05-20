@@ -9,8 +9,8 @@ echo "Workingdir: $PWD";
 echo "Started at $(date)";
 echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CUPS_PER_NODE gpus per node with given JID $SLURM_JOB_ID on queue $SLURM_JOB_PARTITION";
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <searchspace> <sampler> <weight-entanglement>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <searchspace> <sampler> <weight-entanglement> <rank>"
     exit 1
 fi
 
@@ -30,6 +30,7 @@ fi
 # Check if the samplers are darts, drnas or gdas
 searchspace=$1
 sampler=$2
+lora_rank=$4
 
 start=`date +%s`
 
@@ -39,9 +40,9 @@ conda activate confopt
 export WANDB_MODE="offline"
 
 if [ "$3" == "true" ]; then
-    python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_alpha 4 --lora_merge_weights --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID
+    python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank $lora_rank --lora_alpha $lora_rank --lora_merge_weights --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID
 elif [ "$3" == "false" ]; then
-    python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank 4 --lora_alpha 4 --lora_merge_weights --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID
+    python scripts/lora/run_we_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank $lora_rank --lora_alpha $lora_rank --lora_merge_weights --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID
 else
     echo "Error: weight-entanglement must be 'true' or 'false'"
     exit 1
