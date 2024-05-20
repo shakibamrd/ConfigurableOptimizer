@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from confopt.profiles.profile_config import ProfileConfig
 from confopt.profiles.profiles import DartsProfile, DRNASProfile, GDASProfile
 from confopt.train import Experiment
 from confopt.train.experiment import DatasetType, SearchSpaceType
@@ -114,8 +115,10 @@ def read_args() -> argparse.Namespace:
     return args
 
 
-def get_darts_configuration(args: argparse.Namespace) -> DartsProfile:
-    profile = DartsProfile(
+def get_configuration(
+    profile_type: ProfileConfig, args: argparse.Namespace
+) -> ProfileConfig:
+    profile = profile_type(
         epochs=args.search_epochs,
         lora_rank=args.lora_rank,
         lora_warm_epochs=args.lora_warm_epochs,
@@ -127,36 +130,18 @@ def get_darts_configuration(args: argparse.Namespace) -> DartsProfile:
         seed=args.seed,
     )
     return profile
+
+
+def get_darts_configuration(args: argparse.Namespace) -> DartsProfile:
+    return get_configuration(DartsProfile, args)
 
 
 def get_drnas_configuration(args: argparse.Namespace) -> DRNASProfile:
-    profile = DRNASProfile(
-        epochs=args.search_epochs,
-        lora_rank=args.lora_rank,
-        lora_warm_epochs=args.lora_warm_epochs,
-        entangle_op_weights=args.entangle_op_weights,
-        searchspace_str=args.searchspace,
-        lora_toggle_epochs=list(range(11, 100, 1)),
-        lora_toggle_probability=None,
-        calc_gm_score=True,
-        seed=args.seed,
-    )
-    return profile
+    return get_configuration(DRNASProfile, args)
 
 
 def get_gdas_configuration(args: argparse.Namespace) -> GDASProfile:
-    profile = GDASProfile(
-        epochs=args.search_epochs,
-        lora_rank=args.lora_rank,
-        lora_warm_epochs=args.lora_warm_epochs,
-        entangle_op_weights=args.entangle_op_weights,
-        searchspace_str=args.searchspace,
-        lora_toggle_epochs=list(range(11, 100, 1)),
-        lora_toggle_probability=None,
-        calc_gm_score=True,
-        seed=args.seed,
-    )
-    return profile
+    return get_configuration(GDASProfile, args)
 
 
 if __name__ == "__main__":
