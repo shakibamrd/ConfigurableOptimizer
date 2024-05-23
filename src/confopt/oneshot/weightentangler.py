@@ -162,6 +162,13 @@ class WeightEntangler(OneShotComponent):
             ), f"_alpha attribute of {m} must be of type torch.Tensor"
             kernel_sizes.add(m.kernel_size)
 
+    def _delete_unused_weights(
+        self, unused_entangled_modules: list[WeightEntanglementModule]
+    ) -> None:
+        for module in unused_entangled_modules:
+            for op in module.op.children():
+                op.weight = None
+
     def _forward_entangled_ops(
         self, x: torch.Tensor, entangled_modules: list[WeightEntanglementModule]
     ) -> torch.Tensor:
@@ -180,6 +187,7 @@ class WeightEntangler(OneShotComponent):
             entangled_modules, key=lambda m: m.kernel_size, reverse=True
         )
         largest_module = entangled_modules[0]
+        self._delete_unused_weights(entangled_modules[1:])
 
         entanglement_ops_sets = self._get_entanglement_op_sets(entangled_modules)
 
