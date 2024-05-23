@@ -2,7 +2,7 @@
 
 spaces=("darts")
 samplers=("darts")
-we=("false", "true")
+we=("false" "true")
 rank=1
 
 for space in "${spaces[@]}"; do
