@@ -21,7 +21,12 @@ class OperationChoices(nn.Module):
         assert len(alphas) == len(
             self.ops
         ), "Number of operations and architectural weights do not match"
-        states = [op(x) * alpha for op, alpha in zip(self.ops, alphas)]
+        states = []
+        for op, alpha in zip(self.ops, alphas):
+            if hasattr(op, "is_pruned") and op.is_pruned:
+                continue
+            states.append(op(x) * alpha)
+
         return sum(states)  # type: ignore
 
     def change_op_channel_size(self, wider: int | None = None) -> None:
@@ -68,14 +73,23 @@ class OperationBlock(nn.Module):
         if self.weight_entangler is not None:
             return self.weight_entangler.forward(x, ops, alphas)
 
+        states = []
         if self.is_argmax_sampler:
             argmax = torch.argmax(alphas)
-            states = [
-                alphas[i] * op(x) if i == argmax else alphas[i]
-                for i, op in enumerate(ops)
-            ]
+
+            for i, op in enumerate(ops):
+                if hasattr(op, "is_pruned") and op.is_pruned:
+                    continue
+
+                if i == argmax:
+                    states.append(alphas[i] * op(x))
+                else:
+                    states.append(alphas[i])
         else:
-            states = [op(x) * alpha for op, alpha in zip(ops, alphas)]
+            for op, alpha in zip(ops, alphas):
+                if hasattr(op, "is_pruned") and op.is_pruned:
+                    continue
+                states.append(op(x) * alpha)
 
         return sum(states)
 

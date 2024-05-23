@@ -13,6 +13,7 @@ from confopt.utils import (
     calc_layer_alignment_score,
     freeze,
     preserve_gradients_in_module,
+    set_ops_to_prune,
 )
 from confopt.utils.normalize_params import normalize_params
 
@@ -152,6 +153,11 @@ class Cell(nn.Module):
 
         return torch.cat(states[-self._multiplier :], dim=1)
 
+    def prune_ops(self, mask: torch.Tensor) -> None:
+        assert len(self._ops) == mask.shape[0]
+        for edge, edge_mask in zip(self._ops, mask):
+            set_ops_to_prune(edge, edge_mask)
+
 
 class Network(nn.Module):
     def __init__(
@@ -208,7 +214,8 @@ class Network(nn.Module):
         self._multiplier = multiplier
         self.edge_normalization = edge_normalization
         self.discretized = discretized
-        self.mask: None | list[torch.Tensor] = None
+        self.mask: list[torch.Tensor] | None = None
+        self.last_mask: list[torch.Tensor] = []
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
@@ -283,6 +290,76 @@ class Network(nn.Module):
                 weights.retain_grad()
         self.weights[weight_type].append(weights)
 
+    def remove_pruned_alphas(
+        self, weights_normal: torch.Tensor, weights_reduce: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        assert (
+            self.mask is not None
+        ), "This function requires a prior call to prune function"
+
+        def _prune_alpha(weight: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+            weight = weight[mask]
+            weight = weight.reshape(mask.shape[0], mask[0].sum())
+            return weight
+
+        weights_normal = _prune_alpha(weights_normal, self.mask[0])
+        weights_reduce = _prune_alpha(weights_reduce, self.mask[1])
+
+        return weights_normal, weights_reduce
+
+    def restore_pruned_alpha_shape(
+        self, weights_normal: torch.Tensor, weights_reduce: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        assert (
+            self.mask is not None
+        ), "This function requires a prior call to prune function"
+
+        def _restore_weight_shape(
+            weight: list[torch.Tensor] | torch.Tensor,
+            reference_weight: torch.Tensor,
+            mask: torch.Tensor,
+        ) -> torch.Tensor:
+            if isinstance(weight, list):
+                weight = torch.stack(weight)
+            weight_full = torch.zeros_like(reference_weight)
+            weight_full[mask] = weight.view(-1)
+            return weight_full
+
+        weights_normal = _restore_weight_shape(
+            weights_normal, self.alphas_normal, self.mask[0]
+        )
+        weights_reduce = _restore_weight_shape(
+            weights_reduce, self.alphas_reduce, self.mask[1]
+        )
+
+        return weights_normal, weights_reduce
+
+    def sample_with_mask(self) -> tuple[torch.Tensor, torch.Tensor]:
+        weights_normal_to_sample = self.alphas_normal
+        weights_reduce_to_sample = self.alphas_reduce
+
+        if self.mask is not None:
+            # The shape of weights will change
+            # If num_keep was 6
+            # The shape should be (14, 6)
+            (
+                weights_normal_to_sample,
+                weights_reduce_to_sample,
+            ) = self.remove_pruned_alphas(
+                weights_normal_to_sample, weights_reduce_to_sample
+            )
+
+        weights_normal = self.sample(weights_normal_to_sample)
+        weights_reduce = self.sample(weights_reduce_to_sample)
+
+        if self.mask is not None:
+            # Revert back to original shape of (14, 8)
+            weights_normal, weights_reduce = self.restore_pruned_alpha_shape(
+                weights_normal, weights_reduce
+            )
+
+        return weights_normal, weights_reduce
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the network model.
 
@@ -303,8 +380,7 @@ class Network(nn.Module):
         self.weights["normal"] = []
         self.weights["reduce"] = []
 
-        weights_normal = self.sample(self.alphas_normal)
-        weights_reduce = self.sample(self.alphas_reduce)
+        weights_normal, weights_reduce = self.sample_with_mask()
 
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
@@ -332,8 +408,7 @@ class Network(nn.Module):
         self.weights["normal"] = []
         self.weights["reduce"] = []
 
-        weights_normal = self.sample(self.alphas_normal)
-        weights_reduce = self.sample(self.alphas_reduce)
+        weights_normal, weights_reduce = self.sample_with_mask()
 
         for _i, cell in enumerate(self.cells):
             if cell.reduction:
@@ -511,18 +586,27 @@ class Network(nn.Module):
         self.mask = []
 
         top_k = num_keep
-        for p in self._arch_parameters:
-            sorted_arch_params, _ = torch.sort(p.data, dim=1, descending=True)
+
+        # Calculate masks
+        for i, p in enumerate(self._arch_parameters):
+            data_to_sort = p.data.clone()
+            if len(self.last_mask) != 0:
+                last_mask = self.last_mask[i]
+                temp = float("-inf") * torch.ones_like(data_to_sort)
+                data_to_sort[~last_mask] = temp[~last_mask]
+
+            sorted_arch_params, _ = torch.sort(data_to_sort, dim=1, descending=True)
             thresholds = sorted_arch_params[:, top_k - 1].unsqueeze(1)
-            mask = p.data >= thresholds
-
-            p.data *= mask.float()
-            p.data[mask].requires_grad = True
-            p.data[~mask].requires_grad = False
-            if p.data[~mask].grad:
-                p.data[~mask].grad.zero_()
-
+            mask = data_to_sort >= thresholds
             self.mask.append(mask)
+
+        for cell in self.cells:
+            if cell.reduction:
+                cell.prune_ops(self.mask[1])
+            else:
+                cell.prune_ops(self.mask[0])
+
+        self.last_mask = self.mask
 
     def discretize(self) -> NetworkCIFAR | NetworkImageNet:
         genotype = self.genotype()

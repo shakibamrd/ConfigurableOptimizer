@@ -89,17 +89,17 @@ class LoRALayer:
     def merge_lora_weights(self) -> None:
         if self.r > 0:
             # Merge the weights and mark it
-            self.conv.weight.data += (self.lora_B @ self.lora_A).view(
-                self.conv.weight.shape
-            ) * self.scaling
+            self.conv.weight.data += (self.lora_B @ self.lora_A).view(  # type: ignore
+                self.conv.weight.shape  # type: ignore
+            ) * self.scaling  # type: ignore
         self.merged = True
 
     def unmerge_lora_weights(self) -> None:
         if self.r > 0:
             # Make sure that the weights are not merged
-            self.conv.weight.data -= (self.lora_B @ self.lora_A).view(
-                self.conv.weight.shape
-            ) * self.scaling
+            self.conv.weight.data -= (self.lora_B @ self.lora_A).view(  # type: ignore
+                self.conv.weight.shape  # type: ignore
+            ) * self.scaling  # type: ignore
         self.merged = False
 
 
