@@ -93,6 +93,26 @@ def freeze(m: torch.nn.Module) -> None:
         param.requires_grad_(False)
 
 
+def preserve_gradients_in_module(
+    m: torch.nn.Module,
+    ignored_modules: tuple[torch.nn.Module],
+    oles_ops: list[torch.nn.Module],
+) -> None:
+    if isinstance(m, ignored_modules):
+        return
+
+    if not isinstance(m, tuple(oles_ops)):
+        return
+
+    if not hasattr(m, "pre_grads"):
+        m.pre_grads = []
+
+    for param in m.parameters():
+        if param.requires_grad and param.grad is not None:
+            g = param.grad.detach().cpu()
+            m.pre_grads.append(g)
+
+
 def clear_grad_cosine(m: torch.nn.Module) -> None:
     if not hasattr(m, "avg"):
         return
@@ -125,6 +145,17 @@ def reset_gm_score_attributes(module: torch.nn.Module) -> None:
         module.running_sim.reset()
 
 
+def set_ops_to_prune(model: torch.nn.Module, mask: torch.Tensor) -> None:
+    from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
+
+    assert isinstance(model, (OperationBlock, OperationChoices))
+    assert len(mask) == len(model.ops)
+    for op, mask_val in zip(model.ops, mask):
+        if not torch.is_nonzero(mask_val):
+            freeze(op)
+            op.is_pruned = True
+
+
 __all__ = [
     "calc_accuracy",
     "save_checkpoint",
@@ -140,4 +171,5 @@ __all__ = [
     "normalize_params",
     "calc_layer_alignment_score",
     "reset_gm_score_attributes",
+    "set_ops_to_prune",
 ]

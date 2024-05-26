@@ -285,6 +285,7 @@ class DiscreteProfile:
                 "weight_decay": 3e-4,
             },
             "criterion": "cross_entropy",
+            "scheduler": "cosine_annealing_lr",
             "batch_size": 64,
             "learning_rate_min": 0.0,
             "print_freq": 2,

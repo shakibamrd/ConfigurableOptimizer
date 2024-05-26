@@ -9,6 +9,7 @@ import torch
 from torch import nn
 
 from confopt.searchspace.common import OperationChoices
+from confopt.utils import set_ops_to_prune
 
 from .genotypes import Structure
 from .operations import OPS
@@ -163,6 +164,13 @@ class NAS201SearchCell(nn.Module):
                 )
             nodes.append(sum(inter_nodes))  # type: ignore
         return nodes[-1]
+
+    def prune_ops(self, mask: torch.Tensor) -> None:
+        for i in range(1, self.max_nodes):
+            for j in range(i):
+                node_str = f"{i}<-{j}"
+                edge_mask = mask[self.edge2index[node_str]]
+                set_ops_to_prune(self.edges[node_str], edge_mask)
 
 
 class InferCell(nn.Module):
