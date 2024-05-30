@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -p ml_gpu-rtx2080 #relea_gpu-rtx2080 #mlhiwidlc_gpu-rtx2080 # partition (queue)
+#SBATCH -p alldlc_gpu-rtx2080 #relea_gpu-rtx2080 #mlhiwidlc_gpu-rtx2080 # partition (queue)
 #SBATCH -o logs/%x.%N.%j.out # STDOUT
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 1-3 # array size
-#SBATCH --time 3-00:00:00 # time (D-HH:MM)
-#SBATCH --cpus-per-task 2
+#SBATCH --time 1-00:00:00 # time (D-HH:MM)
+#SBATCH --cpus-per-task 8
 #SBATCH -J LoRA-DARTS-DARTS-WE # sets the job name.
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
