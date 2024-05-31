@@ -290,9 +290,9 @@ class DiscreteProfile:
             "learning_rate_min": 0.0,
             "print_freq": 2,
             "drop_path_prob": 0.2,
-            "cutout": -1,
+            "cutout": True,
             "cutout_length": 16,
-            "train_portion": 0.9,
+            "train_portion": 1.0,
             "use_data_parallel": False,
             "checkpointing_freq": 2,
         }
@@ -349,7 +349,7 @@ class DiscreteProfile:
             searchspace_config = {
                 "C": 36,  # init channels
                 "layers": 20,  # number of layers
-                "auxiliary": False,
+                "auxiliary": True,
             }
         else:
             raise ValueError("search space is not correct")
