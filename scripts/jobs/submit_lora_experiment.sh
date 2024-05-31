@@ -41,9 +41,9 @@ conda activate confopt
 # export WANDB_MODE="offline"
 
 if [ "$3" == "true" ]; then
-    python scripts/lora/run_we_experiment.py --search_epochs 100 --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID --use_lora --lora_rank $rank
+    python scripts/lora/run_we_experiment.py --search_epochs 100 --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID --use_lora --lora_rank $rank --lora_warm_epochs 10
 elif [ "$3" == "false" ]; then
-    python scripts/lora/run_we_experiment.py --search_epochs 100 --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID --use_lora --lora_rank $rank
+    python scripts/lora/run_we_experiment.py --search_epochs 100 --sampler $sampler --wandb_log --searchspace $searchspace --seed $SLURM_ARRAY_TASK_ID --use_lora --lora_rank $rank --lora_warm_epochs 10
 else
     echo "Error: weight-entanglement must be 'true' or 'false'"
     exit 1
