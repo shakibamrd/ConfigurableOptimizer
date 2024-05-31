@@ -87,11 +87,11 @@ if __name__ == "__main__":
     profile = get_discrete_configuration(args)
     profile.genotype = args.genotype
 
+    print(f"Training {args.run_name} genotype: {args.genotype}")
     # Extra info for wandb tracking
-    project_name = "LoRA-DARTS"
+    project_name = "LORA_TRAIN_GENOTYPE"
     run_name = args.run_name
     print(json.dumps(profile.get_trainer_config(), indent=2, default=str))
-
     # Experiment name for logging
     experiment_name = f"DISCRETE_{args.searchspace}_{args.dataset}_{args.run_name}"
     config = profile.get_trainer_config()
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     if args.wandb_log:
         wandb.init(  # type: ignore
             name=experiment_name,
-            project="TRAIN_GENOTYPE",
+            project=project_name,
             config=config,
         )
 
