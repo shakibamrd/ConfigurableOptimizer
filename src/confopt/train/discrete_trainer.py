@@ -63,7 +63,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         )
         # self.use_supernet_checkpoint = use_supernet_checkpoint
 
-    def train(self, epochs: int, is_wandb_log: bool = True) -> None:
+    def train(self, epochs: int, is_wandb_log: bool = True) -> None:  # noqa: C901
         self.epochs = epochs
         # self.model = self.model.discretize()  # type: ignore
 
@@ -96,9 +96,17 @@ class DiscreteTrainer(ConfigurableTrainer):
         start_time = time.time()
         search_time, epoch_time = AverageMeter(), AverageMeter()
 
-        train_loader, val_loader, _ = self.data.get_dataloaders(
+        train_loader, val_loader, test_loader = self.data.get_dataloaders(
             batch_size=self.batch_size,
             n_workers=0,
+        )
+
+        # if val loader is empty use test as val loader to track inference from model
+        if val_loader is None:
+            val_loader = test_loader
+
+        self.auxiliary = (
+            network.module._auxiliary if self.use_data_parallel else network._auxiliary
         )
 
         for epoch in range(self.start_epoch, epochs):
@@ -200,8 +208,14 @@ class DiscreteTrainer(ConfigurableTrainer):
             data_time.update(time.time() - end)
 
             self.model_optimizer.zero_grad()
-            _, logits = network(base_inputs)
+            logits_aux, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
+
+            # TODO: replace 0.4 with config.auxiliary_weight
+            if self.auxiliary:
+                loss_aux = criterion(logits_aux, base_targets)
+                base_loss += 0.4 * loss_aux
+
             base_loss.backward()
 
             if isinstance(network, torch.nn.DataParallel):
