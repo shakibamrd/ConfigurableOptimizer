@@ -21,6 +21,6 @@ source ~/.bashrc
 conda activate confopt
 
 # export WANDB_MODE="offline"
-python scripts/train_discrete/train_genotype.py --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name"
+python scripts/train_discrete/train_genotype.py --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" --wandb_log
 
 echo Runtime: $runtime
