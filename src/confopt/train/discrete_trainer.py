@@ -135,19 +135,19 @@ class DiscreteTrainer(ConfigurableTrainer):
                 search_time.sum,
             )
 
-            valid_metrics = self.valid_func(val_loader, network, criterion)
-            self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
+            if epoch % 25 == 0 or epoch == epochs - 1:
+                valid_metrics = self.valid_func(val_loader, network, criterion)
+                self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
+                self.logger.add_wandb_log_metrics("discrete/eval", valid_metrics, epoch)
+                (
+                    self.valid_losses[epoch],
+                    self.valid_accs_top1[epoch],
+                    self.valid_accs_top5[epoch],
+                ) = valid_metrics
 
             self.logger.add_wandb_log_metrics(
                 "discrete/train/model", base_metrics, epoch, search_time.sum
             )
-            self.logger.add_wandb_log_metrics("discrete/eval", valid_metrics, epoch)
-
-            (
-                self.valid_losses[epoch],
-                self.valid_accs_top1[epoch],
-                self.valid_accs_top5[epoch],
-            ) = valid_metrics
 
             (
                 self.search_losses[epoch],
@@ -163,16 +163,21 @@ class DiscreteTrainer(ConfigurableTrainer):
             if is_wandb_log:
                 self.logger.push_wandb_logs()
 
-            if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
-                self.valid_accs_top1["best"] = valid_metrics.acc_top1
-                self.logger.log(
-                    f"<<<--->>> The {epoch_str}-th epoch : found the highest "
-                    + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
-                )
+            if epoch % 25 == 0 or epoch == epochs - 1:
+                if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
+                    self.valid_accs_top1["best"] = valid_metrics.acc_top1
+                    self.logger.log(
+                        f"<<<--->>> The {epoch_str}-th epoch : found the highest "
+                        + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
+                    )
 
-                self.best_model_checkpointer.save(
-                    name="best_model", checkpointables=checkpointables
-                )
+                    self.best_model_checkpointer.save(
+                        name="best_model", checkpointables=checkpointables
+                    )
+                if epoch == epochs - 1:
+                    self.best_model_checkpointer.save(
+                        name=f"model_epoch_{epoch}", checkpointables=checkpointables
+                    )
 
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
