@@ -196,4 +196,4 @@ if __name__ == "__main__":
         debug_mode=args.debug_mode,
         exp_name=experiment_name,
     )
-    trainer = experiment.run_with_profile(profile)
+    trainer = experiment.run_with_profile(profile, use_benchmark=True)
