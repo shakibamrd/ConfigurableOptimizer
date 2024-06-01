@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     # Extra info for wandb tracking
     project_name = "LoRA-DARTS"
-    lora_or_vanilla = "lora" if args.use_lora else "vanilla"
+    lora_or_vanilla = "lora_alternate_1epoch" if args.use_lora else "vanilla"
     profile.configure_extra_config(
         {
             "project_name": project_name,
