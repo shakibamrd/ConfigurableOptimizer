@@ -1,8 +1,8 @@
 #!/bin/bash
 
 spaces=("darts")
-samplers=("darts" "drnas")
-we=("true" "false")
+samplers=("darts")
+we=("false")
 rank=1
 
 for space in "${spaces[@]}"; do

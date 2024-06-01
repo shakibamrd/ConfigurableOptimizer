@@ -38,7 +38,7 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-# export WANDB_MODE="offline"
+export WANDB_MODE="offline"
 
 if [ "$3" == "true" ]; then
     python scripts/lora/run_we_experiment.py --search_epochs 100 --sampler $sampler --wandb_log --searchspace $searchspace --entangle_op_weights --seed $SLURM_ARRAY_TASK_ID --use_lora --lora_rank $rank --lora_warm_epochs 10
