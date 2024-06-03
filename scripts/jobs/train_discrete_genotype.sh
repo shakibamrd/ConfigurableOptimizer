@@ -33,4 +33,4 @@ conda activate confopt
 
 # export WANDB_MODE="offline"
 # echo "$genotype"
-python scripts/train_discrete/train_genotype.py --wandb_log --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" # --seed $SLURM_ARRAY_TASK_ID
+python scripts/train_discrete/train_genotype.py --wandb_log --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" --seed $SLURM_ARRAY_TASK_ID
