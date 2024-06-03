@@ -286,7 +286,7 @@ class DiscreteProfile:
             },
             "criterion": "cross_entropy",
             "scheduler": "cosine_annealing_lr",
-            "batch_size": 64,
+            "batch_size": 96,
             "learning_rate_min": 0.0,
             "print_freq": 2,
             "drop_path_prob": 0.2,
