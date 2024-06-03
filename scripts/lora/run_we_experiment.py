@@ -124,7 +124,7 @@ def get_configuration(
         lora_warm_epochs=args.lora_warm_epochs,
         entangle_op_weights=args.entangle_op_weights,
         searchspace_str=args.searchspace,
-        lora_toggle_epochs=list(range(11, 100, 1)),
+        # lora_toggle_epochs=list(range(11, 100, 1)),
         # lora_toggle_probability=None,
         calc_gm_score=True,
         seed=args.seed,
