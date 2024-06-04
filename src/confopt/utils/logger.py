@@ -243,6 +243,7 @@ class Logger:
         if last_file_info:
             with open(last_file_path, "w") as f:
                 f.write(last_file_info)
+        self.last_genotype = genotype
 
     def log_metrics(
         self,
