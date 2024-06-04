@@ -689,27 +689,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--searchspace",
-        default="nb201",
-        help="search space in (darts, nb201, nb1shot1, tnb101)",
+        default="darts",
+        help="search space in (darts)",
         type=str,
     )
     parser.add_argument(
         "--sampler",
-        default="gdas",
-        help="samplers in (darts, drnas, gdas, snas)",
+        default="darts",
+        help="samplers in (darts, drnas)",
         type=str,
-    )
-    parser.add_argument(
-        "--perturbator",
-        default="none",
-        help="Type of perturbation in (none, random, adverserial)",
-        type=str,
-    )
-    parser.add_argument(
-        "--is_partial_connector",
-        action="store_true",
-        default=False,
-        help="Enable/Disable partial connection",
     )
     parser.add_argument(
         "--dropout",
