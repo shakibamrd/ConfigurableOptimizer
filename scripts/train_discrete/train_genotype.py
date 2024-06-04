@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     print(f"Training {args.run_name} genotype: {args.genotype}")
     # Extra info for wandb tracking
-    project_name = "LoRA_DARTS_Evaluation"
+    project_name = "LoRA_DARTS_Evaluation_2nd_half"
     run_name = args.run_name
     print(json.dumps(profile.get_trainer_config(), indent=2, default=str))
     # Experiment name for logging
