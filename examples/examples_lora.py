@@ -10,17 +10,16 @@ if __name__ == "__main__":
     dataset = DatasetType("cifar10")
     seed = 100
 
-    # Sampler and Perturbator have different sample_frequency
     profile = DartsProfile(
         sampler_sample_frequency="step",
-        epochs=20,
-        lora_rank=4,
+        epochs=50,
+        lora_rank=1,
         lora_warm_epochs=10,
     )
 
     config = profile.get_config()
     print(json.dumps(config, indent=2, default=str))
-    IS_DEBUG_MODE = True
+    IS_DEBUG_MODE = True # Set to False for a full run
 
     experiment = Experiment(
         search_space=searchspace,
