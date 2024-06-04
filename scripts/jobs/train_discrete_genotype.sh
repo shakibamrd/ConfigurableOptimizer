@@ -31,7 +31,7 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-# export WANDB_MODE="offline"
+export WANDB_MODE="offline"
 # echo "$genotype"
 
 if [ "$3" == "true" ]; then
