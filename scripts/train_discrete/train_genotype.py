@@ -61,7 +61,7 @@ def read_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--start_epoch",
-        default=100,
+        default=0,
         help="epoch to start with",
         type=int,
     )
