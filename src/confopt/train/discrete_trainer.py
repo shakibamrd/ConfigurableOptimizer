@@ -63,7 +63,9 @@ class DiscreteTrainer(ConfigurableTrainer):
         )
         # self.use_supernet_checkpoint = use_supernet_checkpoint
 
-    def train(self, epochs: int, is_wandb_log: bool = True) -> None:  # noqa: C901
+    def train(  # noqa: C901, PLR0915, PLR0912
+        self, epochs: int, is_wandb_log: bool = True
+    ) -> None:
         self.epochs = epochs
         # self.model = self.model.discretize()  # type: ignore
 
@@ -137,7 +139,9 @@ class DiscreteTrainer(ConfigurableTrainer):
 
             if epoch % 25 == 0 or epoch == epochs - 1:
                 valid_metrics = self.valid_func(val_loader, network, criterion)
-                self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
+                self.logger.log_metrics(
+                    "[Discrete] Evaluation: ", valid_metrics, epoch_str
+                )
                 self.logger.add_wandb_log_metrics("discrete/eval", valid_metrics, epoch)
                 (
                     self.valid_losses[epoch],
@@ -347,37 +351,38 @@ class DiscreteTrainer(ConfigurableTrainer):
         )
         return checkpointer
 
-    # def _load_model_state_if_exists(self) -> None:
-    #     self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
-    #     self._init_periodic_checkpointer()
+    def _load_model_state_if_exists(self) -> None:
+        self.best_model_checkpointer = self._set_up_checkpointer(mode=None)
+        self._init_periodic_checkpointer()
 
-    #     if self.load_best_model:
-    #         last_info = self.logger.path("best_model_discrete")
-    #         info = self.best_model_checkpointer._load_file(f=last_info)
-    #         self.logger.log(
-    #             f"=> loading checkpoint of the best-model '{last_info}' start"
-    #         )
-    #     elif self.start_epoch != 0:
-    #         last_info = self.logger.path("checkpoints")
-    #         last_info ="{}/{}_{:07d}.pth".format(last_info, "model", self.start_epoch)
-    #         info = self.checkpointer._load_file(f=last_info)
-    #         self.logger.log(
-    #             f"resume from discrete network trained from {self.start_epoch} epochs"
-    #         )
-    #     elif self.load_saved_model:
-    #         last_info = self.logger.path("last_checkpoint")
-    #         info = self.checkpointer._load_file(f=last_info)
-    #         self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
-    #     else:
-    #         self.logger.log("=> did not find the any file")
-    #         return
+        if self.load_best_model:
+            last_info = self.logger.path("best_model")
+            self.logger.log(
+                f"=> loading checkpoint of the best-model '{last_info}' start"
+            )
+            info = self.best_model_checkpointer._load_file(f=last_info)
+        elif self.start_epoch != 0:
+            last_info = self.logger.path("checkpoints")
+            last_info = "{}/{}_{:07d}.pth".format(last_info, "model", self.start_epoch)
+            info = self.checkpointer._load_file(f=last_info)
+        elif self.load_saved_model:
+            last_info = self.logger.path("last_checkpoint")
+            info = self.checkpointer._load_file(f=last_info)
+            self.logger.log(f"=> loading checkpoint of the last-info {last_info}")
+        else:
+            self.logger.log("=> did not find the any file")
+            return
 
-    #     # if self.use_supernet_checkpoint:
-    #     #     self.logger.use_supernet_checkpoint = False
-    #     #     self._init_empty_model_state_info()
-    #     # else:
+        last_genotype = self.logger.last_genotype
+        self.logger.set_up_new_run()
 
-    #     self.logger.set_up_new_run()
-    #     self.best_model_checkpointer.save_dir = self.logger.path(mode=None)
-    #     self.checkpointer.save_dir = self.logger.path(mode="checkpoints")
-    #     self._set_checkpointer_info(info)
+        self.logger.save_genotype(last_genotype)
+
+        self.best_model_checkpointer.save_dir = self.logger.path(mode=None)
+        self.checkpointer.save_dir = self.logger.path(mode="checkpoints")
+        self._set_checkpointer_info(info)
+
+        self.start_epoch += 1
+        self.logger.log(
+            "=> loading checkpoint " + f"start with {self.start_epoch}-th epoch."
+        )
