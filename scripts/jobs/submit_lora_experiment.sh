@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p alldlc_gpu-rtx2080 #relea_gpu-rtx2080 #mlhiwidlc_gpu-rtx2080 # partition (queue)
+#SBATCH -p my_partition
 #SBATCH -o logs/%x.%N.%j.out # STDOUT
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 1-3 # array size
