@@ -8,7 +8,6 @@ from confopt.oneshot.weightentangler import (
     WeightEntanglementSequential,
 )
 from confopt.searchspace.common import Conv2DLoRA
-import confopt.utils.reduce_channels as rc
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 OPS = {
@@ -97,22 +96,6 @@ class ReLUConvBN(nn.Module):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the ReLUConvBN block.
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-
-        Note:
-            This method dynamically changes the number of output channels in the
-            ReLUConvBN block.
-        """
-        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = rc.reduce_bn_features(self.op[2], k, device)
-
     def activate_lora(self, r: int) -> None:
         self.op[1].activate_lora(r)
 
@@ -170,18 +153,6 @@ class Pooling(nn.Module):
             applying pooling based on the specified mode.
         """
         return self.op(inputs)  # type: ignore
-
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the Pooling block's batch
-        norm features.
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-        """
-        self.op[1] = rc.reduce_bn_features(self.op[1], k, device)
 
 
 class DilConv(ConvolutionalWEModule):
@@ -250,19 +221,6 @@ class DilConv(ConvolutionalWEModule):
             torch.Tensor: The output tensor after applying the Dilated Convolution.
         """
         return self.op(x)  # type: ignore
-
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the DilConv's ops.
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-        """
-        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
 
     def activate_lora(self, r: int) -> None:
         self.op[1].activate_lora(r)
@@ -356,22 +314,6 @@ class SepConv(ConvolutionalWEModule):
         """
         return self.op(x)  # type: ignore
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the SepConv's ops.
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-        """
-        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
-        self.op[5] = rc.reduce_conv_channels(self.op[5], k, device)
-        self.op[6] = rc.reduce_conv_channels(self.op[6], k, device)
-        self.op[7] = rc.reduce_bn_features(self.op[7], k, device)
-
     def activate_lora(self, r: int) -> None:
         self.op[1].activate_lora(r)
         self.op[2].activate_lora(r)
@@ -419,21 +361,6 @@ class Identity(nn.Module):
         """
         return x
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the Identity block
-        (no operation performed).
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-
-        Note:
-            This method does not perform any operations, as the Identity block does
-            not change the number of channels.
-        """
-
 
 class Zero(nn.Module):
     def __init__(self, stride: int) -> None:
@@ -470,21 +397,6 @@ class Zero(nn.Module):
         if self.stride == 1:
             return x.mul(0.0)
         return x[:, :, :: self.stride, :: self.stride].mul(0.0)
-
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the Zero block
-        (no operation performed).
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-
-        Note:
-            This method does not perform any operations, as the Zero block does not
-            change the number of channels.
-        """
 
 
 class FactorizedReduce(nn.Module):
@@ -526,24 +438,6 @@ class FactorizedReduce(nn.Module):
         out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:])], dim=1)
         out = self.bn(out)
         return out
-
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Change the number of input and output channels in the Factorized Reduce
-        block.
-
-        Args:
-            k (int): The new number of input and output channels would be 1/k of the
-            original size.
-            device (torch.device, optional): The device to which the operations are
-            moved. Defaults to DEVICE.
-
-        Note:
-            This method dynamically changes the number of output channels in the block's
-            convolutional layers and BatchNorm.
-        """
-        self.conv_1 = rc.reduce_conv_channels(self.conv_1, k, device)
-        self.conv_2 = rc.reduce_conv_channels(self.conv_2, k, device)
-        self.bn = rc.reduce_bn_features(self.bn, k, device)
 
     def activate_lora(self, r: int) -> None:
         self.conv_1.activate_lora(r)
@@ -591,20 +485,3 @@ class Conv7x1Conv1x7BN(nn.Module):
 
         """
         return self.op(x)
-
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        """Modify the channel sizes of the operation by reducing them to 'k' channels.
-
-        Args:
-            k (int): The new number of channels.
-            device (torch.device): The target device (default is 'DEVICE').
-
-        Note: This method is used for architectural search and adjusts the number of
-        channels in the Convolution operation.
-        """
-        self.op[1] = rc.reduce_conv_channels(self.op[1], k, device)
-        self.op[2] = rc.reduce_conv_channels(self.op[2], k, device)
-        self.op[3] = rc.reduce_bn_features(self.op[3], k, device)
-
-
-OLES_OPS = [Zero, Pooling, Identity, SepConv, DilConv]

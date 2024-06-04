@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import argparse
 import json
 
-from confopt.profiles.profiles import DartsProfile, DRNASProfile, GDASProfile
+from confopt.profiles.profiles import DartsProfile, DRNASProfile
 from confopt.train import Experiment
-from confopt.train.experiment import SearchSpaceType, DatasetType
+from confopt.train.experiment import DatasetType, SearchSpaceType
 
 searchspace = "robust_darts"
 dataset_size = {
@@ -83,7 +85,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument(
         "--sampler",
         default="darts",
-        help="Choose sampler from (darts, drnas, gdas)",
+        help="Choose sampler from (darts, drnas)",
         type=str,
     )
 
@@ -124,15 +126,6 @@ def get_drnas_configuration(args: argparse.Namespace) -> DRNASProfile:
     return profile
 
 
-def get_gdas_configuration(args: argparse.Namespace) -> GDASProfile:
-    profile = GDASProfile(
-        epochs=args.search_epochs,
-        lora_rank=args.lora_rank,
-        lora_warm_epochs=args.lora_warm_epochs,
-    )
-    return profile
-
-
 if __name__ == "__main__":
     args = read_args()
 
@@ -143,14 +136,12 @@ if __name__ == "__main__":
         assert args.lora_warm_epochs > 0, "argument --lora_warm_epochs should not be 0 when argument --use_lora is provided"  # type: ignore
         assert args.lora_rank > 0, "argument --lora_rank should be greater than 0"  # type: ignore
 
-    assert args.sampler in ["darts", "drnas", "gdas"], "This experiment supports only darts, drnas and gdas as samplers"  # type: ignore
+    assert args.sampler in ["darts", "drnas"], "This experiment supports only darts and drnas as samplers"  # type: ignore
 
     if args.sampler == "darts":
         profile = get_darts_configuration(args)
     elif args.sampler == "drnas":
         profile = get_drnas_configuration(args)
-    elif args.sampler == "gdas":
-        profile = get_gdas_configuration(args)
 
     searchspace_config = {
         "num_classes": dataset_size[args.dataset],  # type: ignore
@@ -189,4 +180,4 @@ if __name__ == "__main__":
         debug_mode=args.debug_mode,
         exp_name=experiment_name,
     )
-    trainer = experiment.run_with_profile(profile)
+    trainer = experiment.run_with_profile(profile, use_benchmark=True)

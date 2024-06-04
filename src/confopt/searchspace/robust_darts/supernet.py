@@ -34,7 +34,6 @@ class RobustDARTSSearchSpace(SearchSpace):
             steps (int): Number of steps in the search space cell.
             multiplier (int): Multiplier for channels in the cells.
             stem_multiplier (int): Stem multiplier for channels.
-            edge_normalization (bool): Whether to use edge normalization.
 
         Methods:
             - arch_parameters: Get architectural parameters.
@@ -51,7 +50,6 @@ class RobustDARTSSearchSpace(SearchSpace):
                                     steps=5,
                                     multiplier=3,
                                     stem_multiplier=2,
-                                    edge_normalization=True,
                                     dropout=0.2)
         """
         try:
@@ -103,10 +101,6 @@ class RobustDARTSSearchSpace(SearchSpace):
             self.model.alphas_normal,
             self.model.alphas_reduce,
         ]
-
-    def prune(self, num_keep: int) -> None:
-        # self.model.prune(sparsity, wider)  # type: ignore
-        raise NotImplementedError("Prune has not been implemented for Robust DARTS")
 
     def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore

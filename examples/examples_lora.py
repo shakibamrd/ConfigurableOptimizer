@@ -12,10 +12,7 @@ if __name__ == "__main__":
 
     # Sampler and Perturbator have different sample_frequency
     profile = DartsProfile(
-        is_partial_connection=True,
-        perturbation="random",
         sampler_sample_frequency="step",
-        perturbator_sample_frequency="epoch",
         epochs=20,
         lora_rank=4,
         lora_warm_epochs=10,

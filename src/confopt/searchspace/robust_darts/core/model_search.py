@@ -70,12 +70,8 @@ class Cell(nn.Module):
         s0: torch.Tensor,
         s1: torch.Tensor,
         weights: list[torch.Tensor],
-        beta_weights: torch.Tensor | None = None,
         drop_prob: float = 0.2,
     ) -> torch.Tensor:
-        if beta_weights is not None:
-            return self.edge_normalization_forward(s0, s1, weights, beta_weights)
-
         return self._forward(s0, s1, weights, drop_prob)
 
     def _forward(
@@ -106,18 +102,6 @@ class Cell(nn.Module):
 
         return torch.cat(states[-self._multiplier :], dim=1)
 
-    def edge_normalization_forward(
-        self,
-        s0: torch.Tensor,
-        s1: torch.Tensor,
-        weights: list[torch.Tensor],
-        beta_weights: torch.Tensor,
-    ) -> torch.Tensor:
-        raise NotImplementedError(
-            "Edge normalization is not implemented yet for \
-                Robust-DARTS Search Space"
-        )
-
 
 class Network(nn.Module):
     def __init__(
@@ -131,7 +115,6 @@ class Network(nn.Module):
         multiplier: int = 4,
         stem_multiplier: int = 3,
         drop_path_prob: float = 0.0,
-        edge_normalization: bool = False,
     ):
         super().__init__()
         self._C = C
@@ -142,7 +125,6 @@ class Network(nn.Module):
         self._multiplier = multiplier
         self._stem_multiplier = stem_multiplier
         self.drop_path_prob = drop_path_prob
-        self.edge_normalization = edge_normalization
         self.primitives = primitives
 
         C_curr = stem_multiplier * C
@@ -189,7 +171,6 @@ class Network(nn.Module):
             multiplier=self.stem_multiplier,
             stem_multiplier=self._stem_multiplier,
             drop_path_prob=self.drop_path_prob,
-            edge_normalization=self.edge_normalization,
         ).cuda()
         for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
             x.data.copy_(y.data)
@@ -200,32 +181,19 @@ class Network(nn.Module):
         return F.softmax(alphas, dim=-1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.edge_normalization:
-            return self.edge_normalized_forward(x)
-
-        return self._forward(x)
-
-    def _forward(self, x: torch.Tensor) -> torch.Tensor:
         s0 = s1 = self.stem(x)
 
-        for _i, cell in enumerate(self.cells):
-            if cell.reduction:
-                weights = self.sample(self.alphas_reduce)
-            else:
-                weights = self.sample(self.alphas_normal)
+        weights_normal = self.sample(self.alphas_normal)
+        weights_reduce = self.sample(self.alphas_reduce)
 
+        for _i, cell in enumerate(self.cells):
+            weights = weights_normal if cell.reduction else weights_reduce
             s0, s1 = s1, cell(s0, s1, weights, drop_prob=self.drop_path_prob)
 
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
 
         return out.view(out.size(0), -1), logits
-
-    def edge_normalized_forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError(
-            "Edge normalization is not yet implemented for \
-                Robust-DARTS Search Space"
-        )
 
     def _loss(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         logits = self(x)

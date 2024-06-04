@@ -1,25 +1,14 @@
 from __future__ import annotations
 
-import math
-from typing import Literal
-
 import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
-from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
-from confopt.utils import (
-    AverageMeter,
-    calc_layer_alignment_score,
-    freeze,
-    preserve_gradients_in_module,
-    set_ops_to_prune,
-)
-from confopt.utils.normalize_params import normalize_params
+from confopt.searchspace.common.mixop import OperationChoices
 
-from .genotypes import BABY_PRIMITIVES, PRIMITIVES, DARTSGenotype
+from .genotypes import PRIMITIVES, DARTSGenotype
 from .model import NetworkCIFAR, NetworkImageNet
-from .operations import OLES_OPS, OPS, FactorizedReduce, ReLUConvBN
+from .operations import OPS, FactorizedReduce, ReLUConvBN
 
 NUM_CIFAR_CLASSES = 10
 NUM_CIFAR100_CLASSES = 100
@@ -99,7 +88,6 @@ class Cell(nn.Module):
         s0: torch.Tensor,
         s1: torch.Tensor,
         weights: list[torch.Tensor],
-        beta_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the cell.
 
@@ -113,9 +101,6 @@ class Cell(nn.Module):
         Returns:
             torch.Tensor: state ouptut from the cell
         """
-        if beta_weights is not None:
-            return self.edge_normalization_forward(s0, s1, weights, beta_weights)
-
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
 
@@ -131,33 +116,6 @@ class Cell(nn.Module):
 
         return torch.cat(states[-self._multiplier :], dim=1)
 
-    def edge_normalization_forward(
-        self,
-        s0: torch.Tensor,
-        s1: torch.Tensor,
-        weights: list[torch.Tensor],
-        beta_weights: torch.Tensor,
-    ) -> torch.Tensor:
-        s0 = self.preprocess0(s0)
-        s1 = self.preprocess1(s1)
-
-        states = [s0, s1]
-        offset = 0
-        for _i in range(self._steps):
-            s = sum(
-                beta_weights[offset + j] * self._ops[offset + j](h, weights[offset + j])
-                for j, h in enumerate(states)
-            )
-            offset += len(states)
-            states.append(s)
-
-        return torch.cat(states[-self._multiplier :], dim=1)
-
-    def prune_ops(self, mask: torch.Tensor) -> None:
-        assert len(self._ops) == mask.shape[0]
-        for edge, edge_mask in zip(self._ops, mask):
-            set_ops_to_prune(edge, edge_mask)
-
 
 class Network(nn.Module):
     def __init__(
@@ -169,9 +127,6 @@ class Network(nn.Module):
         steps: int = 4,
         multiplier: int = 4,
         stem_multiplier: int = 3,
-        edge_normalization: bool = False,
-        discretized: bool = False,
-        is_baby_darts: bool = False,
     ) -> None:
         """Implementation of DARTS search space's network model.
 
@@ -183,7 +138,6 @@ class Network(nn.Module):
             steps (int): Number of steps in the search space cell. Defaults to 4.
             multiplier (int): Multiplier for channels in the cells. Defaults to 4.
             stem_multiplier (int): Stem multiplier for channels. Defaults to 3.
-            edge_normalization (bool): Whether to use edge normalization. Defaults to False.
             discretized (bool): Whether supernet is discretized to only have one operation on
             each edge or not.
             is_baby_darts (bool): Controls which primitive list to use
@@ -212,21 +166,13 @@ class Network(nn.Module):
         self._criterion = criterion
         self._steps = steps
         self._multiplier = multiplier
-        self.edge_normalization = edge_normalization
-        self.discretized = discretized
-        self.mask: list[torch.Tensor] | None = None
-        self.last_mask: list[torch.Tensor] = []
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
             nn.BatchNorm2d(C_curr),
         )
 
-        self.is_baby_darts = is_baby_darts
-        if is_baby_darts:
-            self.primitives = BABY_PRIMITIVES
-        else:
-            self.primitives = PRIMITIVES
+        self.primitives = PRIMITIVES
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
@@ -276,90 +222,6 @@ class Network(nn.Module):
         # Replace this function on the fly to change the sampling method
         return F.softmax(alphas, dim=-1)
 
-    def retain_weight_grad(
-        self, weights: torch.Tensor, weight_type: Literal["reduce", "normal"]
-    ) -> None:
-        # Retain grads for calculating layer alignment score
-        assert weight_type in ["reduce", "normal"]
-        if self.training:
-            if isinstance(weights, list):
-                for weight in weights:
-                    weight.retain_grad()
-            else:
-                assert isinstance(weights, torch.Tensor)
-                weights.retain_grad()
-        self.weights[weight_type].append(weights)
-
-    def remove_pruned_alphas(
-        self, weights_normal: torch.Tensor, weights_reduce: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        assert (
-            self.mask is not None
-        ), "This function requires a prior call to prune function"
-
-        def _prune_alpha(weight: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-            weight = weight[mask]
-            weight = weight.reshape(mask.shape[0], mask[0].sum())
-            return weight
-
-        weights_normal = _prune_alpha(weights_normal, self.mask[0])
-        weights_reduce = _prune_alpha(weights_reduce, self.mask[1])
-
-        return weights_normal, weights_reduce
-
-    def restore_pruned_alpha_shape(
-        self, weights_normal: torch.Tensor, weights_reduce: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        assert (
-            self.mask is not None
-        ), "This function requires a prior call to prune function"
-
-        def _restore_weight_shape(
-            weight: list[torch.Tensor] | torch.Tensor,
-            reference_weight: torch.Tensor,
-            mask: torch.Tensor,
-        ) -> torch.Tensor:
-            if isinstance(weight, list):
-                weight = torch.stack(weight)
-            weight_full = torch.zeros_like(reference_weight)
-            weight_full[mask] = weight.view(-1)
-            return weight_full
-
-        weights_normal = _restore_weight_shape(
-            weights_normal, self.alphas_normal, self.mask[0]
-        )
-        weights_reduce = _restore_weight_shape(
-            weights_reduce, self.alphas_reduce, self.mask[1]
-        )
-
-        return weights_normal, weights_reduce
-
-    def sample_with_mask(self) -> tuple[torch.Tensor, torch.Tensor]:
-        weights_normal_to_sample = self.alphas_normal
-        weights_reduce_to_sample = self.alphas_reduce
-
-        if self.mask is not None:
-            # The shape of weights will change
-            # If num_keep was 6
-            # The shape should be (14, 6)
-            (
-                weights_normal_to_sample,
-                weights_reduce_to_sample,
-            ) = self.remove_pruned_alphas(
-                weights_normal_to_sample, weights_reduce_to_sample
-            )
-
-        weights_normal = self.sample(weights_normal_to_sample)
-        weights_reduce = self.sample(weights_reduce_to_sample)
-
-        if self.mask is not None:
-            # Revert back to original shape of (14, 8)
-            weights_normal, weights_reduce = self.restore_pruned_alpha_shape(
-                weights_normal, weights_reduce
-            )
-
-        return weights_normal, weights_reduce
-
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass of the network model.
 
@@ -373,73 +235,14 @@ class Network(nn.Module):
             - The output tensor after the forward pass.
             - The logits tensor produced by the model.
         """
-        if self.edge_normalization:
-            return self.edge_normalization_forward(x)
-
         s0 = s1 = self.stem(x)
-        self.weights["normal"] = []
-        self.weights["reduce"] = []
 
-        weights_normal, weights_reduce = self.sample_with_mask()
+        weights_normal = self.sample(self.alphas_normal)
+        weights_reduce = self.sample(self.alphas_reduce)
 
         for _i, cell in enumerate(self.cells):
-            if cell.reduction:
-                weights = weights_reduce
-                self.retain_weight_grad(weights, "reduce")
-                if self.mask is not None:
-                    weights = normalize_params(weights, self.mask[1])
-            else:
-                weights = weights_normal
-                self.retain_weight_grad(weights, "normal")
-                if self.mask is not None:
-                    weights = normalize_params(weights, self.mask[0])
+            weights = weights_reduce if cell.reduction else weights_normal
             s0, s1 = s1, cell(s0, s1, weights)
-        out = self.global_pooling(s1)
-        logits = self.classifier(out.view(out.size(0), -1))
-        return torch.squeeze(out, dim=(-1, -2)), logits
-
-    def edge_normalization_forward(
-        self,
-        inputs: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        # TODO: normalization of alphas
-
-        s0 = s1 = self.stem(inputs)
-        self.weights["normal"] = []
-        self.weights["reduce"] = []
-
-        weights_normal, weights_reduce = self.sample_with_mask()
-
-        for _i, cell in enumerate(self.cells):
-            if cell.reduction:
-                weights = weights_reduce
-                self.retain_weight_grad(weights, "reduce")
-                if self.mask is not None:
-                    weights = normalize_params(weights, self.mask[1])
-                n = 3
-                start = 2
-                weights2 = F.softmax(self.betas_reduce[0:2], dim=-1)
-                for _i in range(self._steps - 1):
-                    end = start + n
-                    tw2 = F.softmax(self.betas_reduce[start:end], dim=-1)
-                    start = end
-                    n += 1
-                    weights2 = torch.cat([weights2, tw2], dim=0)
-            else:
-                weights = weights_normal
-                self.retain_weight_grad(weights, "normal")
-                if self.mask is not None:
-                    weights = normalize_params(weights, self.mask[0])
-                n = 3
-                start = 2
-                weights2 = F.softmax(self.betas_normal[0:2], dim=-1)
-                for _i in range(self._steps - 1):
-                    end = start + n
-                    tw2 = F.softmax(self.betas_normal[start:end], dim=-1)
-                    start = end
-                    n += 1
-                    weights2 = torch.cat([weights2, tw2], dim=0)
-            s0, s1 = s1, cell(s0, s1, weights, weights2)
 
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
@@ -548,66 +351,6 @@ class Network(nn.Module):
         )
         return genotype
 
-    def get_arch_grads(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
-        def get_grads(alphas_list: list[torch.Tensor]) -> list[torch.Tensor]:
-            grads = []
-            for alphas in alphas_list:
-                if isinstance(alphas, list):
-                    alphas_grads = [
-                        alpha.grad.data.clone().detach() for alpha in alphas
-                    ]
-                    grads.append(torch.stack(alphas_grads).detach().reshape(-1))
-                else:
-                    grads.append(alphas.grad.data.clone().detach().reshape(-1))
-
-            return grads
-
-        grads_normal = get_grads(self.weights["normal"])
-        grads_reduce = get_grads(self.weights["reduce"])
-        return grads_normal, grads_reduce
-
-    def _get_mean_layer_alignment_score(self) -> tuple[float, float]:
-        grads_normal, grads_reduce = self.get_arch_grads()
-        mean_score_normal = calc_layer_alignment_score(grads_normal)
-        mean_score_reduce = calc_layer_alignment_score(grads_reduce)
-
-        if math.isnan(mean_score_normal):
-            mean_score_normal = 0
-        if math.isnan(mean_score_reduce):
-            mean_score_reduce = 0
-        return mean_score_normal, mean_score_reduce
-
-    def prune(self, num_keep: int) -> None:
-        """Discretize architecture parameters to enforce sparsity.
-
-        Args:
-            num_keep (float): Number of operations to keep.
-        """
-        self.mask = []
-
-        top_k = num_keep
-
-        # Calculate masks
-        for i, p in enumerate(self._arch_parameters):
-            data_to_sort = p.data.clone()
-            if len(self.last_mask) != 0:
-                last_mask = self.last_mask[i]
-                temp = float("-inf") * torch.ones_like(data_to_sort)
-                data_to_sort[~last_mask] = temp[~last_mask]
-
-            sorted_arch_params, _ = torch.sort(data_to_sort, dim=1, descending=True)
-            thresholds = sorted_arch_params[:, top_k - 1].unsqueeze(1)
-            mask = data_to_sort >= thresholds
-            self.mask.append(mask)
-
-        for cell in self.cells:
-            if cell.reduction:
-                cell.prune_ops(self.mask[1])
-            else:
-                cell.prune_ops(self.mask[0])
-
-        self.last_mask = self.mask
-
     def discretize(self) -> NetworkCIFAR | NetworkImageNet:
         genotype = self.genotype()
         if self._num_classes in {NUM_CIFAR_CLASSES, NUM_CIFAR100_CLASSES}:
@@ -642,62 +385,3 @@ class Network(nn.Module):
             params -= set(self.alphas_reduce)
             params -= set(self.alphas_normal)
         return list(params)
-
-
-def preserve_grads(m: nn.Module) -> None:
-    ignored_modules = (
-        OperationBlock,
-        OperationChoices,
-        Cell,
-        MixedOp,
-        Network,
-    )
-
-    preserve_gradients_in_module(m, ignored_modules, OLES_OPS)
-
-
-# TODO: break function from OLES paper to have less branching.
-def check_grads_cosine(m: nn.Module, oles: bool = False) -> None:  # noqa: C901
-    if (
-        isinstance(m, (OperationBlock, OperationChoices, Cell, MixedOp, Network))
-        or not isinstance(m, tuple(OLES_OPS))
-        or not hasattr(m, "pre_grads")
-        or not m.pre_grads
-    ):
-        return
-
-    i = 0
-    true_i = 0
-    temp = 0
-
-    for param in m.parameters():
-        if param.requires_grad and param.grad is not None:
-            g = param.grad.detach().cpu()
-            if len(g) != 0:
-                temp += torch.cosine_similarity(g, m.pre_grads[i], dim=0).mean()
-                true_i += 1
-            i += 1
-
-    m.pre_grads.clear()
-    if true_i == 0:
-        return
-    sim_avg = temp / true_i
-
-    if not hasattr(m, "avg"):
-        m.avg = 0
-    m.avg += sim_avg
-
-    if not hasattr(m, "running_sim"):
-        m.running_sim = AverageMeter()
-    m.running_sim.update(sim_avg)
-
-    if not hasattr(m, "count"):
-        m.count = 0
-
-    if m.count == 20:
-        if m.avg / m.count < 0.4 and oles:
-            freeze(m)
-        m.count = 0
-        m.avg = 0
-    else:
-        m.count += 1

@@ -63,7 +63,9 @@ class DiscreteTrainer(ConfigurableTrainer):
         )
         # self.use_supernet_checkpoint = use_supernet_checkpoint
 
-    def train(self, epochs: int, is_wandb_log: bool = True) -> None:  # noqa: C901
+    def train(  # noqa: C901, PLR0915, PLR0912
+        self, epochs: int, is_wandb_log: bool = True
+    ) -> None:
         self.epochs = epochs
         # self.model = self.model.discretize()  # type: ignore
 
@@ -137,7 +139,9 @@ class DiscreteTrainer(ConfigurableTrainer):
 
             if epoch % 25 == 0 or epoch == epochs - 1:
                 valid_metrics = self.valid_func(val_loader, network, criterion)
-                self.logger.log_metrics("[Discrete] Evaluation: ", valid_metrics, epoch_str)
+                self.logger.log_metrics(
+                    "[Discrete] Evaluation: ", valid_metrics, epoch_str
+                )
                 self.logger.add_wandb_log_metrics("discrete/eval", valid_metrics, epoch)
                 (
                     self.valid_losses[epoch],

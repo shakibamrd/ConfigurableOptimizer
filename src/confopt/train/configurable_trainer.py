@@ -11,7 +11,7 @@ from typing_extensions import TypeAlias
 
 from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
-from confopt.utils import AverageMeter, Logger, calc_accuracy, clear_grad_cosine
+from confopt.utils import AverageMeter, Logger, calc_accuracy
 
 from .searchprofile import Profile
 
@@ -76,8 +76,6 @@ class ConfigurableTrainer:
         profile: Profile,
         is_wandb_log: bool = True,
         lora_warm_epochs: int = 0,
-        oles: bool = False,
-        calc_gm_score: bool = False,
     ) -> None:
         profile.adapt_search_space(self.model)
 
@@ -111,20 +109,15 @@ class ConfigurableTrainer:
             ), "Value of r should be greater than 0"
             is_warm_epoch = True
         warm_epochs = lora_warm_epochs
-        if profile.partial_connector:
-            warm_epochs = max(
-                profile.partial_connector.num_warm_epoch, lora_warm_epochs
-            )
-            is_warm_epoch = True
-
-        layer_alignment_scores = (AverageMeter(), AverageMeter())
 
         for epoch in range(self.start_epoch + 1, self.epochs + 1):
             epoch_str = f"{epoch:03d}-{self.epochs:03d}"
             if epoch == warm_epochs + 1:
                 if lora_warm_epochs > 0:
                     self._initialize_lora_modules(
-                        lora_warm_epochs, profile, network, calc_gm_score
+                        lora_warm_epochs,
+                        profile,
+                        network,
                     )
                 is_warm_epoch = False
 
@@ -144,9 +137,6 @@ class ConfigurableTrainer:
                 self.arch_optimizer,
                 self.print_freq,
                 is_warm_epoch=is_warm_epoch,
-                oles=oles,
-                calc_gm_score=calc_gm_score,
-                layer_alignment_scores=layer_alignment_scores,
             )
 
             # Logging
@@ -178,21 +168,6 @@ class ConfigurableTrainer:
             arch_values_dict = self.get_arch_values_as_dict(network)
             self.logger.update_wandb_logs(arch_values_dict)
 
-            # Log GM scores
-            if calc_gm_score:
-                if self.use_data_parallel:
-                    gm_score = network.module.calc_avg_gm_score()
-                else:
-                    gm_score = network.calc_avg_gm_score()
-                gm_metrics = {
-                    "gm_scores/mean_gm": gm_score,
-                    "gm_scores/epochs": epoch,
-                }
-                gm_metrics.update(self.get_all_running_mean_scores(network))
-
-                # Add for all modules
-                self.logger.update_wandb_logs(gm_metrics)
-
             # Count skip connections in this epoch
             normal_cell_n_skip, reduce_cell_n_skip = (
                 network.module.get_num_skip_ops()
@@ -205,18 +180,6 @@ class ConfigurableTrainer:
                 "skip_connections/reduce": reduce_cell_n_skip,
             }
             self.logger.update_wandb_logs(n_skip_connections)
-
-            # Log Layer Alignment scores
-            self.logger.log(
-                f"[{epoch_str}] Layer Alignment score: "
-                + f" normal: {layer_alignment_scores[0].avg:.4f},"
-                + f" reduce: {layer_alignment_scores[1].avg:.4f}"
-            )
-            layer_alignment_metric = {
-                "layer_alignment/normal": layer_alignment_scores[0].avg,
-                "layer_alignment/reduce": layer_alignment_scores[1].avg,
-            }
-            self.logger.update_wandb_logs(layer_alignment_metric)
 
             # Create checkpoints
             (
@@ -270,18 +233,11 @@ class ConfigurableTrainer:
                     for i, alpha in enumerate(self.model.arch_parameters):
                         self.logger.log(f"alpha {i} is {alpha}")
 
-            # Reset GM Scores
-            if calc_gm_score:
-                if self.use_data_parallel:
-                    network.module.reset_gm_scores()
-                else:
-                    network.reset_gm_scores()
-
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
 
-    def train_func(  # noqa: C901, PLR0912, PLR0915
+    def train_func(
         self,
         profile: Profile,
         train_loader: DataLoaderType,
@@ -292,9 +248,6 @@ class ConfigurableTrainer:
         arch_optimizer: OptimizerType,
         print_freq: int,
         is_warm_epoch: bool = False,
-        oles: bool = False,
-        calc_gm_score: bool = False,
-        layer_alignment_scores: tuple[AverageMeter, AverageMeter] | None = None,
     ) -> tuple[TrainingMetrics, TrainingMetrics]:
         data_time, batch_time = AverageMeter(), AverageMeter()
         base_losses, base_top1, base_top5 = (
@@ -309,12 +262,8 @@ class ConfigurableTrainer:
         )
         network.train()
         end = time.time()
-        layer_alignment_scores[0].reset()  # type: ignore
-        layer_alignment_scores[1].reset()  # type: ignore
 
         for step, (base_inputs, base_targets) in enumerate(train_loader):
-            # FIXME: What was the point of this? and is it safe to remove?
-            # self.scheduler.update(None, 1.0 * step / len(xloader))
             self._component_new_step_or_epoch(network, calling_frequency="step")
             if step == 1:
                 self.update_sample_function(profile, network, calling_frequency="step")
@@ -337,11 +286,6 @@ class ConfigurableTrainer:
                 arch_loss.backward()
                 arch_optimizer.step()
 
-                if self.use_data_parallel:
-                    profile.perturb_parameter(network.module)
-                else:
-                    profile.perturb_parameter(network)
-
                 self._update_meters(
                     inputs=arch_inputs,
                     logits=logits,
@@ -352,13 +296,6 @@ class ConfigurableTrainer:
                     top5_meter=arch_top5,
                 )
 
-            # calculate gm_score
-            if calc_gm_score:
-                if self.use_data_parallel:
-                    network.module.check_grads_cosine(oles)  # type: ignore
-                else:
-                    network.check_grads_cosine(oles)  # type: ignore
-
             # update the model weights
             w_optimizer.zero_grad()
             arch_optimizer.zero_grad()
@@ -366,15 +303,6 @@ class ConfigurableTrainer:
             _, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
             base_loss.backward()
-
-            network_module = network.module if self.use_data_parallel else network
-            if hasattr(network_module, "get_mean_layer_alignment_score"):
-                (
-                    score_normal,
-                    score_reduce,
-                ) = network_module.get_mean_layer_alignment_score()
-                layer_alignment_scores[0].update(val=score_normal)  # type: ignore
-                layer_alignment_scores[1].update(val=score_reduce)  # type: ignore
 
             if self.use_data_parallel:
                 torch.nn.utils.clip_grad_norm_(
@@ -384,15 +312,8 @@ class ConfigurableTrainer:
                 torch.nn.utils.clip_grad_norm_(network.model_weight_parameters(), 5)
 
             w_optimizer.step()
-
-            # save grads of operations
-            if calc_gm_score:
-                if self.use_data_parallel:
-                    network.module.preserve_grads()  # type: ignore
-                else:
-                    network.preserve_grads()  # type: ignore
-
             w_optimizer.zero_grad()
+
             if not is_warm_epoch:
                 arch_optimizer.zero_grad()
 
@@ -650,7 +571,6 @@ class ConfigurableTrainer:
         lora_warm_epochs: int,
         profile: Profile,
         network: torch.nn.Module,
-        is_gm_score_enabled: bool = False,
     ) -> None:
         self.logger.log(
             f"The searchspace has been warm started with {lora_warm_epochs} epochs"
@@ -660,11 +580,7 @@ class ConfigurableTrainer:
             "LoRA layers have been initialized for all operations with"
             + " Conv2DLoRA module"
         )
-        # clear OLES_OPS from pre_grads, avg and count
-        if self.use_data_parallel:
-            network.module.apply(clear_grad_cosine)
-        else:
-            network.apply(clear_grad_cosine)
+
         # reinitialize optimizer
         optimizer_hyperparameters = self.model_optimizer.defaults
         old_param_lrs = []
@@ -708,20 +624,6 @@ class ConfigurableTrainer:
             self.model_optimizer,
             **scheduler_config,
         )
-
-        if is_gm_score_enabled:
-            if self.use_data_parallel:
-                network.module.reset_gm_score_attributes()
-            else:
-                network.reset_gm_score_attributes()
-
-    def get_all_running_mean_scores(self, network: torch.nn.Module) -> dict:
-        running_sim_dict = {}
-        model = network.module if self.use_data_parallel else network
-        for name, module in model.named_modules():
-            if hasattr(module, "running_sim"):
-                running_sim_dict[f"gm_scores/{name}"] = module.running_sim.avg
-        return running_sim_dict
 
     def update_sample_function(
         self,

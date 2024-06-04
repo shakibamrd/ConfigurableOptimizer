@@ -22,33 +22,22 @@ from confopt.dataset import (
 from confopt.oneshot.archsampler import (
     DARTSSampler,
     DRNASSampler,
-    GDASSampler,
-    SNASSampler,
 )
 from confopt.oneshot.dropout import Dropout
 from confopt.oneshot.lora_toggler import LoRAToggler
-from confopt.oneshot.partial_connector import PartialConnector
-from confopt.oneshot.perturbator import SDARTSPerturbator
-from confopt.oneshot.pruner.pruner import Pruner
 from confopt.oneshot.weightentangler import WeightEntangler
 from confopt.profiles import (
     DiscreteProfile,
-    GDASProfile,
     ProfileConfig,
 )
+from confopt.profiles.profiles import DartsProfile
 from confopt.searchspace import (
-    BabyDARTSSearchSpace,
     DARTSGenotype,  # noqa: F401
     DARTSImageNetModel,
     DARTSModel,
     DARTSSearchSpace,
-    NAS201Genotype,
-    NASBench1Shot1SearchSpace,
-    NASBench201Model,
-    NASBench201SearchSpace,
     RobustDARTSSearchSpace,
     SearchSpace,
-    TransNASBench101SearchSpace,
 )
 from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
 from confopt.utils import Logger
@@ -65,33 +54,16 @@ ADVERSERIAL_DATA = (
 
 class SearchSpaceType(Enum):
     DARTS = "darts"
-    NB201 = "nb201"
-    NB1SHOT1 = "nb1shot1"
-    TNB101 = "tnb101"
-    BABYDARTS = "baby_darts"
     RobustDARTS = "robust_darts"
 
 
 class ModelType(Enum):
     DARTS = "darts"
-    NB201 = "nb201"
 
 
 class SamplerType(Enum):
     DARTS = "darts"
     DRNAS = "drnas"
-    GDAS = "gdas"
-    SNAS = "snas"
-
-
-class PerturbatorType(Enum):
-    RANDOM = "random"
-    ADVERSERIAL = "adverserial"
-    NONE = "none"
-
-
-PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = PerturbatorType("none")
 
 
 class DatasetType(Enum):
@@ -163,18 +135,9 @@ class Experiment:
 
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
-        self.perturbator_str = PerturbatorType(profile.perturb_type)
-        self.is_partial_connection = profile.is_partial_connection
         self.dropout = profile.dropout
-        self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
-        oles_config = config.get("oles")
-        if oles_config:
-            oles = oles_config.get("oles")
-            calc_gm_score = oles_config.get("calc_gm_score")
-        else:
-            oles = False
-            calc_gm_score = False
+
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
         return self.runner(
             config,
@@ -183,8 +146,6 @@ class Experiment:
             load_best_model,
             use_benchmark,
             run_name,
-            oles,
-            calc_gm_score,
         )
 
     def runner(
@@ -195,8 +156,6 @@ class Experiment:
         load_best_model: bool = False,
         use_benchmark: bool = False,
         run_name: str = "supernet_run",
-        oles: bool = False,
-        calc_gm_score: bool = False,
     ) -> ConfigurableTrainer:
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
@@ -231,7 +190,6 @@ class Experiment:
         self._enum_to_objects(
             self.search_space_str,
             self.sampler_str,
-            self.perturbator_str,
             config=config,
             use_benchmark=use_benchmark,
         )
@@ -278,22 +236,13 @@ class Experiment:
             config=config["trainer"].get("scheduler_config", {}),  # type: ignore
         )
 
-        if self.edge_normalization and hasattr(model, "beta_parameters"):
-            arch_optimizer = self._get_optimizer(
-                trainer_arguments.arch_optim  # type: ignore
-            )(
-                [*model.arch_parameters, *model.beta_parameters],
-                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
-                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
-            )
-        else:
-            arch_optimizer = self._get_optimizer(
-                trainer_arguments.arch_optim  # type: ignore
-            )(
-                model.arch_parameters,
-                lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
-                **config["trainer"].get("arch_optim_config", {}),  # type: ignore
-            )
+        arch_optimizer = self._get_optimizer(
+            trainer_arguments.arch_optim  # type: ignore
+        )(
+            model.arch_parameters,
+            lr=config["trainer"].get("arch_lr", 0.001),  # type: ignore
+            **config["trainer"].get("arch_optim_config", {}),  # type: ignore
+        )
 
         trainer = ConfigurableTrainer(
             model=model,
@@ -326,8 +275,6 @@ class Experiment:
             lora_warm_epochs=config["trainer"].get(  # type: ignore
                 "lora_warm_epochs", 0
             ),
-            oles=oles,
-            calc_gm_score=calc_gm_score,
         )
 
         return trainer
@@ -336,7 +283,6 @@ class Experiment:
         self,
         search_space_enum: SearchSpaceType,
         sampler_enum: SamplerType,
-        perturbator_enum: PerturbatorType,
         config: dict | None = None,
         use_benchmark: bool = False,
     ) -> None:
@@ -344,10 +290,7 @@ class Experiment:
             config = {}  # type : ignore
         self.set_search_space(search_space_enum, config.get("search_space", {}))
         self.set_sampler(sampler_enum, config.get("sampler", {}))
-        self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
-        self.set_partial_connector(config.get("partial_connector", {}))
         self.set_dropout(config.get("dropout", {}))
-        self.set_pruner(config.get("pruner", {}))
 
         if use_benchmark:
             if (
@@ -374,16 +317,8 @@ class Experiment:
         search_space: SearchSpaceType,
         config: dict,
     ) -> None:
-        if search_space == SearchSpaceType.NB201:
-            self.search_space = NASBench201SearchSpace(**config)
-        elif search_space == SearchSpaceType.DARTS:
+        if search_space == SearchSpaceType.DARTS:
             self.search_space = DARTSSearchSpace(**config)
-        elif search_space == SearchSpaceType.NB1SHOT1:
-            self.search_space = NASBench1Shot1SearchSpace(**config)
-        elif search_space == SearchSpaceType.TNB101:
-            self.search_space = TransNASBench101SearchSpace(**config)
-        elif search_space == SearchSpaceType.BABYDARTS:
-            self.search_space = BabyDARTSSearchSpace(**config)
         elif search_space == SearchSpaceType.RobustDARTS:
             self.search_space = RobustDARTSSearchSpace(**config)
 
@@ -392,11 +327,7 @@ class Experiment:
         search_space: SearchSpaceType,
         config: dict,
     ) -> None:
-        if search_space == SearchSpaceType.NB201:
-            from confopt.benchmarks import NB201Benchmark
-
-            self.benchmark_api = NB201Benchmark()
-        elif search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
+        if search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
             from confopt.benchmarks import NB301Benchmark
 
             self.benchmark_api = NB301Benchmark(**config)
@@ -414,31 +345,6 @@ class Experiment:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplerType.GDAS:
-            self.sampler = GDASSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplerType.SNAS:
-            self.sampler = SNASSampler(**config, arch_parameters=arch_params)
-
-    def set_perturbator(
-        self,
-        petubrator_enum: PerturbatorType,
-        pertub_config: dict,
-    ) -> None:
-        if petubrator_enum != PerturbatorType.NONE:
-            self.perturbator = SDARTSPerturbator(
-                **pertub_config,
-                search_space=self.search_space,
-                arch_parameters=self.search_space.arch_parameters,
-                attack_type=petubrator_enum.value,
-            )
-        else:
-            self.perturbator = None
-
-    def set_partial_connector(self, config: dict) -> None:
-        if self.is_partial_connection:
-            self.partial_connector = PartialConnector(**config)
-        else:
-            self.partial_connector = None
 
     def set_dropout(self, config: dict) -> None:
         if self.dropout is not None:
@@ -448,16 +354,6 @@ class Experiment:
 
     def set_weight_entangler(self) -> None:
         self.weight_entangler = WeightEntangler() if self.entangle_op_weights else None
-
-    def set_pruner(self, config: dict) -> None:
-        if config is not None:
-            self.pruner = Pruner(
-                searchspace=self.search_space,
-                prune_epochs=config.get("prune_epochs", []),
-                prune_num_keeps=config.get("prune_num_keeps", []),
-            )
-        else:
-            self.pruner = None
 
     def set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
         if lora_config.get("r", 0) == 0:
@@ -483,14 +379,10 @@ class Experiment:
 
         self.profile = Profile(
             sampler=self.sampler,
-            edge_normalization=self.edge_normalization,
-            partial_connector=self.partial_connector,
-            perturbation=self.perturbator,
             dropout=self.dropout,
             weight_entangler=self.weight_entangler,
-            lora_toggler=self.lora_toggler,
             lora_configs=config.get("lora"),
-            pruner=self.pruner,
+            lora_toggler=self.lora_toggler,
         )
 
     def _get_dataset(self, dataset: DatasetType) -> Callable | None:
@@ -577,10 +469,7 @@ class Experiment:
         genotype_str: str,
         searchspace_config: dict,
     ) -> torch.nn.Module:
-        if search_space_str == ModelType.NB201.value:
-            searchspace_config["genotype"] = NAS201Genotype.str2structure(genotype_str)
-            discrete_model = NASBench201Model(**searchspace_config)
-        elif search_space_str == ModelType.DARTS.value:
+        if search_space_str == ModelType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
             if self.dataset_str.value in ("cifar10", "cifar100"):
                 discrete_model = DARTSModel(**searchspace_config)
@@ -866,20 +755,6 @@ if __name__ == "__main__":
         type=str,
     )
 
-    parser.add_argument(
-        "--oles",
-        action="store_true",
-        default=False,
-        help="freezes weights if it passes the threshold",
-    )
-
-    parser.add_argument(
-        "--calc_gm_score",
-        action="store_true",
-        default=False,
-        help="calculates gm scores during training the supernet",
-    )
-
     args = parser.parse_args()
     IS_DEBUG_MODE = True
     is_wandb_log = IS_DEBUG_MODE is False
@@ -888,13 +763,9 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)
     args.epochs = 3
 
-    profile = GDASProfile(
+    profile = DartsProfile(
         epochs=args.epochs,
-        is_partial_connection=args.is_partial_connector,
-        perturbation=args.perturbator,
         dropout=args.dropout,
-        oles=args.oles,
-        calc_gm_score=args.calc_gm_score,
     )
 
     config = profile.get_config()

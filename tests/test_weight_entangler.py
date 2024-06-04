@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import unittest
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
 
 from confopt.oneshot.weightentangler import WeightEntangler
 from confopt.searchspace.darts.core.operations import (

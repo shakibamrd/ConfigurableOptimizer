@@ -4,7 +4,6 @@ from .searchprofile import Profile
 from .experiment import (
     DatasetType,
     Experiment,
-    PerturbatorType,
     SamplerType,
     SearchSpaceType,
 )
@@ -17,5 +16,4 @@ __all__ = [
     "SearchSpaceType",
     "DatasetType",
     "SamplerType",
-    "PerturbatorType",
 ]
