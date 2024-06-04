@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -p alldlc_gpu-rtx2080 #alldlc_gpu-rtx2080 #relea_gpu-rtx2080 #mlhiwidlc_gpu-rtx2080 # partition (queue)
+#SBATCH -p my_partition
 #SBATCH -o logs/%x.%N.%j.out # STDOUT
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 9001-9003 # array size
 #SBATCH --time 3-00:00:00 # time (D-HH:MM)
-#SBATCH --cpus-per-task 8
+#SBATCH --cpus-per-task 2
 #SBATCH -J TRAIN_GENOTYPE # sets the job name.
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
