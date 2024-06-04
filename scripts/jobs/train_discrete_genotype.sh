@@ -33,4 +33,12 @@ conda activate confopt
 
 # export WANDB_MODE="offline"
 # echo "$genotype"
-python scripts/train_discrete/train_genotype.py --wandb_log --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" --seed $SLURM_ARRAY_TASK_ID
+
+if [ "$3" == "true" ]; then
+    python scripts/train_discrete/train_genotype.py --wandb_log --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" --load_saved_model --seed $SLURM_ARRAY_TASK_ID
+elif [ "$3" == "false" ]; then
+    python scripts/train_discrete/train_genotype.py --wandb_log --searchspace "$searchspace" --genotype "$genotype"  --run_name "$run_name" --seed $SLURM_ARRAY_TASK_ID
+else
+    echo "Error: weight-entanglement must be 'true' or 'false'"
+    exit 1
+fi

@@ -37,10 +37,11 @@ run_names=(
   # "darts_ws_vanilla_epoch_50"
 )
 
-
+# turn this to true for continuing run and false for a fresh run
+load_saved_model="false"
 
 # Iterate over the lists and call the existing script
 for i in "${!run_names[@]}"; do
   run_name=${run_names[$i]}
-  sbatch -J $run_name scripts/jobs/train_discrete_genotype.sh "$searchspace" "$run_name"
+  sbatch -J $run_name scripts/jobs/train_discrete_genotype.sh "$searchspace" "$run_name" "$load_saved_model"
 done
