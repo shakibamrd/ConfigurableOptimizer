@@ -31,10 +31,10 @@ searchspace="darts"
 # )
 
 run_names=(
-  # "darts_we_lora_epoch_50"
-  "darts_ws_lora_epoch_50"
-  "darts_we_vanilla_epoch_50"
-  "darts_ws_vanilla_epoch_50"
+   "darts_we_lora_epoch_50"
+#  "darts_ws_lora_epoch_50"
+#  "darts_we_vanilla_epoch_50"
+#  "darts_ws_vanilla_epoch_50"
 )
 
 # turn this to true for continuing run and false for a fresh run
