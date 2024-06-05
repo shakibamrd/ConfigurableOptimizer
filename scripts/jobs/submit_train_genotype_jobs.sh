@@ -38,7 +38,7 @@ run_names=(
 )
 
 # turn this to true for continuing run and false for a fresh run
-load_saved_model="false"
+load_saved_model="true"
 
 # Iterate over the lists and call the existing script
 for i in "${!run_names[@]}"; do
