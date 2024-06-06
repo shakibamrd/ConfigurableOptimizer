@@ -3,10 +3,10 @@
 searchspace="darts"
 
 run_names=(
-  "darts_we_lora_epoch_50"
-  "darts_ws_lora_epoch_50"
-  "darts_we_vanilla_epoch_50"
-  "darts_ws_vanilla_epoch_50"
+  "darts_we_lora_rank_1"
+  "darts_ws_lora_rank_1"
+  "darts_we_vanilla"
+  "darts_ws_vanilla"
 )
 
 for i in "${!run_names[@]}"; do
