@@ -141,7 +141,7 @@ def get_genotype_from_alpha(
 
 
 if __name__ == "__main__":
-    log_file_path = "logs/log_darts_we_ws_alternating/output(10).log"
+    log_file_path = "your_log_file_here"
     # get alpha at 100th epoch
     alpha_normal, alpha_reduce = extract_darts_alpha_at_epoch(
         log_file_path, epoch=100, end_epoch=100
