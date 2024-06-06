@@ -197,9 +197,9 @@ class Experiment:
             wandb.init(  # type: ignore
                 name=run_name,
                 project=(
-                    config.get("project_name", "Configurable_Optimizer")
+                    config.get("project_name", "LoRA-DARTS")
                     if config is not None
-                    else "Configurable_Optimizer"
+                    else "LoRA-DARTS"
                 ),
                 config=config,
             )
