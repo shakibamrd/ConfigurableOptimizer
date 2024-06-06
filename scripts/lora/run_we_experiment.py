@@ -124,7 +124,7 @@ def get_configuration(
         lora_warm_epochs=args.lora_warm_epochs,
         entangle_op_weights=args.entangle_op_weights,
         searchspace_str=args.searchspace,
-        lora_toggle_epochs=list(range(11, 100, 1)),
+        # lora_toggle_epochs=list(range(11, 100, 1)),
         # lora_toggle_probability=None,
         seed=args.seed,
     )
@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
     # Extra info for wandb tracking
     project_name = "LoRA-DARTS"
-    lora_or_vanilla = "lora_alternate_1epoch" if args.use_lora else "vanilla"
+    lora_or_vanilla = "lora" if args.use_lora else "vanilla"
     profile.configure_extra_config(
         {
             "project_name": project_name,
