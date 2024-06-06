@@ -1,3 +1,8 @@
+"""Code for RobustDARTS taken from the authors'
+(Zela, Arber and Elsken, Thomas and Saikia, Tonmoy and Marrakchi, Yassine and Brox,
+Thomas and Hutter, Frank, 2019), repository(https://github.com/automl/RobustDARTS)
+and modified for the purpose of this project.
+"""
 from __future__ import annotations
 
 import torch

@@ -1,3 +1,9 @@
+"""Code for DARTS: Differentiable Architecture Search, taken from the authors'
+(Liu, Hanxiao and Simonyan, Karen and Yang, Yiming, 2018) repository
+(https://github.com/quark0/darts) and modified for the purpose of
+this project.
+"""
+
 from __future__ import annotations
 
 import torch
