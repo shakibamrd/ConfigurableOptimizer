@@ -114,6 +114,7 @@ if __name__ == "__main__":
     # Experiment name for logging
     experiment_name = f"DISCRETE_{args.searchspace}_{args.dataset}_{args.run_name}"
     config = profile.get_trainer_config()
+    profile.genotype = args.genotype
     config.update({"genotype": profile.get_genotype()})
     # print(profile.get_genotype())
 
