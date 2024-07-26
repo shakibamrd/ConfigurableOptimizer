@@ -349,8 +349,12 @@ class Network(nn.Module):
 
     def sample_with_mask(self) -> tuple[torch.Tensor, torch.Tensor]:
         if self.compute_alpha_attention:
-            weights_normal_to_sample = self.arch_params_transformer(self.alphas_normal)
-            weights_reduce_to_sample = self.arch_params_transformer(self.alphas_reduce)
+            weights_normal_to_sample = self.arch_params_transformer(
+                self.alphas_normal, self.alphas_normal
+            )
+            weights_reduce_to_sample = self.arch_params_transformer(
+                self.alphas_reduce, self.alphas_reduce
+            )
         else:
             weights_normal_to_sample = self.alphas_normal
             weights_reduce_to_sample = self.alphas_reduce
