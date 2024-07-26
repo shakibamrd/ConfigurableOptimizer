@@ -232,11 +232,18 @@ class Network(nn.Module):
         self.cells = nn.ModuleList()
         reduction_prev = False
         for i in range(layers):
-            if i in [layers // 3, 2 * layers // 3]:
+            if (
+                layers == 2
+            ):  # Special case: low fidelity supernet with one normal and reduction cell
+                reduction = i == 1
+                if reduction:
+                    C_curr *= 2
+            elif i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
                 reduction = True
             else:
                 reduction = False
+
             cell = Cell(
                 steps,
                 multiplier,
@@ -255,6 +262,12 @@ class Network(nn.Module):
         self.classifier = nn.Linear(C_prev, num_classes)
         self.weights: dict[str, list[torch.Tensor]] = {}
 
+        self.compute_alpha_attention = True
+        self.arch_params_transformer = nn.Transformer(
+            d_model=len(self.primitives),
+            nhead=len(self.primitives) // 2,
+            num_encoder_layers=4,
+        )
         self._initialize_parameters()
 
     def new(self) -> Network:
@@ -335,8 +348,12 @@ class Network(nn.Module):
         return weights_normal, weights_reduce
 
     def sample_with_mask(self) -> tuple[torch.Tensor, torch.Tensor]:
-        weights_normal_to_sample = self.alphas_normal
-        weights_reduce_to_sample = self.alphas_reduce
+        if self.compute_alpha_attention:
+            weights_normal_to_sample = self.arch_params_transformer(self.alphas_normal)
+            weights_reduce_to_sample = self.arch_params_transformer(self.alphas_reduce)
+        else:
+            weights_normal_to_sample = self.alphas_normal
+            weights_reduce_to_sample = self.alphas_reduce
 
         if self.mask is not None:
             # The shape of weights will change
