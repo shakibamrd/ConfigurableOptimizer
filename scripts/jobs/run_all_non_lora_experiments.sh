@@ -1,6 +1,6 @@
 #!/bin/bash
 
-spaces=("darts" "nb201")
+spaces=("darts") # "nb201")
 samplers=("darts" "drnas" "gdas")
 we=("true" "false")
 

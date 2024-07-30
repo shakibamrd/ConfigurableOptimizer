@@ -174,19 +174,26 @@ if __name__ == "__main__":
     )
 
     # Extra info for wandb tracking
-    project_name = "LoRA-DARTS"
-    lora_or_vanilla = "lora_alternate_1epoch" if args.use_lora else "vanilla"
+    project_name = "confopt"
+
+    search_space_config = {
+        "layers": 2,
+        "C": 64,
+    }
+
     profile.configure_extra_config(
         {
             "project_name": project_name,
-            "experiment_type": f"{lora_or_vanilla}",
+            "experiment_type": "2cells_wide",
         }
     )
+
+    profile.set_searchspace_config(search_space_config)
 
     print(json.dumps(profile.get_config(), indent=2, default=str))
 
     # Experiment name for logging
-    experiment_name = f"{args.sampler}_{lora_or_vanilla}"
+    experiment_name = f"{args.sampler}"
 
     experiment = Experiment(
         search_space=SearchSpaceType(args.searchspace),

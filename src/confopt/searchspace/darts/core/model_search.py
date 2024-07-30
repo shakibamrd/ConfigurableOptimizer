@@ -232,11 +232,18 @@ class Network(nn.Module):
         self.cells = nn.ModuleList()
         reduction_prev = False
         for i in range(layers):
-            if i in [layers // 3, 2 * layers // 3]:
+            if layers == 2:  # special case. one normal and reduction cell.
+                if i == 1:
+                    C_curr *= 2
+                    reduction = True
+                else:
+                    reduction = False
+            elif i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
                 reduction = True
             else:
                 reduction = False
+
             cell = Cell(
                 steps,
                 multiplier,
