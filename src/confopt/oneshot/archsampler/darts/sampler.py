@@ -12,9 +12,12 @@ class DARTSSampler(BaseSampler):
         self,
         arch_parameters: list[torch.Tensor],
         sample_frequency: Literal["epoch", "step"] = "step",
+        arch_combine_fn: Literal["default", "sigmoid"] = "default",
     ) -> None:
         super().__init__(
-            arch_parameters=arch_parameters, sample_frequency=sample_frequency
+            arch_parameters=arch_parameters,
+            sample_frequency=sample_frequency,
+            arch_combine_fn=arch_combine_fn,
         )
 
     def sample_alphas(
@@ -22,6 +25,10 @@ class DARTSSampler(BaseSampler):
     ) -> list[torch.Tensor] | None:
         sampled_alphas = []
         for alpha in arch_parameters:
-            sampled_alpha = torch.nn.functional.softmax(alpha, dim=-1)
+            if self.arch_combine_fn == "default":
+                sampled_alpha = torch.nn.functional.softmax(alpha, dim=-1)
+            elif self.arch_combine_fn == "sigmoid":
+                sampled_alpha = torch.nn.functional.sigmoid(alpha)
+
             sampled_alphas.append(sampled_alpha)
         return sampled_alphas
