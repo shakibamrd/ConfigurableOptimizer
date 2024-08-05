@@ -1,17 +1,17 @@
 import unittest
 
 from confopt.profiles import (
-    DartsProfile,
+    DARTSProfile,
     DRNASProfile,
     GDASProfile,
-    ProfileConfig,
+    BaseProfile,
     SNASProfile,
 )
 
 
-class TestProfileConfig(unittest.TestCase):
+class TestBaseProfile(unittest.TestCase):
     def test_config_change(self) -> None:
-        profile = ProfileConfig(
+        profile = BaseProfile(
             "TEST",
             epochs=1,
             is_partial_connection=True,
@@ -26,7 +26,7 @@ class TestProfileConfig(unittest.TestCase):
             "epsilon": 0.5,
         }
 
-        trainer_config = {"use_ddp": True}
+        trainer_config = {"use_data_parallel": True}
 
         profile.configure_partial_connector(**partial_connector_config)
         profile.configure_perturbator(**perturbator_config)
@@ -35,12 +35,12 @@ class TestProfileConfig(unittest.TestCase):
         assert profile.partial_connector_config["k"] == partial_connector_config["k"]
         assert profile.perturb_config["epsilon"] == perturbator_config["epsilon"]
         assert (
-            profile.trainer_config["use_ddp"]
-            == trainer_config["use_ddp"]
+            profile.trainer_config["use_data_parallel"]
+            == trainer_config["use_data_parallel"]
         )
 
     def test_invalid_configuration(self) -> None:
-        profile = ProfileConfig(
+        profile = BaseProfile(
             "TEST",
             epochs=1,
             is_partial_connection=True,
@@ -78,7 +78,7 @@ class TestDartsProfile(unittest.TestCase):
         partial_connector_config = {
             "k": 2,
         }
-        profile = DartsProfile(
+        profile = DARTSProfile(
             epochs=100,
             is_partial_connection=True,
             perturbation="random",
@@ -98,7 +98,7 @@ class TestDartsProfile(unittest.TestCase):
         }
 
         with self.assertRaises(AssertionError):
-            profile = DartsProfile(  # noqa: F841
+            profile = DARTSProfile(  # noqa: F841
                 epochs=100,
                 is_partial_connection=True,
                 perturbation="random",
@@ -108,7 +108,7 @@ class TestDartsProfile(unittest.TestCase):
             )
 
     def test_sampler_change(self) -> None:
-        profile = DartsProfile(
+        profile = DARTSProfile(
             epochs=100,
             sampler_sample_frequency="step",
         )
@@ -123,7 +123,7 @@ class TestDartsProfile(unittest.TestCase):
             profile.configure_sampler(invalid_config="step")
 
     def test_sampler_post_fn(self) -> None:
-        profile = DartsProfile(epochs=1)
+        profile = DARTSProfile(epochs=1)
         assert profile.sampler_config["arch_combine_fn"] == "default"
         sampler_config = {"arch_combine_fn": "sigmoid"}
         profile.configure_sampler(**sampler_config)

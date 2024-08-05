@@ -32,9 +32,9 @@ from confopt.oneshot.perturbator import SDARTSPerturbator
 from confopt.oneshot.pruner.pruner import Pruner
 from confopt.oneshot.weightentangler import WeightEntangler
 from confopt.profiles import (
+    BaseProfile,
     DiscreteProfile,
     GDASProfile,
-    ProfileConfig,
 )
 from confopt.searchspace import (
     BabyDARTSSearchSpace,
@@ -52,7 +52,7 @@ from confopt.searchspace import (
 from confopt.searchspace import (
     DARTSGenotype as Genotype,  # noqa: F401
 )
-from confopt.train import ConfigurableTrainer, DiscreteTrainer, Profile
+from confopt.train import ConfigurableTrainer, DiscreteTrainer, SearchSpaceHandler
 from confopt.utils import Logger
 from confopt.utils import distributed as dist_utils
 from confopt.utils.time import check_date_format
@@ -159,9 +159,9 @@ class Experiment:
     def cleanup_ddp(self) -> None:
         dist_utils.cleanup()
 
-    def run_with_profile(
+    def train_supernet(
         self,
-        profile: ProfileConfig,
+        profile: BaseProfile,
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
@@ -185,7 +185,7 @@ class Experiment:
             oles = False
             calc_gm_score = False
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
-        return self.runner(
+        return self._train_supernet(
             config,
             start_epoch,
             load_saved_model,
@@ -196,7 +196,7 @@ class Experiment:
             calc_gm_score,
         )
 
-    def runner(
+    def _train_supernet(
         self,
         config: dict | None = None,
         start_epoch: int = 0,
@@ -330,7 +330,7 @@ class Experiment:
         )
 
         trainer.train(
-            profile=self.profile,  # type: ignore
+            search_space_handler=self.profile,  # type: ignore
             is_wandb_log=self.is_wandb_log,
             lora_warm_epochs=config["trainer"].get(  # type: ignore
                 "lora_warm_epochs", 0
@@ -490,7 +490,7 @@ class Experiment:
     def set_profile(self, config: dict) -> None:
         assert self.sampler is not None
 
-        self.profile = Profile(
+        self.profile = SearchSpaceHandler(
             sampler=self.sampler,
             edge_normalization=self.edge_normalization,
             partial_connector=self.partial_connector,
@@ -556,7 +556,7 @@ class Experiment:
             )
         return None
 
-    def run_discrete_model_with_profile(
+    def train_discrete_model(
         self,
         profile: DiscreteProfile,
         start_epoch: int = 0,
@@ -570,7 +570,7 @@ class Experiment:
         )
         genotype_str = profile.get_genotype()
 
-        return self.run_discrete_model(
+        return self._train_discrete_model(
             searchspace_config=searchspace_config,
             train_config=train_config,
             start_epoch=start_epoch,
@@ -674,7 +674,7 @@ class Experiment:
         return model, genotype_str  # type: ignore
 
     # refactor the name to train
-    def run_discrete_model(
+    def _train_discrete_model(
         self,
         searchspace_config: dict,
         train_config: dict,
@@ -935,7 +935,7 @@ if __name__ == "__main__":
     # )
 
     profile = DiscreteProfile()
-    discret_trainer = experiment.run_discrete_model_with_profile(
+    discret_trainer = experiment.train_discrete_model(
         profile,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
