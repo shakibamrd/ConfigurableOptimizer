@@ -111,6 +111,13 @@ def read_args() -> argparse.Namespace:
         "--debug_mode", action="store_true", help="run experiment in debug mode"
     )
 
+    parser.add_argument(
+        "--full_fidelity_supernet",
+        action="store_true",
+        default=False,
+        help="use the largest supernet",
+    )
+
     args = parser.parse_args()
     return args
 
@@ -172,12 +179,32 @@ if __name__ == "__main__":
     # Extra info for wandb tracking
     project_name = "confopt"
 
-    n_layers_key = "layers" if args.searchspace == "darts" else "N"
     search_space_config = {
         "num_classes": dataset_size[args.dataset],
-        n_layers_key: 2,
-        "C": 64,
     }
+
+    if args.full_fidelity_supernet is True:
+        if args.searchspace == "darts":
+            search_space_config = {
+                "layers": 20,
+                "C": 36,
+            }
+        elif args.searchspace == "nb201":
+            search_space_config = {
+                "N": 5,
+                "C": 16,
+            }
+    else:
+        if args.searchspace == "darts":
+            search_space_config = {
+                "layers": 2,
+                "C": 72,
+            }
+        elif args.searchspace == "nb201":
+            search_space_config = {
+                "N": 1,
+                "C": 32,
+            }
 
     profile.configure_extra_config(
         {
