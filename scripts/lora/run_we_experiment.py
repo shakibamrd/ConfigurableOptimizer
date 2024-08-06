@@ -163,10 +163,6 @@ if __name__ == "__main__":
     elif args.sampler == "gdas":
         profile = get_gdas_configuration(args)
 
-    searchspace_config = {
-        "num_classes": dataset_size[args.dataset],
-    }
-    profile.set_searchspace_config(searchspace_config)
     profile.configure_lora_config(
         lora_dropout=args.lora_dropout,  # type: ignore
         merge_weights=args.lora_merge_weights,  # type: ignore
@@ -176,8 +172,10 @@ if __name__ == "__main__":
     # Extra info for wandb tracking
     project_name = "confopt"
 
+    n_layers_key = "layers" if args.searchspace == "darts" else "N"
     search_space_config = {
-        "layers": 2,
+        "num_classes": dataset_size[args.dataset],
+        n_layers_key: 2,
         "C": 64,
     }
 
