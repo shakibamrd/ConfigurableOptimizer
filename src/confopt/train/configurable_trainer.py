@@ -368,6 +368,7 @@ class ConfigurableTrainer:
             base_loss.backward()
 
             network_module = network.module if self.use_data_parallel else network
+            """
             if hasattr(network_module, "get_mean_layer_alignment_score"):
                 (
                     score_normal,
@@ -375,7 +376,7 @@ class ConfigurableTrainer:
                 ) = network_module.get_mean_layer_alignment_score()
                 layer_alignment_scores[0].update(val=score_normal)  # type: ignore
                 layer_alignment_scores[1].update(val=score_reduce)  # type: ignore
-
+            """
             if self.use_data_parallel:
                 torch.nn.utils.clip_grad_norm_(
                     network.module.model_weight_parameters(), 5
