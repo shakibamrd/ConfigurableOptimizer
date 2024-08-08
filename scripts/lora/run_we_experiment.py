@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import argparse
 import json
 
@@ -189,6 +190,7 @@ if __name__ == "__main__":
                 "layers": 20,
                 "C": 36,
             }
+            profile.configure_trainer(batch_size=48)
         elif args.searchspace == "nb201":
             search_space_config = {
                 "N": 5,
@@ -209,7 +211,7 @@ if __name__ == "__main__":
     profile.configure_extra_config(
         {
             "project_name": project_name,
-            "experiment_type": "2cells_wide",
+            "experiment_type": "full-depth" if args.full_fidelity_supernet else "shallow-wide",
         }
     )
 
@@ -220,10 +222,12 @@ if __name__ == "__main__":
     # Experiment name for logging
     experiment_name = f"{args.sampler}"
 
+    seed = int(os.environ["SLURM_PROCID"])
+
     experiment = Experiment(
         search_space=SearchSpaceType(args.searchspace),
         dataset=DatasetType(args.dataset),
-        seed=args.seed,
+        seed=seed,
         is_wandb_log=args.wandb_log,
         debug_mode=args.debug_mode,
         exp_name=experiment_name,
