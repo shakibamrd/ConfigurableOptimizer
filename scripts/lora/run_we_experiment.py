@@ -178,7 +178,7 @@ if __name__ == "__main__":
     )
 
     # Extra info for wandb tracking
-    project_name = "confopt"
+    project_name = "confopt-research-talk"
 
     search_space_config = {
         "num_classes": dataset_size[args.dataset],
@@ -202,6 +202,7 @@ if __name__ == "__main__":
                 "layers": 2,
                 "C": 72,
             }
+            profile.configure_trainer(batch_size=48)
         elif args.searchspace == "nb201":
             search_space_config = {
                 "N": 1,
