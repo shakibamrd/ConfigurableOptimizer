@@ -135,7 +135,7 @@ class Experiment:
         is_wandb_log: bool = False,
         debug_mode: bool = False,
         exp_name: str = "test",
-        runtime: str = "",
+        runtime: str | None = None,
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
@@ -797,6 +797,7 @@ class Experiment:
             start_epoch=start_epoch,
             checkpointing_freq=trainer_arguments.checkpointing_freq,  # type: ignore
             epochs=trainer_arguments.epochs,  # type: ignore
+            debug_mode=self.debug_mode,
         )
 
         trainer.train(
