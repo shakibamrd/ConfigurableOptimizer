@@ -20,11 +20,6 @@ Run the tests
 pytest tests
 ```
 
-Run with the slow benchmark tests
-```
-pytest --benchmark tests
-```
-
 Try running an example
 ```
 python examples/run_lora_darts.py
