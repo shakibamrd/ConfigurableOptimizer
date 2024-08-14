@@ -1,5 +1,5 @@
 [project]
-name = "configurable-optimizer"
+name = "LoRA-DARTS"
 version = "0.0.0"
 dependencies = [
     "torch",
@@ -19,7 +19,7 @@ authors = [
   { name="Frank Hutter", email="fh@cs.uni-freiburg.de"},
 ]
 readme = "README.md"
-description = "Breaks down one-shot optimizers into their core ideas and modularizes them."
+description = "Applies LoRA modules to gradient-based one-shot NAS."
 classifiers = [
   'Intended Audience :: Science/Research',
   'Intended Audience :: Developers',
@@ -102,8 +102,8 @@ doc = [
 ]
 
 [project.urls]
-documentation = "https://github.com/automl/ConfigurableOptimizer"
-source = "https://github.com/automl/ConfigurableOptimizer"
+documentation = "https://github.com/automl/LoRA-DARTS"
+source = "https://github.com/automl/LoRA-DARTS"
 
 # https://docs.pytest.org/en/7.2.x/reference/reference.html#ini-options-ref
 [tool.pytest.ini_options]
