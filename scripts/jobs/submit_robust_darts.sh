@@ -11,9 +11,9 @@ echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CUPS_PER_NODE gpus per node w
 start=`date +%s`
 
 source ~/.bashrc
-conda activate confopt
+conda activate lora_darts
 
-python scripts/lora/run_robust_darts.py --use_lora --lora_warm_epoch 10 --lora_rank 1 --lora_merge_weights --sampler "darts" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
+python scripts/lora/run_robust_darts_experiment.py --use_lora --lora_warm_epoch 10 --lora_rank 1 --lora_merge_weights --sampler "darts" --wandb_log --space "s2" --seed $SLURM_ARRAY_TASK_ID
 
 end=`date +%s`
 runtime=$((end-start))

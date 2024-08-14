@@ -29,7 +29,7 @@ echo "$genotype"
 start=`date +%s`
 
 source ~/.bashrc
-conda activate confopt
+conda activate lora_darts
 
 # export WANDB_MODE="offline"
 # echo "$genotype"

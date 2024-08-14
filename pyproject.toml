@@ -12,7 +12,12 @@ dependencies = [
     "fvcore",
 ]
 requires-python = ">=3.8"
-authors = [{ name = "Anonymous author", email = "anon_author@email.com" }]
+authors = [
+  { name="Arjun Krishnakumar", email="krishnan@cs.uni-freiburg.de" },
+  { name="Abhash Kumar Jha", email="jhaa@cs.uni-freiburg.de"},
+  { name="Shakiba Moradian", email="moradias@cs.uni-freiburg.de"},
+  { name="Frank Hutter", email="fh@cs.uni-freiburg.de"},
+]
 readme = "README.md"
 description = "Breaks down one-shot optimizers into their core ideas and modularizes them."
 classifiers = [
