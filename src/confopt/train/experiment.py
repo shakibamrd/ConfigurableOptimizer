@@ -23,6 +23,7 @@ from confopt.oneshot.archsampler import (
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
+    ReinMaxSampler,
     SNASSampler,
 )
 from confopt.oneshot.dropout import Dropout
@@ -86,6 +87,7 @@ class SamplerType(Enum):
     DRNAS = "drnas"
     GDAS = "gdas"
     SNAS = "snas"
+    REINMAX = "reinmax"
 
 
 class PerturbatorType(Enum):
@@ -441,6 +443,8 @@ class Experiment:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.SNAS:
             self.sampler = SNASSampler(**config, arch_parameters=arch_params)
+        elif sampler == SamplerType.REINMAX:
+            self.sampler = ReinMaxSampler(**config, arch_parameters=arch_params)
 
     def set_perturbator(
         self,
