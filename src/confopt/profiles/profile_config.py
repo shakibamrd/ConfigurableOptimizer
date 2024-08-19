@@ -18,11 +18,15 @@ class BaseProfile:
     def __init__(
         self,
         sampler_type: str,
-        epochs: int = 100,
+        epochs: int,
+        *,
         is_partial_connection: bool = False,
+        partial_connector_config: dict | None = None,
         dropout: float | None = None,
+        sampler_sample_frequency: str = "step",
         perturbation: str | None = None,
         perturbator_sample_frequency: str = "epoch",
+        perturbator_config: dict | None = None,
         sampler_arch_combine_fn: str = "default",
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
@@ -37,7 +41,8 @@ class BaseProfile:
         prune_num_keeps: list[int] | None = None,
         is_arch_attention_enabled: bool = False,
     ) -> None:
-        self.sampler_type = str.lower(sampler_type)
+        self.sampler_type = sampler_type
+        self.sampler_sample_frequency = sampler_sample_frequency
         self.epochs = epochs
         self.lora_warm_epochs = lora_warm_epochs
         self.seed = seed
@@ -58,6 +63,12 @@ class BaseProfile:
         self._set_oles_configs(oles, calc_gm_score)
         self._set_pruner_configs(prune_epochs, prune_num_keeps)
         self.is_arch_attention_enabled = is_arch_attention_enabled
+
+        if partial_connector_config is not None:
+            self.configure_partial_connector(**partial_connector_config)
+
+        if perturbator_config is not None:
+            self.configure_perturbator(**perturbator_config)
 
     def _set_pruner_configs(
         self,
