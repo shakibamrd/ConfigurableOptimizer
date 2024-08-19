@@ -7,7 +7,7 @@ import torch
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 # TODO Change this to real data
-ADVERSERIAL_DATA = (
+ADVERSARIAL_DATA = (
     torch.randn(2, 3, 32, 32).to(DEVICE),
     torch.randint(0, 9, (2,)).to(DEVICE),
 )
@@ -99,6 +99,7 @@ class BaseProfile:
     ) -> None:
         self.lora_config = {
             "r": lora_rank,
+            "lora_warm_epochs": lora_warm_epochs,
             "lora_dropout": lora_dropout,
             "lora_alpha": lora_alpha,
             "merge_weights": merge_weights,
@@ -124,8 +125,8 @@ class BaseProfile:
         perturb_type: str | None = None,
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
-        assert perturbator_sample_frequency in ["epoch", "step"]
-        assert perturb_type in ["adverserial", "random", "none", None]
+        assert perturbator_sample_frequency in ["epoch", "step"], "Invalid frequency"
+        assert perturb_type in ["adversarial", "random", "none", None], "Invalid type"
         if perturb_type is None:
             self.perturb_type = "none"
         else:
@@ -183,10 +184,10 @@ class BaseProfile:
 
     @abstractmethod
     def _initialize_perturbation_config(self) -> None:
-        if self.perturb_type == "adverserial":
+        if self.perturb_type == "adversarial":
             perturb_config = {
                 "epsilon": 0.3,
-                "data": ADVERSERIAL_DATA,
+                "data": ADVERSARIAL_DATA,
                 "loss_criterion": torch.nn.CrossEntropyLoss(),
                 "steps": 20,
                 "random_start": True,
@@ -250,7 +251,7 @@ class BaseProfile:
         self.dropout_config = dropout_config
 
     def configure_sampler(self, **kwargs) -> None:  # type: ignore
-        assert self.sampler_config is not None
+        assert self.sampler_config is not None, "sampler_config is None"
         for config_key in kwargs:
             assert (
                 config_key in self.sampler_config  # type: ignore
@@ -262,7 +263,7 @@ class BaseProfile:
         assert (
             self.perturb_type != "none"
         ), "Perturbator is initialized with None, \
-            re-initialize with random or adverserial"
+            re-initialize with random or adversarial"
 
         for config_key in kwargs:
             assert (

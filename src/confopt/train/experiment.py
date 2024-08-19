@@ -62,7 +62,7 @@ from confopt.utils.time import check_date_format
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # TODO Change this to real data
-ADVERSERIAL_DATA = (
+ADVERSARIAL_DATA = (
     torch.randn(2, 3, 32, 32).to(DEVICE),
     torch.randint(0, 9, (2,)).to(DEVICE),
 )
@@ -92,7 +92,7 @@ class SamplerType(Enum):
 
 class PerturbatorType(Enum):
     RANDOM = "random"
-    ADVERSERIAL = "adverserial"
+    ADVERSARIAL = "adversarial"
     NONE = "none"
 
 
@@ -846,7 +846,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--perturbator",
         default="none",
-        help="Type of perturbation in (none, random, adverserial)",
+        help="Type of perturbation in (none, random, adversarial)",
         type=str,
     )
     parser.add_argument(
