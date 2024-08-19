@@ -58,7 +58,6 @@ class DARTSProfile(BaseProfile, ABC):
             prune_num_keeps,
             is_arch_attention_enabled,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -127,7 +126,6 @@ class GDASProfile(BaseProfile, ABC):
             prune_num_keeps,
             is_arch_attention_enabled,
         )
-        self.sampler_type = str.lower(self.PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -205,7 +203,6 @@ class SNASProfile(BaseProfile, ABC):
             prune_num_keeps,
             is_arch_attention_enabled,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)
@@ -273,7 +270,6 @@ class DRNASProfile(BaseProfile, ABC):
             prune_num_keeps,
             is_arch_attention_enabled,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
         if partial_connector_config is not None:
             self.configure_partial_connector(**partial_connector_config)

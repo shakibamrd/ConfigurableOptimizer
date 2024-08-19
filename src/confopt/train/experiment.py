@@ -173,7 +173,6 @@ class Experiment:
         config = profile.get_config()
         run_name = profile.get_name_wandb_run()
 
-        assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection

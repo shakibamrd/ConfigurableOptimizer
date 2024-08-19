@@ -17,7 +17,7 @@ INIT_CHANNEL_NUM = 16
 class BaseProfile:
     def __init__(
         self,
-        config_type: str,
+        sampler_type: str,
         epochs: int = 100,
         is_partial_connection: bool = False,
         dropout: float | None = None,
@@ -37,7 +37,7 @@ class BaseProfile:
         prune_num_keeps: list[int] | None = None,
         is_arch_attention_enabled: bool = False,
     ) -> None:
-        self.config_type = config_type
+        self.sampler_type = str.lower(sampler_type)
         self.epochs = epochs
         self.lora_warm_epochs = lora_warm_epochs
         self.seed = seed
@@ -57,8 +57,6 @@ class BaseProfile:
         self.entangle_op_weights = entangle_op_weights
         self._set_oles_configs(oles, calc_gm_score)
         self._set_pruner_configs(prune_epochs, prune_num_keeps)
-        PROFILE_TYPE = "BASE"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.is_arch_attention_enabled = is_arch_attention_enabled
 
     def _set_pruner_configs(
@@ -246,7 +244,7 @@ class BaseProfile:
             assert (
                 config_key in self.sampler_config  # type: ignore
             ), f"{config_key} not a valid configuration for the sampler of type \
-                {self.config_type}"
+                {self.sampler_type}"
             self.sampler_config[config_key] = kwargs[config_key]  # type: ignore
 
     def configure_perturbator(self, **kwargs) -> None:  # type: ignore
