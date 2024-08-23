@@ -34,6 +34,7 @@ class DARTSProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "DARTS"
         self.sampler_sample_frequency = sampler_sample_frequency
@@ -57,6 +58,7 @@ class DARTSProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
 
@@ -102,6 +104,7 @@ class GDASProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        pt_select_architecture: bool = False,
     ) -> None:
         self.sampler_sample_frequency = sampler_sample_frequency
         self.tau_min = tau_min
@@ -126,6 +129,7 @@ class GDASProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            pt_select_architecture,
         )
         self.sampler_type = str.lower(self.PROFILE_TYPE)
 
@@ -177,6 +181,7 @@ class SNASProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "SNAS"
         self.sampler_sample_frequency = sampler_sample_frequency
@@ -204,6 +209,7 @@ class SNASProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
 
@@ -249,6 +255,7 @@ class DRNASProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "DRNAS"
         self.sampler_sample_frequency = sampler_sample_frequency
@@ -272,6 +279,7 @@ class DRNASProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
 
