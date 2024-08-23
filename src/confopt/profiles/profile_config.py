@@ -213,7 +213,11 @@ class BaseProfile:
 
     @abstractmethod
     def _initialize_partial_connector_config(self) -> None:
-        partial_connector_config = {"k": 4} if self.is_partial_connection else None
+        if self.is_partial_connection:
+            partial_connector_config = {"k": 4}
+            self.set_searchspace_config({"k": 4})
+        else:
+            partial_connector_config = None
         self.partial_connector_config = partial_connector_config
 
     @abstractmethod
@@ -289,6 +293,9 @@ class BaseProfile:
             self.partial_connector_config[config_key] = kwargs[  # type: ignore
                 config_key
             ]
+
+        if kwargs.get("k"):
+            self.set_searchspace_config({"k": kwargs["k"]})
 
     def configure_trainer(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
