@@ -32,8 +32,7 @@ class OperationChoices(nn.Module):
             return
 
         for op in self.ops:
-            if not (isinstance(op, (nn.AvgPool2d, nn.MaxPool2d))):
-                op.change_channel_size(k=1 / wider, device=DEVICE)  # type: ignore
+            op.change_channel_size(k=1 / wider, device=DEVICE)  # type: ignore
 
 
 class OperationBlock(nn.Module):
@@ -98,7 +97,6 @@ class OperationBlock(nn.Module):
             return
 
         for op in self.ops:
-            if not (isinstance(op, (nn.AvgPool2d, nn.MaxPool2d))):
-                op.change_channel_size(k=1 / wider, device=self.device)  # type: ignore
-                if hasattr(op, "__post__init__"):
-                    op.__post__init__()
+            op.change_channel_size(k=1 / wider, device=self.device)  # type: ignore
+            if hasattr(op, "__post__init__"):
+                op.__post__init__()
