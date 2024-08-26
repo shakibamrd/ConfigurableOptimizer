@@ -12,10 +12,16 @@ __all__ = ["OperationChoices"]
 
 
 class OperationChoices(nn.Module):
-    def __init__(self, ops: list[nn.Module], is_reduction_cell: bool = False) -> None:
+    def __init__(
+        self,
+        ops: list[nn.Module],
+        is_reduction_cell: bool = False,
+        device: torch.device = DEVICE,
+    ) -> None:
         super().__init__()
         self.ops = ops
         self.is_reduction_cell = is_reduction_cell
+        self.device = device
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
         assert len(alphas) == len(
