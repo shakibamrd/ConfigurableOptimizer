@@ -12,6 +12,7 @@ import torch.nn.functional as F  # noqa: N812
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
     calc_layer_alignment_score,
+    get_pos_new_cell_darts,
     get_pos_reductions_darts,
     preserve_gradients_in_module,
     prune,
@@ -907,6 +908,20 @@ class Network(nn.Module):
             new_cell.change_op_channel_size()
 
         return new_cell
+
+    def insert_new_cells(self, num_of_cells: int) -> None:
+        for i in range(self._layers, self._layers + num_of_cells):
+            pos = get_pos_new_cell_darts(i)
+            self.cells.insert(pos, self.create_new_cell(pos))
+            self._layers += 1
+
+    def increase_channel_size(
+        self,
+        k: float | None = None,
+        num_channels_to_add: int | None = None,
+    ) -> None:
+        for cell in self.cells:
+            cell.increase_channel_size(k=k, num_channels_to_add=num_channels_to_add)
 
 
 def preserve_grads(m: nn.Module) -> None:

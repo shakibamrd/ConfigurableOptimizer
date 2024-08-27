@@ -214,3 +214,6 @@ class DARTSSearchSpace(
 
     def is_topology_supported(self) -> bool:
         return True
+
+    def insert_new_cells(self, num_of_cells: int) -> None:
+        self.model.insert_new_cells(num_of_cells)
