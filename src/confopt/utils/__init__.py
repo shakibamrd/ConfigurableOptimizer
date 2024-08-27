@@ -295,6 +295,20 @@ def get_pos_reductions_darts(layers: int) -> tuple[int, int]:
     return pos_reduction_1, pos_reduction_2
 
 
+def get_pos_new_cell_darts(layers: int) -> int:
+    if layers < 5:
+        return layers
+    part_no = (layers - 5) % 3
+    pos_reduction_1, pos_reduction_2 = get_pos_reductions_darts(layers=layers)
+    # if part_no == 2 add it as the last element
+    pos = layers
+    if part_no == 0:
+        pos = pos_reduction_1
+    elif part_no == 1:
+        pos = pos_reduction_2
+    return pos
+
+
 __all__ = [
     "calc_accuracy",
     "save_checkpoint",
@@ -318,4 +332,5 @@ __all__ = [
     "set_ops_to_prune",
     "update_gradient_matching_scores",
     "get_pos_reductions_darts",
+    "get_pos_new_cell_darts",
 ]
