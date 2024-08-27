@@ -5,7 +5,12 @@ import unittest
 
 import torch
 
-from confopt.utils import Logger, prepare_logger, get_pos_reductions_darts
+from confopt.utils import (
+    Logger,
+    prepare_logger,
+    get_pos_reductions_darts,
+    get_pos_new_cell_darts,
+)
 from confopt.utils.channel_shuffle import channel_shuffle
 
 
@@ -60,6 +65,12 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(get_pos_reductions_darts(8), (2, 5))
         # Test when layers = 9 nnnrnnrnn
         self.assertEqual(get_pos_reductions_darts(9), (3, 6))
+
+    def test_get_pos_new_cell_darts(self) -> None:
+        for i in range(2, 4):
+            self.assertEqual(get_pos_new_cell_darts(i), i)
+        self.assertEqual(get_pos_new_cell_darts(12), 8)
+        self.assertEqual(get_pos_new_cell_darts(19), 19)
 
 
 class TestLogger(unittest.TestCase):
