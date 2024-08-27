@@ -86,7 +86,13 @@ class ReLUConvBN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.ops(x)  # type: ignore
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
+    def change_channel_size(
+        self,
+        k: float | None = None,
+        num_channels_to_add: int | None = None,  # noqa: ARG002
+        new_cell: bool = False,  # noqa: ARG002
+        device: torch.device = DEVICE,
+    ) -> None:
         self.op[1], index = ch.change_channel_size_conv(self.op[1], k=k, device=device)
         self.op[2], _ = ch.change_features_bn(
             self.op[2], k=k, index=index, device=device
@@ -112,7 +118,13 @@ class Identity(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
+    def change_channel_size(
+        self,
+        k: float | None = None,
+        num_channels_to_add: int | None = None,
+        new_cell: bool = False,
+        device: torch.device = DEVICE,
+    ) -> None:
         pass
 
 
@@ -136,7 +148,14 @@ class Zero(nn.Module):
             :, :, :: self.stride, :: self.stride
         ]
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
+    def change_channel_size(
+        self,
+        k: float | None = None,
+        num_channels_to_add: int | None = None,  # noqa: ARG002
+        new_cell: bool = False,  # noqa: ARG002
+        device: torch.device = DEVICE,
+    ) -> None:
+        assert k is not None, "k must be provided for Zero operation"
         self.C_in = int(self.C_in // k)
         self.C_out = int(self.C_out // k)
         self.device = device
@@ -196,8 +215,14 @@ class FactorizedReduce(nn.Module):
         out = self.bn(out)
         return out
 
-    def change_channel_size(self, k: float, device: torch.device = DEVICE) -> None:
-        if k > 1:
+    def change_channel_size(
+        self,
+        k: float | None = None,
+        num_channels_to_add: int | None = None,  # noqa: ARG002
+        new_cell: bool = False,  # noqa: ARG002
+        device: torch.device = DEVICE,
+    ) -> None:
+        if k and k > 1:
             if self.stride == 2 and k > 1:
                 for i in range(2):
                     self.convs[i] = ch.reduce_conv_channels(
@@ -210,7 +235,7 @@ class FactorizedReduce(nn.Module):
             self.bn = ch.reduce_bn_features(self.bn, k)
             return
 
-        if self.stride == 2:
+        if k and self.stride == 2:
             num_channels_to_add_C_in = int(
                 max(1, self.convs[0].in_channels // int(1 / k - 1))
             )
