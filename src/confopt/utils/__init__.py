@@ -283,6 +283,18 @@ def prune(
     return mask
 
 
+def get_pos_reductions_darts(layers: int) -> tuple[int, int]:
+    pos_reduction_1 = (layers - 2) // 3 + (1 if (layers - 2) % 3 else 0)
+    if layers == 2:
+        pos_reduction_1 = 1
+    pos_reduction_2 = (
+        pos_reduction_1 + (layers - 2) // 3 + (1 if (layers - 2) % 3 == 2 else 0) + 1
+    )
+    if layers == 3:
+        pos_reduction_2 = 3
+    return pos_reduction_1, pos_reduction_2
+
+
 __all__ = [
     "calc_accuracy",
     "save_checkpoint",
@@ -305,4 +317,5 @@ __all__ = [
     "reset_gm_score_attributes",
     "set_ops_to_prune",
     "update_gradient_matching_scores",
+    "get_pos_reductions_darts",
 ]
