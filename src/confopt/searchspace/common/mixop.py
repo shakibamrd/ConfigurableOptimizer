@@ -49,6 +49,10 @@ class OperationChoices(nn.Module):
             if hasattr(op, "__post__init__"):
                 op.__post__init__()
 
+    def change_op_stride_size(self, new_stride: int) -> None:
+        for op in self.ops:
+            op.change_stride_size(new_stride)
+
 
 class OperationBlock(nn.Module):
     def __init__(
@@ -122,3 +126,7 @@ class OperationBlock(nn.Module):
             )  # type: ignore
             if hasattr(op, "__post__init__"):
                 op.__post__init__()
+
+    def change_op_stride_size(self, new_stride: int) -> None:
+        for op in self.ops:
+            op.change_stride_size(new_stride)
