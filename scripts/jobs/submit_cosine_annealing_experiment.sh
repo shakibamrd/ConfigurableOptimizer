@@ -36,7 +36,7 @@ conda activate confopt
 
 export WANDB_MODE="offline"
 
-python scripts/baselines/run_search.py --sampler $sampler --searchspace $searchspace --dataset $dataset --epochs $search_epochs --cosine_anneal_restarts_T0 $cosine_anneal_restarts_T0 --cosine_anneal_restarts_Tmult $cosine_anneal_restarts_Tmult --seed $SLURM_ARRAY_TASK_ID
+python scripts/baselines/run_search.py --sampler $sampler --searchspace $searchspace --dataset $dataset --search_epochs $search_epochs --cosine_anneal_restarts_T0 $cosine_anneal_restarts_T0 --cosine_anneal_restarts_Tmult $cosine_anneal_restarts_Tmult --seed $SLURM_ARRAY_TASK_ID
 
 end=`date +%s`
 runtime=$((end-start))
