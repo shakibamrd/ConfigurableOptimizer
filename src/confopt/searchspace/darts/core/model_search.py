@@ -224,7 +224,7 @@ class Cell(nn.Module):
 
         if self.reduction and new_cell:
             for op in self._ops:
-                op.change_op_channel_size(k=1 / 2)
+                op.change_op_channel_size(k=1 / 2, new_cell=True)
 
     def change_skip_connection_type(self, reduction: bool) -> None:
         idx = 0
@@ -245,7 +245,9 @@ class Cell(nn.Module):
         num_channels_to_add: int | None = None,
     ) -> None:
         for op in self._ops:
-            op.change_op_channel_size(k=k, num_channels_to_add=num_channels_to_add)
+            op.change_op_channel_size(
+                k=k, num_channels_to_add=num_channels_to_add, new_cell=True
+            )
 
 
 class Network(nn.Module):
