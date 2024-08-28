@@ -261,3 +261,25 @@ class PerturbationArchSelectionSupport(ModelWrapper):
         When projection mode is True, the weights used in forward are the
         projected weights.
         """
+
+
+class DrNASRegTermSupport(ModelWrapper):
+    @abstractmethod
+    def get_drnas_anchors(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Get the anchors used in DrNAS.
+
+        Returns:
+            torch.Tensor: The DrNAS regularization term of the model.
+        """
+        ...
+
+
+class FLOPSRegTermSupport(ModelWrapper):
+    @abstractmethod
+    def get_weighted_flops(self) -> torch.Tensor:
+        """Get the FLOPS regularization term of the model.
+
+        Returns:
+            torch.Tensor: The FLOPS regularization term of the model.
+        """
+        ...

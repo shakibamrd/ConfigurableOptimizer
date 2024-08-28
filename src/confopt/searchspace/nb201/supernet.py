@@ -6,7 +6,7 @@ from typing import Literal
 import torch
 from torch import nn
 
-from confopt.searchspace.common.base_search import (
+from confopt.searchspace.common import (
     ArchAttentionSupport,
     GradientMatchingScoreSupport,
     LayerAlignmentScoreSupport,

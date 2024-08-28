@@ -37,6 +37,8 @@ class BaseProfile:
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        is_regularization_enabled: bool = False,
+        regularization_config: dict | None = None,
         pt_select_architecture: bool = False,
     ) -> None:
         self.config_type = config_type
@@ -63,6 +65,10 @@ class BaseProfile:
         PROFILE_TYPE = "BASE"
         self.sampler_type = str.lower(PROFILE_TYPE)
         self.is_arch_attention_enabled = is_arch_attention_enabled
+        self._set_regularization(is_regularization_enabled)
+
+        if regularization_config is not None:
+            self.configure_regularization(**regularization_config)
 
     def _set_pt_select_configs(
         self,
@@ -149,6 +155,10 @@ class BaseProfile:
         self.dropout = dropout
         self._initialize_dropout_config()
 
+    def _set_regularization(self, is_regularization_enabled: bool = False) -> None:
+        self.is_regularization_enabled = is_regularization_enabled
+        self._initialize_regularization_config()
+
     def get_config(self) -> dict:
         assert (
             self.sampler_config is not None
@@ -174,6 +184,7 @@ class BaseProfile:
             "oles": self.oles_config,
             "pt_selection": self.pt_select_configs,
             "is_arch_attention_enabled": self.is_arch_attention_enabled,
+            "regularization": self.regularization_config,
         }
 
         if hasattr(self, "pruner_config"):
@@ -263,6 +274,16 @@ class BaseProfile:
         }
         self.dropout_config = dropout_config
 
+    def _initialize_regularization_config(self) -> None:
+        regularization_config = {
+            "reg_weights": [0.0],
+            "loss_weight": 1.0,
+            "active_reg_terms": [],
+            "drnas_config": {"reg_scale": 1e-3},
+            "flops_config": {},
+        }
+        self.regularization_config = regularization_config
+
     def configure_sampler(self, **kwargs) -> None:  # type: ignore
         assert self.sampler_config is not None
         for config_key in kwargs:
@@ -325,6 +346,19 @@ class BaseProfile:
                 config_key in self.oles_config
             ), f"{config_key} not a valid configuration for the oles config"
             self.oles_config[config_key] = kwargs[config_key]
+
+    def configure_regularization(self, **kwargs) -> None:  # type: ignore
+        for config_key in kwargs:
+            assert (
+                config_key in self.regularization_config
+            ), f"{config_key} not a valid configuration for the regularization config"
+
+            if isinstance(self.regularization_config[config_key], dict):
+                assert set(kwargs[config_key].keys()).issubset(
+                    self.regularization_config[config_key].keys()  # type: ignore
+                ), f"Invalid keys for the regularization config '{config_key}'"
+
+            self.regularization_config[config_key] = kwargs[config_key]
 
     def configure_pt_selection(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
