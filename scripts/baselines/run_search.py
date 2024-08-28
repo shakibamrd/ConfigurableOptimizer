@@ -104,7 +104,7 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--wandb_log", action="store_true", default=False, help="turn wandb logging on"
+        "--wandb_log", action="store_true", default=True, help="turn wandb logging on"
     )
 
     parser.add_argument(
