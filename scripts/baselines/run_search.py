@@ -183,8 +183,8 @@ if __name__ == "__main__":
     print(json.dumps(profile.get_config(), indent=2, default=str))
 
     scheduler_config = {
-        "T0": args.cosine_anneal_restarts_T0,
-        "Tmult": args.cosine_anneal_restarts_Tmult,
+        "T_0": args.cosine_anneal_restarts_T0,
+        "T_mult": args.cosine_anneal_restarts_Tmult,
     }
 
     profile.configure_trainer(scheduler_config=scheduler_config)
