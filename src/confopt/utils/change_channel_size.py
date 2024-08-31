@@ -101,7 +101,6 @@ def reduce_conv_channels(
             reduced_conv2d.bias.data[:new_out_channels] = conv2d_layer.bias.data[
                 :new_out_channels
             ].clone()
-
     return reduced_conv2d
 
 
@@ -130,21 +129,25 @@ def increase_in_channel_size_conv(
     device: torch.device = DEVICE,
 ) -> tuple[Conv2DLoRA, torch.Tensor]:
     assert isinstance(conv, Conv2DLoRA)
-    conv_weights = conv.conv.weight
+    conv_weights = conv.weight
     in_channels = conv_weights.size(1)
 
     if not torch.is_tensor(index):
         index = torch.randint(low=0, high=in_channels, size=(num_channels_to_add,))
 
+    optimizer_id, ref_id = get_optimizer_ids(conv_weights)
     conv.conv.weight = nn.Parameter(
         torch.cat([conv_weights, conv_weights[:, index, :, :].clone()], dim=1),
         requires_grad=True,
     )
+    set_optimizer_ids(conv.weight, optimizer_id, ref_id)
+    set_optimizer_ids(conv.conv.weight, optimizer_id, ref_id)
     conv.weight = conv.conv.weight
     conv.in_channels += num_channels_to_add
     conv.conv.in_channels += num_channels_to_add
     if hasattr(conv_weights, "in_index"):
-        conv.weight.in_index.append(index)
+        conv_weights.in_index.append(index)
+        conv.weight.in_index = conv_weights.in_index
     else:
         conv.weight.in_index = [index]
 
@@ -164,29 +167,32 @@ def increase_out_channel_size_conv(
     device: torch.device = DEVICE,
 ) -> tuple[Conv2DLoRA, torch.Tensor]:
     assert isinstance(conv, Conv2DLoRA)
-    conv_weight = conv.weight
-    out_channels = conv_weight.size(0)
+    conv_weights = conv.weight
+    out_channels = conv_weights.size(0)
 
-    if not torch.is_tensor(index):
+    if index is None:
         index = torch.randint(low=0, high=out_channels, size=(num_channels_to_add,))
 
+    optimizer_id, ref_id = get_optimizer_ids(conv_weights)
     conv.conv.weight = nn.Parameter(
-        torch.cat([conv_weight, conv_weight[index, :, :, :].clone()], dim=0),
+        torch.cat([conv_weights, conv_weights[index, :, :, :].clone()], dim=0),
         requires_grad=True,
     )
-
+    set_optimizer_ids(conv.weight, optimizer_id, ref_id)
+    set_optimizer_ids(conv.conv.weight, optimizer_id, ref_id)
     conv.weight = conv.conv.weight
     conv.out_channels += num_channels_to_add
     conv.conv.out_channels += num_channels_to_add
-    if hasattr(conv_weight, "out_index"):
-        conv.weight.out_index.append(index)
+    if hasattr(conv_weights, "out_index"):
+        conv_weights.out_index.append(index)
+        conv.weight.out_index = conv_weights.out_index
     else:
         conv.weight.out_index = [index]
     conv.weight.t = "conv"
-    if hasattr(conv_weight, "in_index"):
-        conv.weight.in_index = conv_weight.in_index
+    if hasattr(conv_weights, "in_index"):
+        conv.weight.in_index = conv_weights.in_index
     conv.weight.raw_id = (
-        conv_weight.raw_id if hasattr(conv_weight, "raw_id") else id(conv_weight)
+        conv_weights.raw_id if hasattr(conv_weights, "raw_id") else id(conv_weights)
     )
     return conv.to(device=device), index
 
@@ -239,7 +245,6 @@ def reduce_bn_features(
         reduced_batchnorm.bias.data[:new_num_features] = batchnorm_layer.bias.data[
             :new_num_features
         ].clone()
-
     return reduced_batchnorm
 
 
@@ -266,6 +271,7 @@ def increase_num_features_bn(
     index: torch.Tensor | None = None,
     device: torch.device = DEVICE,
 ) -> tuple[nn.BatchNorm2d, torch.Tensor]:
+    bn_weights = bn.weight
     running_mean = bn.running_mean
     running_var = bn.running_var
     if bn.affine:
@@ -277,15 +283,20 @@ def increase_num_features_bn(
     bn.running_mean = torch.cat([running_mean, running_mean[index].clone()])
     bn.running_var = torch.cat([running_var, running_var[index].clone()])
     if bn.affine:
+        optimizer_id_weight, ref_id_weight = get_optimizer_ids(bn.weight)
         bn.weight = nn.Parameter(
             torch.cat([weight, weight[index].clone()], dim=0), requires_grad=True
         )
+        set_optimizer_ids(bn.weight, optimizer_id_weight, ref_id_weight)
+        optimizer_id_bias, ref_id_bias = get_optimizer_ids(bn.bias)
         bn.bias = nn.Parameter(
             torch.cat([bias, bias[index].clone()], dim=0), requires_grad=True
         )
-        if hasattr(bn.weight, "out_index"):
-            bn.weight.out_index.append(index)
-            bn.bias.out_index.append(index)
+        set_optimizer_ids(bn.bias, optimizer_id_bias, ref_id_bias)
+        if hasattr(bn_weights, "out_index"):
+            bn_weights.out_index.append(index)
+            bn.weight.out_index = bn_weights.out_index
+            bn.bias.out_index = bn_weights.out_index
         else:
             bn.weight.out_index = [index]
             bn.bias.out_index = [index]
@@ -295,3 +306,24 @@ def increase_num_features_bn(
         bn.bias.raw_id = bias.raw_id if hasattr(bias, "raw_id") else id(bias)
     bn.num_features += num_features_to_add
     return bn.to(device=device), index
+
+
+def get_optimizer_ids(
+    module: torch.Tensor | Conv2DLoRA,
+) -> tuple[int | None, int | None]:
+    optimizer_id = None
+    ref_id = None
+    if hasattr(module, "optimizer_id"):
+        optimizer_id = module.optimizer_id
+    if hasattr(module, "ref_id"):
+        ref_id = module.ref_id
+    return optimizer_id, ref_id
+
+
+def set_optimizer_ids(
+    module: nn.Parameter, optimizer_id: int | None = None, ref_id: int | None = None
+) -> None:
+    if optimizer_id is not None:
+        module.optimizer_id = optimizer_id
+    if ref_id is not None:
+        module.ref_id = ref_id
