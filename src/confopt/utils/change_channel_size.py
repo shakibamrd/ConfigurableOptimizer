@@ -112,12 +112,17 @@ def increase_conv_channels(
 ) -> tuple[Conv2DLoRA, torch.Tensor]:
     if not isinstance(conv, (nn.Conv2d, Conv2DLoRA)):
         raise TypeError("Input must be a nn.Conv2d or a LoRA wrapped conv2d layer.")
+    assert k or num_channels_to_add
     if k:
-        num_channels_to_add = conv.in_channels * int(1 / k - 1)
-    assert num_channels_to_add
-    increased_conv, _ = increase_in_channel_size_conv(conv, num_channels_to_add)
+        num_in_channels_to_add = conv.in_channels * int(1 / k - 1)
+        num_out_channels_to_add = conv.out_channels * int(1 / k - 1)
+    if num_channels_to_add:
+        num_in_channels_to_add = num_channels_to_add
+        num_out_channels_to_add = num_channels_to_add
+
+    increased_conv, _ = increase_in_channel_size_conv(conv, num_in_channels_to_add)
     increased_conv, out_index = increase_out_channel_size_conv(
-        increased_conv, num_channels_to_add
+        increased_conv, num_out_channels_to_add
     )
     return increased_conv.to(device=device), out_index
 
