@@ -88,16 +88,18 @@ def increase_conv_channels(
     device: torch.device = DEVICE,
 ) -> tuple[Conv2DLoRA, torch.Tensor | None]:
     assert isinstance(conv_lora, Conv2DLoRA)
-
+    assert k or num_channels_to_add
     if k is not None:
         if k == 1:
             return conv_lora, None
-        num_channels_to_add = conv_lora.in_channels * int(1 / k - 1)
-    assert num_channels_to_add
-
-    increased_conv, _ = increase_in_channel_size_conv(conv_lora, num_channels_to_add)
+        num_in_channels_to_add = conv_lora.in_channels * int(1 / k - 1)
+        num_out_channels_to_add = conv_lora.out_channels * int(1 / k - 1)
+    if num_channels_to_add:
+        num_in_channels_to_add = num_channels_to_add
+        num_out_channels_to_add = num_channels_to_add
+    increased_conv, _ = increase_in_channel_size_conv(conv_lora, num_in_channels_to_add)
     increased_conv, out_index = increase_out_channel_size_conv(
-        increased_conv, num_channels_to_add
+        increased_conv, num_out_channels_to_add
     )
     return increased_conv.to(device=device), out_index
 
