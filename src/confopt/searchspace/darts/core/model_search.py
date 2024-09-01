@@ -184,19 +184,14 @@ class Cell(nn.Module):
     def change_preprocessing0_type(
         self,
         prev_reduction: bool = False,
-        reduction: bool = False,
+        # reduction: bool = False,
     ) -> None:
         if prev_reduction:
             self.preprocess0 = FactorizedReduce(self.C_prev_prev, self.C, affine=False)
-        elif reduction is True:
-            self.preprocess0 = ReLUConvBN(
-                self.C_prev_prev, self.C, 1, 1, 0, affine=False
-            )  # type: ignore
         else:
             self.preprocess0 = ReLUConvBN(
                 self.C_prev_prev, self.C, 1, 1, 0, affine=False
             )  # type: ignore
-        # TODO: copy optimizer id to new preprocess0
 
     def change_op_channel_size(
         self,
@@ -239,7 +234,6 @@ class Cell(nn.Module):
                         )
                     else:
                         self._ops[idx].ops[SKIP_CONNECTION] = Identity()
-                    # TODO: copy optimizer id to new skip connection
                 idx += 1
 
     def increase_channel_size(
@@ -873,7 +867,9 @@ class Network(nn.Module):
     def create_new_cell(self, pos: int) -> Cell:
         prev_cell = self.cells[pos - 1]
         new_cell = copy.deepcopy(prev_cell)
-        # TODO: copy optimizer_id refereces to new_cell
+        for new_param, param in zip(new_cell.parameters(), prev_cell.parameters()):
+            if hasattr(param, "optimizer_id"):
+                new_param.optimizer_id = param.optimizer_id
 
         new_cell.C = prev_cell.C
         new_cell.C_prev = prev_cell.C * self._multiplier
@@ -901,7 +897,7 @@ class Network(nn.Module):
             # update stride
             new_cell.change_op_stride_size(new_stride=2, is_reduction_cell=True)
             # have ReLUConvBN as pre0
-            new_cell.change_preprocessing0_type(reduction=True)
+            new_cell.change_preprocessing0_type()  # reduction=True)
 
         # reduction-normal->noraml
         elif self._layers in (6, 7):
