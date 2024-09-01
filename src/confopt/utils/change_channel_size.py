@@ -113,7 +113,7 @@ def increase_in_channel_size_conv(
     assert isinstance(conv_lora, Conv2DLoRA)
     assert num_channels_to_add is not None or index is not None
 
-    conv_weights = conv_lora.conv.weight
+    conv_weights = conv_lora.weight
     in_channels = conv_weights.size(1)
 
     if index is None:
@@ -130,7 +130,8 @@ def increase_in_channel_size_conv(
     conv_lora.in_channels += num_channels_to_add
     conv_lora.conv.in_channels += num_channels_to_add
     if hasattr(conv_weights, "in_index"):
-        conv_lora.weight.in_index.append(index)
+        conv_weights.in_index.append(index)
+        conv_lora.weight.in_index = conv_weights.in_index
     else:
         conv_lora.weight.in_index = [index]
 
@@ -152,17 +153,17 @@ def increase_out_channel_size_conv(
     assert isinstance(conv_lora, Conv2DLoRA)
     assert num_channels_to_add is not None or index is not None
 
-    conv_weight = conv_lora.weight
-    out_channels = conv_weight.size(0)
+    conv_weights = conv_lora.weight
+    out_channels = conv_weights.size(0)
 
     if index is None:
         index = torch.randint(low=0, high=out_channels, size=(num_channels_to_add,))
     else:
         num_channels_to_add = len(index)
 
-    optimizer_id, ref_id = get_optimizer_ids(conv_weight)
+    optimizer_id, ref_id = get_optimizer_ids(conv_weights)
     conv_lora.conv.weight = nn.Parameter(
-        torch.cat([conv_weight, conv_weight[index, :, :, :].clone()], dim=0),
+        torch.cat([conv_weights, conv_weights[index, :, :, :].clone()], dim=0),
         requires_grad=True,
     )
     set_optimizer_ids(conv_lora.weight, optimizer_id, ref_id)
@@ -170,15 +171,16 @@ def increase_out_channel_size_conv(
     conv_lora.weight = conv_lora.conv.weight
     conv_lora.out_channels += num_channels_to_add
     conv_lora.conv.out_channels += num_channels_to_add
-    if hasattr(conv_weight, "out_index"):
-        conv_lora.weight.out_index.append(index)
+    if hasattr(conv_weights, "out_index"):
+        conv_weights.out_index.append(index)
+        conv_lora.weight.out_index = conv_weights.out_index
     else:
         conv_lora.weight.out_index = [index]
     conv_lora.weight.t = "conv"
-    if hasattr(conv_weight, "in_index"):
-        conv_lora.weight.in_index = conv_weight.in_index
+    if hasattr(conv_weights, "in_index"):
+        conv_lora.weight.in_index = conv_weights.in_index
     conv_lora.weight.raw_id = (
-        conv_weight.raw_id if hasattr(conv_weight, "raw_id") else id(conv_weight)
+        conv_weights.raw_id if hasattr(conv_weights, "raw_id") else id(conv_weights)
     )
     return conv_lora.to(device=device), index
 
@@ -272,6 +274,7 @@ def increase_num_features_bn(
     else:
         num_features_to_add = len(index)
 
+    bn_weights = bn.weight
     running_mean = bn.running_mean
     running_var = bn.running_var
     if bn.affine:
@@ -290,9 +293,10 @@ def increase_num_features_bn(
             torch.cat([bias, bias[index].clone()], dim=0), requires_grad=True
         )
         set_optimizer_ids(bn.bias, optimizer_id_bias, ref_id_bias)
-        if hasattr(bn.weight, "out_index"):
-            bn.weight.out_index.append(index)
-            bn.bias.out_index.append(index)
+        if hasattr(bn_weights, "out_index"):
+            bn_weights.out_index.append(index)
+            bn.weight.out_index = bn_weights.out_index
+            bn.bias.out_index = bn_weights.out_index
         else:
             bn.weight.out_index = [index]
             bn.bias.out_index = [index]
