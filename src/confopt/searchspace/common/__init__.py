@@ -1,4 +1,13 @@
-from .base_search import SearchSpace
+from .base_search import (
+    ArchAttentionSupport,
+    DrNASRegTermSupport,
+    FLOPSRegTermSupport,
+    GradientMatchingScoreSupport,
+    LayerAlignmentScoreSupport,
+    OperationStatisticsSupport,
+    PerturbationArchSelectionSupport,
+    SearchSpace,
+)
 from .lora_layers import Conv2DLoRA, ConvLoRA, LoRALayer
 from .mixop import OperationBlock, OperationChoices
 
@@ -9,4 +18,11 @@ __all__ = [
     "Conv2DLoRA",
     "ConvLoRA",
     "LoRALayer",
+    "PerturbationArchSelectionSupport",
+    "DrNASRegTermSupport",
+    "FLOPSRegTermSupport",
+    "GradientMatchingScoreSupport",
+    "LayerAlignmentScoreSupport",
+    "OperationStatisticsSupport",
+    "ArchAttentionSupport",
 ]

@@ -6,8 +6,10 @@ from typing import Literal
 import torch
 from torch import nn
 
-from confopt.searchspace.common.base_search import (
+from confopt.searchspace.common import (
     ArchAttentionSupport,
+    DrNASRegTermSupport,
+    FLOPSRegTermSupport,
     GradientMatchingScoreSupport,
     LayerAlignmentScoreSupport,
     OperationStatisticsSupport,
@@ -30,6 +32,8 @@ class DARTSSearchSpace(
     GradientMatchingScoreSupport,
     OperationStatisticsSupport,
     LayerAlignmentScoreSupport,
+    DrNASRegTermSupport,
+    FLOPSRegTermSupport,
     PerturbationArchSelectionSupport,
 ):
     def __init__(self, *args, **kwargs):  # type: ignore
@@ -143,7 +147,10 @@ class DARTSSearchSpace(
         self.model.apply(partial_fn)
 
     def get_mean_layer_alignment_score(self) -> tuple[float, float]:
-        return self.model._get_mean_layer_alignment_score()
+        return self.model.get_mean_layer_alignment_score()
+
+    def get_first_and_last_layer_alignment_score(self) -> tuple[float, float]:
+        return self.model.get_mean_layer_alignment_score(only_first_and_last=True)
 
     def get_num_skip_ops(self) -> dict[str, int]:
         alphas_normal, alphas_reduce = self.model.arch_parameters()
@@ -155,6 +162,15 @@ class DARTSSearchSpace(
         }
 
         return stats
+
+    def get_drnas_anchors(self) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.model.anchor_normal, self.model.anchor_reduce
+
+    def get_weighted_flops(self) -> torch.Tensor:
+        ### TODO ###
+        ### Computed the FLOPS of the model, weighted by the architectural parameters
+
+        return torch.tensor(0.0)
 
     def get_num_ops(self) -> int:
         return self.model.num_ops

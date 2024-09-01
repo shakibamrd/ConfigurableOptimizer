@@ -34,6 +34,8 @@ class DARTSProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        is_regularization_enabled: bool = False,
+        regularization_config: dict | None = None,
         pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "DARTS"
@@ -58,6 +60,8 @@ class DARTSProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            is_regularization_enabled,
+            regularization_config,
             pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
@@ -181,6 +185,8 @@ class SNASProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        is_regularization_enabled: bool = False,
+        regularization_config: dict | None = None,
         pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "SNAS"
@@ -209,6 +215,8 @@ class SNASProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            is_regularization_enabled,
+            regularization_config,
             pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
@@ -255,6 +263,8 @@ class DRNASProfile(BaseProfile, ABC):
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
+        is_regularization_enabled: bool = False,
+        regularization_config: dict | None = None,
         pt_select_architecture: bool = False,
     ) -> None:
         PROFILE_TYPE = "DRNAS"
@@ -279,6 +289,8 @@ class DRNASProfile(BaseProfile, ABC):
             prune_epochs,
             prune_fractions,
             is_arch_attention_enabled,
+            is_regularization_enabled,
+            regularization_config,
             pt_select_architecture,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)

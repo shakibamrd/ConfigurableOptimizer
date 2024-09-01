@@ -130,9 +130,9 @@ class ReLUConvBN(nn.Module):
             index=index,
             device=device,
         )
-        if k:
-            self.C_in *= int(k)
-            self.C_out *= int(k)
+        if k is not None:
+            self.C_in = int(k * self.C_in)
+            self.C_out = int(k * self.C_out)
 
     def increase_in_channel_size(
         self, num_channels_to_add: int, device: torch.device = DEVICE
@@ -328,7 +328,7 @@ class DilConv(ConvolutionalWEModule):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        if k:
+        if k is not None:
             if k >= 1:
                 self.op[1] = ch.reduce_conv_channels(self.op[1], k, device)
                 self.op[2] = ch.reduce_conv_channels(self.op[2], k, device)
@@ -473,7 +473,7 @@ class SepConv(ConvolutionalWEModule):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        if k:
+        if k is not None:
             if k > 1:
                 self.op[1] = ch.reduce_conv_channels(self.op[1], k, device)
                 self.op[2] = ch.reduce_conv_channels(self.op[2], k, device)
@@ -732,7 +732,7 @@ class FactorizedReduce(nn.Module):
             This method dynamically changes the number of output channels in the block's
             convolutional layers and BatchNorm.
         """
-        if k:
+        if k is not None:
             if k >= 1:
                 self.conv_1 = ch.reduce_conv_channels(self.conv_1, k, device)
                 self.conv_2 = ch.reduce_conv_channels(self.conv_2, k, device)
