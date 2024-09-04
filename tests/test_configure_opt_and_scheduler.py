@@ -152,7 +152,7 @@ class TestConfigureOptimizer(unittest.TestCase):
                         .get("momentum_buffer")
                     )
                 else:
-                    opt_id = p.ref_id if hasattr(p, "ref_id") else p.optimizer_id
+                    opt_id = p.optimizer_id
                     expected_momentum_buffer = (
                         optimizer_new.state_dict()["state"]
                         .get(opt_id, {})
