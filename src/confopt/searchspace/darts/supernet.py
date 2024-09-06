@@ -169,8 +169,8 @@ class DARTSSearchSpace(
 
         return stats
 
-    def get_drnas_anchors(self) -> tuple[torch.Tensor, torch.Tensor]:
-        return self.model.anchor_normal, self.model.anchor_reduce
+    def get_drnas_anchors(self) -> list[torch.Tensor]:
+        return [self.model.anchor_normal, self.model.anchor_reduce]
 
     def get_weighted_flops(self) -> torch.Tensor:
         ### TODO ###
@@ -236,6 +236,9 @@ class DARTSSearchSpace(
 
     def is_topology_supported(self) -> bool:
         return True
+
+    def get_max_input_edges_at_node(self, selected_node: int) -> int:  # noqa: ARG002
+        return 2
 
     def insert_new_cells(self, num_of_cells: int) -> None:
         self.model.insert_new_cells(num_of_cells)
