@@ -35,6 +35,9 @@ class SearchSpace(ModelWrapper):
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         pass
 
+    def get_sampled_weights(self) -> list[nn.Parameter]:
+        return self.model.sampled_weights
+
     def get_cell_types(self) -> list[str]:
         return ["normal"]
 
@@ -501,3 +504,14 @@ class GradientStatsSupport(ModelWrapper):
                 self.arch_row_grads_meters[f"arch_param_{idx}_row_{row_idx}"].update(
                     row.norm(2).item()
                 )
+
+
+class FairDARTSRegTermSupport(ModelWrapper):
+    @abstractmethod
+    def get_fair_darts_arch_parameters(self) -> list[torch.Tensor]:
+        """Get the arch parameters used in FairDARTS.
+
+        Returns:
+            torch.Tensor: The FairDARTS regularization term of the model.
+        """
+        ...
