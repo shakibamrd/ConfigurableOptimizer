@@ -20,11 +20,15 @@ class BaseProfile:
         self,
         config_type: str,
         epochs: int = 100,
+        *,
+        sampler_sample_frequency: str = "step",
         is_partial_connection: bool = False,
         dropout: float | None = None,
         perturbation: str | None = None,
         perturbator_sample_frequency: str = "epoch",
         sampler_arch_combine_fn: str = "default",
+        partial_connector_config: dict | None = None,
+        perturbator_config: dict | None = None,
         entangle_op_weights: bool = False,
         lora_rank: int = 0,
         lora_warm_epochs: int = 0,
@@ -43,6 +47,9 @@ class BaseProfile:
     ) -> None:
         self.config_type = config_type
         self.epochs = epochs
+        self.sampler_sample_frequency = (
+            sampler_sample_frequency  # TODO-ICLR: Remove this
+        )
         self.lora_warm_epochs = lora_warm_epochs
         self.seed = seed
         self.searchspace_str = searchspace_str
@@ -69,6 +76,12 @@ class BaseProfile:
 
         if regularization_config is not None:
             self.configure_regularization(**regularization_config)
+
+        if partial_connector_config is not None:
+            self.configure_partial_connector(**partial_connector_config)
+
+        if perturbator_config is not None:
+            self.configure_perturbator(**perturbator_config)
 
     def _set_pt_select_configs(
         self,

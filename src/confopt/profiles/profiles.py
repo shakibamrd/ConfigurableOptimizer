@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections import namedtuple
+from typing import Any
 
 from confopt.utils import get_num_classes
 
@@ -14,63 +15,16 @@ class DARTSProfile(BaseProfile, ABC):
     def __init__(
         self,
         epochs: int,
-        is_partial_connection: bool = False,
-        dropout: float | None = None,
-        perturbation: str | None = None,
-        sampler_sample_frequency: str = "step",
-        sampler_arch_combine_fn: str = "default",
-        perturbator_sample_frequency: str = "epoch",
-        partial_connector_config: dict | None = None,
-        perturbator_config: dict | None = None,
-        entangle_op_weights: bool = False,
-        lora_rank: int = 0,
-        lora_warm_epochs: int = 0,
-        lora_toggle_epochs: list[int] | None = None,
-        lora_toggle_probability: float | None = None,
-        seed: int = 100,
-        searchspace_str: str = "nb201",
-        oles: bool = False,
-        calc_gm_score: bool = False,
-        prune_epochs: list[int] | None = None,
-        prune_fractions: list[float] | None = None,
-        is_arch_attention_enabled: bool = False,
-        is_regularization_enabled: bool = False,
-        regularization_config: dict | None = None,
-        pt_select_architecture: bool = False,
+        **kwargs: Any,
     ) -> None:
         PROFILE_TYPE = "DARTS"
-        self.sampler_sample_frequency = sampler_sample_frequency
+
         super().__init__(
             PROFILE_TYPE,
             epochs,
-            is_partial_connection,
-            dropout,
-            perturbation,
-            perturbator_sample_frequency,
-            sampler_arch_combine_fn,
-            entangle_op_weights,
-            lora_rank,
-            lora_warm_epochs,
-            lora_toggle_epochs,
-            lora_toggle_probability,
-            seed,
-            searchspace_str,
-            oles,
-            calc_gm_score,
-            prune_epochs,
-            prune_fractions,
-            is_arch_attention_enabled,
-            is_regularization_enabled,
-            regularization_config,
-            pt_select_architecture,
+            **kwargs,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
-
-        if partial_connector_config is not None:
-            self.configure_partial_connector(**partial_connector_config)
-
-        if perturbator_config is not None:
-            self.configure_perturbator(**perturbator_config)
 
     def _initialize_sampler_config(self) -> None:
         darts_config = {
@@ -86,62 +40,19 @@ class GDASProfile(BaseProfile, ABC):
     def __init__(
         self,
         epochs: int,
-        is_partial_connection: bool = False,
-        dropout: float | None = None,
-        perturbation: str | None = None,
-        sampler_sample_frequency: str = "step",
-        sampler_arch_combine_fn: str = "default",
-        perturbator_sample_frequency: str = "epoch",
         tau_min: float = 0.1,
         tau_max: float = 10,
-        partial_connector_config: dict | None = None,
-        perturbator_config: dict | None = None,
-        entangle_op_weights: bool = False,
-        lora_rank: int = 0,
-        lora_warm_epochs: int = 0,
-        lora_toggle_epochs: list[int] | None = None,
-        lora_toggle_probability: float | None = None,
-        seed: int = 100,
-        searchspace_str: str = "nb201",
-        oles: bool = False,
-        calc_gm_score: bool = False,
-        prune_epochs: list[int] | None = None,
-        prune_fractions: list[float] | None = None,
-        is_arch_attention_enabled: bool = False,
-        pt_select_architecture: bool = False,
+        **kwargs: Any,
     ) -> None:
-        self.sampler_sample_frequency = sampler_sample_frequency
         self.tau_min = tau_min
         self.tau_max = tau_max
+
         super().__init__(
             self.PROFILE_TYPE,
             epochs,
-            is_partial_connection,
-            dropout,
-            perturbation,
-            perturbator_sample_frequency,
-            sampler_arch_combine_fn,
-            entangle_op_weights,
-            lora_rank,
-            lora_warm_epochs,
-            lora_toggle_epochs,
-            lora_toggle_probability,
-            seed,
-            searchspace_str,
-            oles,
-            calc_gm_score,
-            prune_epochs,
-            prune_fractions,
-            is_arch_attention_enabled,
-            pt_select_architecture,
+            **kwargs,
         )
         self.sampler_type = str.lower(self.PROFILE_TYPE)
-
-        if partial_connector_config is not None:
-            self.configure_partial_connector(**partial_connector_config)
-
-        if perturbator_config is not None:
-            self.configure_perturbator(**perturbator_config)
 
     def _initialize_sampler_config(self) -> None:
         gdas_config = {
@@ -161,71 +72,23 @@ class SNASProfile(BaseProfile, ABC):
     def __init__(
         self,
         epochs: int,
-        is_partial_connection: bool = False,
-        dropout: float | None = None,
-        perturbation: str | None = None,
-        sampler_sample_frequency: str = "step",
-        sampler_arch_combine_fn: str = "default",
-        perturbator_sample_frequency: str = "epoch",
         temp_init: float = 1.0,
         temp_min: float = 0.33,
         temp_annealing: bool = True,
-        total_epochs: int = 250,
-        partial_connector_config: dict | None = None,
-        perturbator_config: dict | None = None,
-        entangle_op_weights: bool = False,
-        lora_rank: int = 0,
-        lora_warm_epochs: int = 0,
-        lora_toggle_epochs: list[int] | None = None,
-        lora_toggle_probability: float | None = None,
-        seed: int = 100,
-        searchspace_str: str = "nb201",
-        oles: bool = False,
-        calc_gm_score: bool = False,
-        prune_epochs: list[int] | None = None,
-        prune_fractions: list[float] | None = None,
-        is_arch_attention_enabled: bool = False,
-        is_regularization_enabled: bool = False,
-        regularization_config: dict | None = None,
-        pt_select_architecture: bool = False,
+        **kwargs: Any,
     ) -> None:
         PROFILE_TYPE = "SNAS"
-        self.sampler_sample_frequency = sampler_sample_frequency
         self.temp_init = temp_init
         self.temp_min = temp_min
         self.temp_annealing = temp_annealing
-        self.total_epochs = total_epochs
+        self.total_epochs = epochs
+
         super().__init__(  # type: ignore
             PROFILE_TYPE,
             epochs,
-            is_partial_connection,
-            dropout,
-            perturbation,
-            perturbator_sample_frequency,
-            sampler_arch_combine_fn,
-            entangle_op_weights,
-            lora_rank,
-            lora_warm_epochs,
-            lora_toggle_epochs,
-            lora_toggle_probability,
-            seed,
-            searchspace_str,
-            oles,
-            calc_gm_score,
-            prune_epochs,
-            prune_fractions,
-            is_arch_attention_enabled,
-            is_regularization_enabled,
-            regularization_config,
-            pt_select_architecture,
+            **kwargs,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
-
-        if partial_connector_config is not None:
-            self.configure_partial_connector(**partial_connector_config)
-
-        if perturbator_config is not None:
-            self.configure_perturbator(**perturbator_config)
 
     def _initialize_sampler_config(self) -> None:
         snas_config = {
@@ -243,63 +106,16 @@ class DRNASProfile(BaseProfile, ABC):
     def __init__(
         self,
         epochs: int,
-        is_partial_connection: bool = False,
-        dropout: float | None = None,
-        perturbation: str | None = None,
-        sampler_sample_frequency: str = "step",
-        perturbator_sample_frequency: str = "epoch",
-        sampler_arch_combine_fn: str = "default",
-        partial_connector_config: dict | None = None,
-        perturbator_config: dict | None = None,
-        entangle_op_weights: bool = False,
-        lora_rank: int = 0,
-        lora_warm_epochs: int = 0,
-        lora_toggle_epochs: list[int] | None = None,
-        lora_toggle_probability: float | None = None,
-        seed: int = 100,
-        searchspace_str: str = "nb201",
-        oles: bool = False,
-        calc_gm_score: bool = False,
-        prune_epochs: list[int] | None = None,
-        prune_fractions: list[float] | None = None,
-        is_arch_attention_enabled: bool = False,
-        is_regularization_enabled: bool = False,
-        regularization_config: dict | None = None,
-        pt_select_architecture: bool = False,
+        **kwargs: Any,
     ) -> None:
         PROFILE_TYPE = "DRNAS"
-        self.sampler_sample_frequency = sampler_sample_frequency
+
         super().__init__(  # type: ignore
             PROFILE_TYPE,
             epochs,
-            is_partial_connection,
-            dropout,
-            perturbation,
-            perturbator_sample_frequency,
-            sampler_arch_combine_fn,
-            entangle_op_weights,
-            lora_rank,
-            lora_warm_epochs,
-            lora_toggle_epochs,
-            lora_toggle_probability,
-            seed,
-            searchspace_str,
-            oles,
-            calc_gm_score,
-            prune_epochs,
-            prune_fractions,
-            is_arch_attention_enabled,
-            is_regularization_enabled,
-            regularization_config,
-            pt_select_architecture,
+            **kwargs,
         )
         self.sampler_type = str.lower(PROFILE_TYPE)
-
-        if partial_connector_config is not None:
-            self.configure_partial_connector(**partial_connector_config)
-
-        if perturbator_config is not None:
-            self.configure_perturbator(**perturbator_config)
 
     def _initialize_sampler_config(self) -> None:
         drnas_config = {
