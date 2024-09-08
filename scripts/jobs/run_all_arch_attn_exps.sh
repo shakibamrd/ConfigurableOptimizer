@@ -19,7 +19,7 @@ for space in "${spaces[@]}"; do
         fi
 
         echo scripts/jobs/submit_arch_attn_exp.sh $space $sampler $epochs
-        sbatch -J ${sampler}-${space}-k${k}-warm_epochs${warm_epochs} scripts/jobs/submit_arch_attn_partial_connection_exp.sh $space $sampler $epochs
+        sbatch -J ${sampler}-${space}-epochs${epochs} scripts/jobs/submit_arch_attn_exp.sh $space $sampler $epochs
 
     done
 done
