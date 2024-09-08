@@ -169,9 +169,9 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--is-rerun",
-        default="No",
-        help="Whether this is a rerun or not",
+        "--comments",
+        default="None",
+        help="Any additional comments",
         type=str,
     )
 
@@ -256,7 +256,7 @@ if __name__ == "__main__":
         {
             "project_name": project_name,
             "extra:research-question": args.rq,
-            "extra:is-rerun": args.is_rerun,
+            "extra:comments": args.comments,
         }
     )
 
