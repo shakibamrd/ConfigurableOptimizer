@@ -238,7 +238,7 @@ class BaseProfile:
     @abstractmethod
     def _initialize_partial_connector_config(self) -> None:
         if self.is_partial_connection:
-            partial_connector_config = {"k": 4}
+            partial_connector_config = {"k": 4, "num_warm_epoch": 15}
             self.set_searchspace_config({"k": 4})
         else:
             partial_connector_config = None
