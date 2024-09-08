@@ -18,10 +18,8 @@ for space in "${spaces[@]}"; do
             exit 1
         fi
 
-        for k in "${ks[@]}"; do
-            echo scripts/jobs/submit_arch_attn_exp.sh $space $sampler $epochs
-            sbatch -J ${sampler}-${space}-k${k}-warm_epochs${warm_epochs} scripts/jobs/submit_arch_attn_partial_connection_exp.sh $space $sampler $epochs
-        done
+        echo scripts/jobs/submit_arch_attn_exp.sh $space $sampler $epochs
+        sbatch -J ${sampler}-${space}-k${k}-warm_epochs${warm_epochs} scripts/jobs/submit_arch_attn_partial_connection_exp.sh $space $sampler $epochs
 
     done
 done
