@@ -261,7 +261,7 @@ class BaseProfile:
             "arch_optim_config": {
                 "weight_decay": 1e-3,
             },
-            "scheduler": "cosine_annealing_warm_restart",
+            "scheduler": "cosine_annealing_lr",
             "scheduler_config": {},
             "criterion": "cross_entropy",
             "batch_size": 64,
