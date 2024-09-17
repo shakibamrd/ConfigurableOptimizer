@@ -75,7 +75,7 @@ class NASBench1Shot1SearchSpace(
             old_params.data = new_params.data
 
     def get_genotype(self) -> Any:
-        return self.model.get_genotype()
+        return self.model.genotype()
 
     def get_weighted_flops(self) -> torch.Tensor:
         return self.model.get_weighted_flops()
