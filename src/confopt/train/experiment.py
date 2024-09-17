@@ -352,7 +352,11 @@ class Experiment:
         search_space: SearchSpaceType,
         config: dict,
     ) -> None:
-        if search_space == SearchSpaceType.NB201:
+        if search_space == SearchSpaceType.NB1SHOT1:
+            from confopt.benchmarks import NB101Benchmark
+
+            self.benchmark_api = NB101Benchmark("full")
+        elif search_space == SearchSpaceType.NB201:
             from confopt.benchmarks import NB201Benchmark
 
             self.benchmark_api = NB201Benchmark()
@@ -773,6 +777,7 @@ class Experiment:
             use_ddp=trainer_arguments.use_ddp,  # type: ignore
             print_freq=trainer_arguments.print_freq,  # type: ignore
             drop_path_prob=trainer_arguments.drop_path_prob,  # type: ignore
+            aux_weight=trainer_arguments.auxiliary_weight,  # type: ignore
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
             start_epoch=start_epoch,
