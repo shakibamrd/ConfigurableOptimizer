@@ -144,6 +144,21 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--oles-freq",
+        default=20,
+        help="Frequency of OLES",
+        type=int,
+    )
+
+    parser.add_argument(
+        "--oles-threshold",
+        default=0.4,
+        help="Threshold for OLES. If the GM score of a module is less than" +
+             "this threshold, it is frozen.",
+        type=float,
+    )
+
+    parser.add_argument(
         "--arch-attention-enabled",
         action="store_true",
         default=False,
@@ -200,8 +215,8 @@ def get_configuration(
         entangle_op_weights=args.entangle_op_weights,
         lora_rank=args.lora_rank,
         lora_warm_epochs=args.lora_warm_epochs,
-        lora_toggle_epochs=None,  # TODO-ICLR?: Add support for lora_toggle_epochs?
-        lora_toggle_probability=None,  # TODO-ICLR?: Add support for lora_toggle_probability?
+        lora_toggle_epochs=None,
+        lora_toggle_probability=None,
         seed=args.seed,
         searchspace_str=args.searchspace,
         oles=args.oles,
@@ -209,9 +224,9 @@ def get_configuration(
         prune_epochs=None,  # TODO-ICLR: Add support for pruning
         prune_fractions=None,  # TODO-ICLR: Add support for pruning
         is_arch_attention_enabled=args.arch_attention_enabled,
-        is_regularization_enabled=False,  # TODO-ICLR: Add support for regularization
-        regularization_config=None,  # TODO-ICLR: Add support for regularization
-        pt_select_architecture=False,  # TODO-ICLR: Add support for architecture selection
+        is_regularization_enabled=False,
+        regularization_config=None,
+        pt_select_architecture=False,  # TODO-ICLR: Add architecture selection?
     )
     return profile
 
@@ -219,14 +234,20 @@ def get_configuration(
 if __name__ == "__main__":
     args = read_args()
 
-    assert args.searchspace in ["darts", "nb201"], f"Does not support space of type {args.searchspace}"  # type: ignore
-    assert args.dataset in ["cifar10", "cifar100", "imagenet"], f"Soes not support dataset of type {args.dataset}"  # type: ignore
+    assert args.searchspace in ["darts", "nb201"], \
+        f"Does not support space of type {args.searchspace}"  # type: ignore
+    assert args.dataset in ["cifar10", "cifar100", "imagenet"], \
+        f"Soes not support dataset of type {args.dataset}"  # type: ignore
 
     if args.use_lora:
-        assert args.lora_warm_epochs > 0, "argument --lora_warm_epochs should not be 0 when argument --use_lora is provided"  # type: ignore
-        assert args.lora_rank > 0, "argument --lora_rank should be greater than 0"  # type: ignore
+        assert args.lora_warm_epochs > 0, \
+            "argument --lora_warm_epochs should not be 0 when argument" + \
+            "--use_lora is provided"  # type: ignore
+        assert args.lora_rank > 0, \
+            "argument --lora_rank should be greater than 0"  # type: ignore
 
-    assert args.sampler in ["darts", "drnas", "gdas", "reinmax"], "This experiment supports only darts, drnas, gdas and reinmax as samplers"  # type: ignore
+    assert args.sampler in ["darts", "drnas", "gdas", "reinmax"], \
+        "This experiment supports only darts, drnas, gdas and reinmax as samplers"  # type: ignore
 
     sampler_profiles = {
         "darts": DARTSProfile,
@@ -245,10 +266,23 @@ if __name__ == "__main__":
 
     # Extra info for wandb tracking
     project_name = args.project_name
+
+    lora_str = ""
+    if args.use_lora:
+        lora_str = f"-lora-rank-{args.lora_rank}-warm-{args.lora_warm_epochs}"
+
+    oles_str = ""
+    if args.oles:
+        oles_str = f"-oles-freq-{args.oles_freq}-threshold-{args.oles_threshold}"
+
+    exp_type = f"{args.searchspace}-{args.sampler}{lora_str}{oles_str}-{args.dataset}"
+
     profile.configure_extra(
         {
             "project_name": project_name,
             "extra:comments": args.comments,
+            "extra:experiment-name": exp_type,
+            "extra:is-debug": args.debug_mode,
         }
     )
 
