@@ -162,13 +162,6 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--rq",
-        default="None",
-        help="Research question to be answered",
-        type=str,
-    )
-
-    parser.add_argument(
         "--comments",
         default="None",
         help="Any additional comments",
@@ -255,7 +248,6 @@ if __name__ == "__main__":
     profile.configure_extra(
         {
             "project_name": project_name,
-            "extra:research-question": args.rq,
             "extra:comments": args.comments,
         }
     )
