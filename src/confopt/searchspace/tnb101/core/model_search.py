@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import math
+from typing import Callable
 
 import torch
 from torch import nn
+from torch.distributions import Dirichlet
 
-from confopt.searchspace.common import OperationChoices
-from confopt.utils import prune, set_ops_to_prune
+from confopt.searchspace.common import OperationBlock, OperationChoices
+from confopt.utils import (
+    calc_layer_alignment_score,
+    preserve_gradients_in_module,
+    prune,
+    set_ops_to_prune,
+)
 from confopt.utils.normalize_params import normalize_params
 
 from . import operations as ops
 from .genotypes import TNB101Genotype
-from .operations import OPS, TRANS_NAS_BENCH_101
+from .operations import OLES_OPS, OPS, TRANS_NAS_BENCH_101
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -108,13 +116,24 @@ class TNB101SearchModel(nn.Module):
         self._arch_parameters = nn.Parameter(
             1e-3 * torch.randn(self.num_edge, len(op_names))  # type: ignore
         )
+        self.anchor_normal = Dirichlet(
+            torch.ones_like(self._arch_parameters[0]).to(DEVICE)
+        )
         self._beta_parameters = nn.Parameter(1e-3 * torch.randn(self.num_edge))
+
+        self.weights_grad: list[torch.Tensor] = []
+        self.grad_hook_handlers: list[torch.utils.hooks.RemovableHandle] = []
 
         # Multi-head attention for architectural parameters
         self.is_arch_attention_enabled = False  # disabled by default
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=len(self.op_names), num_heads=1
         )
+
+        self.num_ops = len(self.op_names)
+        self.num_nodes = self.max_nodes - 1
+
+        self._initialize_projection_params()
 
     def arch_parameters(self) -> nn.Parameter:
         return self._arch_parameters
@@ -127,6 +146,9 @@ class TNB101SearchModel(nn.Module):
         return torch.nn.functional.softmax(alphas, dim=-1)
 
     def sample_weights(self) -> torch.Tensor:
+        if self.projection_mode:
+            return self.get_projected_weights()
+
         weights_to_sample = self._arch_parameters
 
         if self.is_arch_attention_enabled:
@@ -137,11 +159,15 @@ class TNB101SearchModel(nn.Module):
         return weights
 
     def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        self.reset_hooks()
+
         if self._arch_parameters is None:
             return self.discrete_model_forward(inputs)
 
         if self.edge_normalization:
             return self.edge_normalization_forward(inputs)
+
+        self.weights_grad = []
 
         # alphas = self.sample(self._arch_parameters)
         alphas = self.sample_weights()
@@ -152,8 +178,11 @@ class TNB101SearchModel(nn.Module):
         self.sampled_weights = [alphas]
 
         feature = self.stem(inputs)
+
         for cell in self.cells:
-            feature = cell(feature, alphas)
+            weights = alphas.clone()
+            self.save_weight_grads(weights)
+            feature = cell(feature, weights)
 
         out = self.decoder(feature)
 
@@ -182,6 +211,8 @@ class TNB101SearchModel(nn.Module):
         inputs: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # alphas = self.sample(self._arch_parameters)
+        self.weights_grad = []
+
         alphas = self.sample_weights()
 
         if self.mask is not None:
@@ -201,6 +232,8 @@ class TNB101SearchModel(nn.Module):
                     self._beta_parameters[idx_nodes], dim=-1
                 )
                 betas = torch.cat([betas, beta_node_v], dim=0)
+            weights = alphas.clone()
+            self.save_weight_grads(weights)
             feature = cell(feature, alphas, betas)
 
         out = self.decoder(feature)
@@ -335,6 +368,97 @@ class TNB101SearchModel(nn.Module):
                 total_cell_flops = 1
             flops += torch.log(total_cell_flops)
         return flops / len(self.cells)
+
+    ### Layer alignment score support  methods ###
+    def reset_hooks(self) -> None:
+        for hook in self.grad_hook_handlers:
+            hook.remove()
+
+        self.grad_hook_handlers = []
+
+    def save_gradient(self) -> Callable:
+        def hook(grad: torch.Tensor) -> None:
+            self.weights_grad.append(grad)
+
+        return hook
+
+    def save_weight_grads(
+        self,
+        weights: torch.Tensor,
+    ) -> None:
+        if not self.training:
+            return
+        grad_hook = weights.register_hook(self.save_gradient())
+        self.grad_hook_handlers.append(grad_hook)
+
+    def get_arch_grads(self, only_first_and_last: bool = False) -> list[torch.Tensor]:
+        grads = []
+        if only_first_and_last:
+            grads.append(self.weights_grad[0].reshape(-1))
+            grads.append(self.weights_grad[1].reshape(-1))
+        else:
+            for alphas in self.weights_grad:
+                grads.append(alphas.reshape(-1))
+
+        return grads
+
+    def get_mean_layer_alignment_score(
+        self, only_first_and_last: bool = False
+    ) -> float:
+        grads = self.get_arch_grads(only_first_and_last)
+        mean_score = calc_layer_alignment_score(grads)
+
+        if math.isnan(mean_score):
+            mean_score = 0
+
+        return mean_score
+
+    ### End of Layer alignment score support methods ###
+
+    ### Start of PerturbationArchSelection methods ###
+    def _initialize_projection_params(self) -> None:
+        self.candidate_flags = torch.tensor(
+            self.num_edge * [True],  # type: ignore
+            requires_grad=False,
+            dtype=torch.bool,
+        ).to(DEVICE)
+        self.proj_weights = torch.zeros_like(self._arch_parameters)
+
+        self.projection_mode = False
+        self.projection_evaluation = False
+        self.removed_projected_weights = None
+
+    def mark_projected_op(self, eid: int, opid: int) -> None:
+        self.proj_weights[eid][opid] = 1
+        self.candidate_flags[eid] = False
+
+    def get_projected_weights(self) -> torch.Tensor:
+        if self.projection_evaluation:
+            return self.removed_projected_weights
+
+        if self.is_arch_attention_enabled:
+            arch_parameters = self._compute_arch_attention(self._arch_parameters)
+        else:
+            arch_parameters = self._arch_parameters
+
+        weights = torch.softmax(arch_parameters, dim=-1)
+        for eid in range(len(arch_parameters)):  # type: ignore
+            if not self.candidate_flags[eid]:
+                weights[eid].data.copy_(self.proj_weights[eid])
+
+        return weights
+
+    def remove_from_projected_weights(
+        self, selected_edge: int, selected_op: int
+    ) -> None:
+        weights = self.get_projected_weights()
+        proj_mask = torch.ones_like(weights[selected_edge])
+        proj_mask[selected_op] = 0
+
+        weights[selected_edge] = weights[selected_edge] * proj_mask
+        self.removed_projected_weights = weights
+
+    ### End of PerturbationArchSelection methods ###
 
 
 class TNB101SearchCell(nn.Module):
@@ -474,3 +598,14 @@ class TNB101SearchCell(nn.Module):
                 weights = alphas[self.edge2index[node_str]]
                 flops += self.edges[node_str].get_weighted_flops(weights)
         return flops
+
+
+def preserve_grads(m: nn.Module) -> None:
+    ignored_modules = (
+        OperationBlock,
+        OperationChoices,
+        TNB101SearchCell,
+        TNB101SearchModel,
+    )
+
+    preserve_gradients_in_module(m, ignored_modules, OLES_OPS)
