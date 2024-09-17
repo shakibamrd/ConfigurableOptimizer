@@ -156,7 +156,7 @@ def read_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--project-name",
-        default="iclr-experiments",
+        default="lora-darts-iclr",
         help="project name for wandb logging",
         type=str,
     )
