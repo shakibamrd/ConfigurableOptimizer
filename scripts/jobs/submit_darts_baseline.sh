@@ -18,7 +18,7 @@ searchspace=darts
 dataset=cifar10
 sampler=darts
 epochs=50
-meta_info="'DARTS Baseline'"
+meta_info="'DARTS-Baseline'"
 comments="'None'"
 
 python scripts/experiments/run_experiment.py \
