@@ -13,6 +13,6 @@ comments="'None'"
 for threshold in "${thresholds[@]}"; do
     exp_name=${searchspace}-${dataset}-${sampler}-epochs${epochs}-threshold${threshold}
     echo $exp_name scripts/jobs/submit_oles_experiment_job.sh $searchspace $dataset $sampler $epochs $frequency $threshold $meta_info $comments
-    # sbatch -J $exp_name scripts/jobs/submit_oles_experiment_job.sh $searchspace $dataset $sampler $epochs $frequency $threshold $meta_info $comments
+    sbatch -J $exp_name scripts/jobs/submit_oles_experiment_job.sh $searchspace $dataset $sampler $epochs $frequency $threshold $meta_info $comments
 done
 
