@@ -109,13 +109,6 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--use-lora",
-        action="store_true",
-        default=False,
-        help="Whether to use lora or not",
-    )
-
-    parser.add_argument(
         "--lora-rank",
         default=0,
         help="rank for the lora modules",
@@ -239,12 +232,9 @@ if __name__ == "__main__":
     assert args.dataset in ["cifar10", "cifar100", "imagenet"], \
         f"Soes not support dataset of type {args.dataset}"  # type: ignore
 
-    if args.use_lora:
+    if args.lora_rank > 0:
         assert args.lora_warm_epochs > 0, \
-            "argument --lora_warm_epochs should not be 0 when argument" + \
-            "--use_lora is provided"  # type: ignore
-        assert args.lora_rank > 0, \
-            "argument --lora_rank should be greater than 0"  # type: ignore
+        "argument --lora_warm_epochs should be greater than 0 when LoRA is enabled."
 
     assert args.sampler in ["darts", "drnas", "gdas", "reinmax"], \
         "This experiment supports only darts, drnas, gdas and reinmax as samplers"  # type: ignore
@@ -268,7 +258,7 @@ if __name__ == "__main__":
     project_name = args.project_name
 
     lora_str = ""
-    if args.use_lora:
+    if args.lora_rank > 0:
         lora_str = f"-lora-rank-{args.lora_rank}-warm-{args.lora_warm_epochs}"
 
     oles_str = ""
