@@ -176,6 +176,13 @@ def read_args() -> argparse.Namespace:
         type=str,
     )
 
+    parser.add_argument(
+        "--meta-info",
+        default="None",
+        help="Any meta information about this run",
+        type=str,
+    )
+
     args = parser.parse_args()
     return args
 
@@ -273,6 +280,7 @@ if __name__ == "__main__":
             "extra:comments": args.comments,
             "extra:experiment-name": exp_type,
             "extra:is-debug": args.debug_mode,
+            "extra:meta-info": args.meta_info,
         }
     )
 
