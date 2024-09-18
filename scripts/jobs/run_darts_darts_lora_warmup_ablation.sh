@@ -7,7 +7,7 @@ dataset=cifar10
 sampler=darts
 epochs=50
 rank=1
-meta_info="'DARTS LoRA Warmup Ablation'"
+meta_info="'DARTS-LoRA-Warmup-Ablation'"
 comments="'None'"
 
 for lora_warmup in "${lora_warmup_epochs[@]}"; do

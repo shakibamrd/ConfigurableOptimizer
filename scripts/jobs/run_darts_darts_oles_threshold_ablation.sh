@@ -7,7 +7,7 @@ dataset=cifar10
 sampler=darts
 epochs=50
 frequency=20
-meta_info="'OLES Threshold Ablation'"
+meta_info="'DARTS-OLES-Threshold-Ablation'"
 comments="'None'"
 
 for threshold in "${thresholds[@]}"; do
