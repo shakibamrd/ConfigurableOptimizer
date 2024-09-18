@@ -148,7 +148,7 @@ class DRNASProfile(BaseProfile, ABC):
             "arch_optim": "adam",
             "optim_config": {
                 "momentum": 0.9,
-                "nesterov": 0,
+                "nesterov": False,
                 "weight_decay": 3e-4,
             },
             "arch_optim_config": {
@@ -163,7 +163,7 @@ class DRNASProfile(BaseProfile, ABC):
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.5,
-            "use_data_parallel": True,
+            "use_data_parallel": False,
             "checkpointing_freq": 1,
             "seed": self.seed,
         }
@@ -186,7 +186,7 @@ class DRNASProfile(BaseProfile, ABC):
             "arch_optim": "adam",
             "optim_config": {
                 "momentum": 0.9,
-                "nesterov": 0,
+                "nesterov": False,
                 "weight_decay": 3e-4,
             },
             "arch_optim_config": {
@@ -201,7 +201,7 @@ class DRNASProfile(BaseProfile, ABC):
             "cutout": -1,
             "cutout_length": 16,
             "train_portion": 0.5,
-            "use_data_parallel": True,
+            "use_data_parallel": False,
             "checkpointing_freq": 2,
             "seed": self.seed,
         }
@@ -232,7 +232,7 @@ class DiscreteProfile:
             "scheduler": "cosine_annealing_lr",
             "optim_config": {
                 "momentum": 0.9,
-                "nesterov": 0,
+                "nesterov": False,
                 "weight_decay": 3e-4,
             },
             "criterion": "cross_entropy",
@@ -242,7 +242,7 @@ class DiscreteProfile:
             "print_freq": 2,
             "drop_path_prob": 0.2,
             "auxiliary_weight": 0.4,
-            "cutout": -1,
+            "cutout": 1,
             "cutout_length": 16,
             "train_portion": 0.7,
             "use_ddp": True,
