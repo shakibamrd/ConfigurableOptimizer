@@ -239,9 +239,11 @@ if __name__ == "__main__":
     assert args.dataset in ["cifar10", "cifar100", "imagenet"], \
         f"Soes not support dataset of type {args.dataset}"  # type: ignore
 
+    lora_str = ""
     if args.lora_rank > 0:
         assert args.lora_warm_epochs > 0, \
         "argument --lora_warm_epochs should be greater than 0 when LoRA is enabled."
+        lora_str = f"-lora-rank-{args.lora_rank}-warm-{args.lora_warm_epochs}"
 
     assert args.sampler in ["darts", "drnas", "gdas", "reinmax"], \
         "This experiment supports only darts, drnas, gdas and reinmax as samplers"  # type: ignore
@@ -264,12 +266,9 @@ if __name__ == "__main__":
     # Extra info for wandb tracking
     project_name = args.project_name
 
-    lora_str = ""
-    if args.lora_rank > 0:
-        lora_str = f"-lora-rank-{args.lora_rank}-warm-{args.lora_warm_epochs}"
-
     oles_str = ""
     if args.oles:
+        profile.configure_oles(frequency=args.oles_freq, threshold=args.oles_threshold)
         oles_str = f"-oles-freq-{args.oles_freq}-threshold-{args.oles_threshold}"
 
     exp_type = f"{args.searchspace}-{args.sampler}{lora_str}{oles_str}-{args.dataset}"
