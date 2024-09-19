@@ -11,7 +11,7 @@ meta_info="'DrNAS-LoRA-Warmup-Ablation-Basic'"
 comments="'None'"
 
 for lora_warmup in "${lora_warmup_epochs[@]}"; do
-    exp_name=${searchspace}-${dataset}-${sampler}-epochs${epochs}-rank${rank}-warm${lora_warmup}
+    exp_name=${searchspace}-${dataset}-${sampler}-epochs${epochs}-rank${rank}-warm${lora_warmup}-basic
     echo $exp_name scripts/jobs/submit_lora_experiment_job.sh $searchspace $dataset $sampler $epochs $rank $lora_warmup $meta_info $comments
     sbatch -J $exp_name scripts/jobs/submit_lora_experiment_job.sh $searchspace $dataset $sampler $epochs $rank $lora_warmup $meta_info $comments
 done

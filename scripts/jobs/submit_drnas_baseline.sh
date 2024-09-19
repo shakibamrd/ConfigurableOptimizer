@@ -4,7 +4,7 @@
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 0-3 # array size
 #SBATCH --cpus-per-task=8 # Number of CPU cores per task
-#SBATCH -J DrNAS-Baseline # sets the job name. If not
+#SBATCH -J DrNAS-Baseline-Basic # sets the job name. If not
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
 echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CUPS_PER_NODE gpus per node with given JID $SLURM_JOB_ID on queue $SLURM_JOB_PARTITION";
