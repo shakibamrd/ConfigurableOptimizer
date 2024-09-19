@@ -221,9 +221,9 @@ def get_configuration(
             },
         }
         is_regularization_enabled = True
-        is_partial_connection = True
-        prune_epochs = [args.epochs // 2]
-        prune_fractions = [0.5]
+        # is_partial_connection = True
+        # prune_epochs = [args.epochs // 2]
+        # prune_fractions = [0.5]
 
     profile = profile_type(
         epochs=args.epochs,
@@ -289,8 +289,8 @@ if __name__ == "__main__":
     }
 
     if args.sampler == "drnas":
-        searchspace_config.update({"C": 36, "layers": 8})
-        profile.configure_partial_connector(num_warm_epoch=0, k=6)
+        searchspace_config.update({"C": 16, "layers": 8})
+        # profile.configure_partial_connector(num_warm_epoch=0, k=6)
 
     profile.set_searchspace_config(searchspace_config)
 
