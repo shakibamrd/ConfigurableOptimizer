@@ -7,7 +7,7 @@ dataset=cifar10
 sampler=drnas
 epochs=100
 rank=1
-meta_info="'DrNAS-LoRA-Warmup-Ablation'"
+meta_info="'DrNAS-LoRA-Warmup-Ablation-Basic'"
 comments="'None'"
 
 for lora_warmup in "${lora_warmup_epochs[@]}"; do

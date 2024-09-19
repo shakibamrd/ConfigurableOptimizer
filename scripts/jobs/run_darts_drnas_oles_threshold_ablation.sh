@@ -7,7 +7,7 @@ dataset=cifar10
 sampler=drnas
 epochs=100
 frequency=20
-meta_info="'DrNAS-OLES-Threshold-Ablation'"
+meta_info="'DrNAS-OLES-Threshold-Ablation-Basic'"
 comments="'None'"
 
 for threshold in "${thresholds[@]}"; do

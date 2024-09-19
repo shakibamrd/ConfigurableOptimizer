@@ -18,7 +18,7 @@ searchspace=darts
 dataset=cifar10
 sampler=drnas
 epochs=100
-meta_info="'DrNAS-Baseline'"
+meta_info="'DrNAS-Baseline-Basic'"
 comments="'None'"
 
 python scripts/experiments/run_experiment.py \
