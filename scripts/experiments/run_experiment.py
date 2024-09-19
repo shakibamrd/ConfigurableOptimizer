@@ -299,7 +299,7 @@ if __name__ == "__main__":
         search_space=SearchSpaceType(args.searchspace),
         dataset=DatasetType(args.dataset),
         seed=args.seed,
-        is_wandb_log=False,
+        is_wandb_log=True,
         debug_mode=args.debug_mode,
         exp_name=experiment_name,
     )
