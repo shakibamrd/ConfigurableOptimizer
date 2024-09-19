@@ -1,6 +1,6 @@
 #!/bin/bash
 
-thresholds=(0.3 0.4 0.5)
+thresholds=(0.2)
 
 searchspace=darts
 dataset=cifar10
