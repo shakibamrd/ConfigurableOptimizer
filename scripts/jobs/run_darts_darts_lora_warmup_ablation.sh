@@ -1,6 +1,6 @@
 #!/bin/bash
 
-lora_warmup_epochs=(2 4 8 16 32)
+lora_warmup_epochs=(32)
 
 searchspace=darts
 dataset=cifar10
