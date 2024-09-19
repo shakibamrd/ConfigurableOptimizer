@@ -205,9 +205,29 @@ def get_configuration(
             "epsilon": args.perturbator_epsilon,
         }
 
+    reg_config = None
+    is_regularization_enabled = False
+    prune_epochs = None
+    prune_fractions = None
+    is_partial_connection = args.partial_connection
+
+    if profile_type == DRNASProfile:
+        reg_config = {
+            "active_reg_terms": ["drnas"],
+            "reg_weights": [0.5],
+            "loss_weight": 0.5,
+            "drnas_config": {
+                "reg_scale": 2e-3,
+            },
+        }
+        is_regularization_enabled = True
+        is_partial_connection = True
+        prune_epochs = [args.epochs // 2]
+        prune_fractions = [0.5]
+
     profile = profile_type(
         epochs=args.epochs,
-        is_partial_connection=args.partial_connection,
+        is_partial_connection=is_partial_connection,
         partial_connector_config=partial_connector_config,
         perturbation=args.perturbation,
         perturbator_config=perturbator_config,
@@ -223,11 +243,11 @@ def get_configuration(
         searchspace_str=args.searchspace,
         oles=args.oles,
         calc_gm_score=True,
-        prune_epochs=None,  # TODO-ICLR: Add support for pruning
-        prune_fractions=None,  # TODO-ICLR: Add support for pruning
+        prune_epochs=prune_epochs,
+        prune_fractions=prune_fractions,
         is_arch_attention_enabled=args.arch_attention_enabled,
-        is_regularization_enabled=False,
-        regularization_config=None,
+        is_regularization_enabled=is_regularization_enabled,
+        regularization_config=reg_config,
         pt_select_architecture=False,  # TODO-ICLR: Add architecture selection?
     )
     return profile
@@ -267,6 +287,10 @@ if __name__ == "__main__":
     searchspace_config = {
         "num_classes": dataset_size[args.dataset],
     }
+
+    if args.sampler == "drnas":
+        searchspace_config.update({"C": 36, "layers": 8})
+        profile.configure_partial_connector(num_warm_epoch=0, k=6)
 
     profile.set_searchspace_config(searchspace_config)
 
