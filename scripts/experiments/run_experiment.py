@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+import random
 import argparse
 import json
 
@@ -232,6 +234,11 @@ def get_configuration(
 
 
 if __name__ == "__main__":
+
+    # Avoid collision with other runs that also make directories
+    random_milliseconds = random.uniform(5, 55)
+    time.sleep(random_milliseconds)
+
     args = read_args()
 
     assert args.searchspace in ["darts", "nb201"], \
@@ -292,7 +299,7 @@ if __name__ == "__main__":
         search_space=SearchSpaceType(args.searchspace),
         dataset=DatasetType(args.dataset),
         seed=args.seed,
-        is_wandb_log=True,
+        is_wandb_log=False,
         debug_mode=args.debug_mode,
         exp_name=experiment_name,
     )
