@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ranks=(1 2 4 8)
+ranks=(2 4 8)
 
 searchspace=darts
 dataset=cifar10
