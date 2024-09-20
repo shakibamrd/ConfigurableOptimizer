@@ -185,6 +185,10 @@ def read_args() -> argparse.Namespace:
         type=str,
     )
 
+    parser.add_argument(
+        "--prune", action="store_true", default=False, help="Whether to prune or not"
+    )
+
     args = parser.parse_args()
     return args
 
@@ -210,6 +214,10 @@ def get_configuration(
     prune_epochs = None
     prune_fractions = None
     is_partial_connection = args.partial_connection
+
+    if args.prune is True:
+        prune_epochs = [args.epochs // 2]
+        prune_fractions = [0.5]
 
     if profile_type == DRNASProfile:
         reg_config = {
