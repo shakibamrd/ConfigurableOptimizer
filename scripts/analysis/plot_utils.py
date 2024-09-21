@@ -33,7 +33,9 @@ def plot_line_chart(df: pd.DataFrame) -> None:
     plt.show()
 
 
-def plot_line_chart_with_std_dev(df_mean: pd.DataFrame, df_std: pd.DataFrame) -> None:
+def plot_line_chart_with_std_dev(
+    df_mean: pd.DataFrame, df_std: pd.DataFrame, start_epoch:int=0
+) -> None:
     # Plotting the line chart
     plt.figure(figsize=(10, 6))  # Set the figure size
 
@@ -45,14 +47,19 @@ def plot_line_chart_with_std_dev(df_mean: pd.DataFrame, df_std: pd.DataFrame) ->
         # Calculate the confidence intervals
         lower_bound = mean - std_dev
         upper_bound = mean + std_dev
+        index = df_mean.index
+
+        if start_epoch > 0:
+            index = df_mean.index[start_epoch:]
+            mean = mean[start_epoch:]
+            lower_bound = lower_bound[start_epoch:]
+            upper_bound = upper_bound[start_epoch:]
 
         # Plot the mean line
-        plt.plot(
-            df_mean.index, mean, label=f"{column}", linewidth=2
-        )  # Customize line width
+        plt.plot(index, mean, label=f"{column}", linewidth=2)  # Customize line width
 
         # Fill the area between the confidence intervals
-        plt.fill_between(df_mean.index, lower_bound, upper_bound, alpha=0.2)
+        plt.fill_between(index, lower_bound, upper_bound, alpha=0.2)
 
     # Add chart title and labels
     plt.title("Line Chart with Confidence Bands", fontsize=16)
