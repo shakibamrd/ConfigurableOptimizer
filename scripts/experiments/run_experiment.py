@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import time
-import random
 import argparse
 import json
+import random
+import time
 
 from confopt.profiles.profile_config import BaseProfile
 from confopt.profiles.profiles import (
@@ -148,8 +148,8 @@ def read_args() -> argparse.Namespace:
     parser.add_argument(
         "--oles-threshold",
         default=0.4,
-        help="Threshold for OLES. If the GM score of a module is less than" +
-             "this threshold, it is frozen.",
+        help="Threshold for OLES. If the GM score of a module is less than"
+        + "this threshold, it is frozen.",
         type=float,
     )
 
@@ -264,24 +264,37 @@ def get_configuration(
 if __name__ == "__main__":
 
     # Avoid collision with other runs that also make directories
-    random_milliseconds = random.uniform(5, 55)
+    random_milliseconds = random.uniform(5, 55)  # noqa: S311
     time.sleep(random_milliseconds)
 
     args = read_args()
 
-    assert args.searchspace in ["darts", "nb201"], \
-        f"Does not support space of type {args.searchspace}"  # type: ignore
-    assert args.dataset in ["cifar10", "cifar100", "imagenet"], \
-        f"Soes not support dataset of type {args.dataset}"  # type: ignore
+    assert args.searchspace in [
+        "darts",
+        "nb201",
+    ], f"Does not support space of type {args.searchspace}"  # type: ignore
+    assert args.dataset in [
+        "cifar10",
+        "cifar100",
+        "imgnet16",
+        "imgnet16_120",
+    ], f"Soes not support dataset of type {args.dataset}"  # type: ignore
 
     lora_str = ""
     if args.lora_rank > 0:
-        assert args.lora_warm_epochs > 0, \
-        "argument --lora_warm_epochs should be greater than 0 when LoRA is enabled."
+        assert (
+            args.lora_warm_epochs > 0
+        ), "argument --lora_warm_epochs should be greater than 0 when LoRA is enabled."
         lora_str = f"-lora-rank-{args.lora_rank}-warm-{args.lora_warm_epochs}"
 
-    assert args.sampler in ["darts", "drnas", "gdas", "reinmax"], \
-        "This experiment supports only darts, drnas, gdas and reinmax as samplers"  # type: ignore
+    assert args.sampler in [
+        "darts",
+        "drnas",
+        "gdas",
+        "reinmax",
+    ], (
+        "This experiment supports only darts, drnas, gdas and reinmax as samplers"
+    )  # type: ignore
 
     sampler_profiles = {
         "darts": DARTSProfile,
@@ -297,8 +310,12 @@ if __name__ == "__main__":
     }
 
     if args.sampler == "drnas":
-        searchspace_config.update({"C": 36, "layers": 8})
-        profile.configure_partial_connector(num_warm_epoch=0, k=6)
+        if args.searchspace == "darts":
+            searchspace_config.update({"C": 36, "layers": 8})
+            profile.configure_partial_connector(num_warm_epoch=0, k=6)
+
+        if args.searchspace == "nb201":
+            profile.configure_partial_connector(num_warm_epoch=0, k=4)
 
     profile.set_searchspace_config(searchspace_config)
 
