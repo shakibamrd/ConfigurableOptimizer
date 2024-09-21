@@ -1,7 +1,10 @@
+from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from wandb_utils import (
+    get_normalized_arch_values_by_edge_df,
+    get_normalized_arch_values_by_op_df,
     get_arch_param_grad_norm_by_edge_df,
     get_arch_param_grad_norm_df,
     get_benchmark_test_acc_df,
@@ -174,3 +177,33 @@ def plot_everything(
     mean_test_acc_df = get_benchmark_test_acc_df(mean_df)
     std_test_acc_df = get_benchmark_test_acc_df(std_df)
     plot_line_chart_with_std_dev(mean_test_acc_df, std_test_acc_df, meta_info)
+
+
+def plot_arch_values_by_edges(
+    mean_df: pd.DataFrame, std_df: pd.DataFrame, edges: Any = range(14), title: str = ""
+) -> None:
+    for cell_type in ("normal", "reduce"):
+        for edge_idx in edges:
+            arch_values_mean_df = get_normalized_arch_values_by_edge_df(
+                mean_df, cell_type, edge_idx
+            )
+            arch_values_std_df = get_normalized_arch_values_by_edge_df(
+                std_df, cell_type, edge_idx
+            )
+
+            plot_line_chart_with_std_dev(arch_values_mean_df, arch_values_std_df, title)
+
+
+def plot_arch_values_by_ops(
+    mean_df: pd.DataFrame, std_df: pd.DataFrame, ops: Any = range(14), title: str = ""
+) -> None:
+    for cell_type in ("normal", "reduce"):
+        for op_idx in ops:
+            arch_values_mean_df = get_normalized_arch_values_by_op_df(
+                mean_df, cell_type, op_idx
+            )
+            arch_values_std_df = get_normalized_arch_values_by_op_df(
+                std_df, cell_type, op_idx
+            )
+
+            plot_line_chart_with_std_dev(arch_values_mean_df, arch_values_std_df, title)
