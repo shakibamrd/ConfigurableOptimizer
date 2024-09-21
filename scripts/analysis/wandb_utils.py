@@ -107,7 +107,49 @@ def get_df_with_columns(df: pd.DataFrame, str_filters: list[str]) -> pd.DataFram
     return df[columns]
 
 
-def get_normalized_arch_values_by_edge(
+def get_wandb_runs_as_dfs(
+    state: str,
+    entity: str = "confopt-team",
+    project: str = "iclr-experiments",
+    *,
+    meta_info: str | None = None,
+    lora_rank: int | None = None,
+    lora_warmup: int | None = None,
+    oles: bool | None = None,
+    oles_threshold: float | None = None,
+    prune_epochs: int | None = None,
+    prune_fractions: float | None = None,
+    seed: int | None = None,
+) -> list[pd.DataFrame]:
+    filters = make_wandb_filters(
+        state=state,
+        meta_info=meta_info,
+        lora_rank=lora_rank,
+        lora_warmup=lora_warmup,
+        oles=oles,
+        oles_threshold=oles_threshold,
+        prune_epochs=prune_epochs,
+        prune_fractions=prune_fractions,
+        seed=seed,
+    )
+
+    print("filters:", filters)
+
+    # Fetch the runs that match the filters
+    runs = fetch_runs(filters)
+    print(f"Found {len(runs)} runs")
+
+    # Sort the runs by name
+    runs = sorted(runs, key=lambda run: run.name)
+    dfs = []
+    for run in runs:
+        print(run.name)
+        dfs.append(run.history())  # every df represents one run
+
+    return dfs
+
+
+def get_normalized_arch_values_by_edge_df(
     df: pd.DataFrame, cell_type: str, edge_idx: int
 ) -> pd.DataFrame:
     str_filters = [
@@ -119,7 +161,7 @@ def get_normalized_arch_values_by_edge(
     return get_df_with_columns(df, str_filters)
 
 
-def get_normalized_arch_values_by_op(
+def get_normalized_arch_values_by_op_df(
     df: pd.DataFrame, cell_type: str, op_idx: int
 ) -> pd.DataFrame:
     str_filters = [
@@ -131,7 +173,7 @@ def get_normalized_arch_values_by_op(
     return get_df_with_columns(df, str_filters)
 
 
-def get_cell_grad_norm(df: pd.DataFrame, cell_idx: int) -> pd.DataFrame:
+def get_cell_grad_norm_df(df: pd.DataFrame, cell_idx: int) -> pd.DataFrame:
     str_filters = [
         "gradient_stats/",
         f"cell_{cell_idx}_grad_norm",
@@ -140,7 +182,7 @@ def get_cell_grad_norm(df: pd.DataFrame, cell_idx: int) -> pd.DataFrame:
     return get_df_with_columns(df, str_filters)
 
 
-def get_arch_param_grad_norm(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
+def get_arch_param_grad_norm_df(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
     str_filters = [
         "gradient_stats/",
         f"arch_param_{cell_type_to_idx[cell_type]}_grad_norm",
@@ -149,7 +191,7 @@ def get_arch_param_grad_norm(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
     return get_df_with_columns(df, str_filters)
 
 
-def get_arch_param_grad_norm_by_edge(
+def get_arch_param_grad_norm_by_edge_df(
     df: pd.DataFrame, cell_type: str, edge_idx: int
 ) -> pd.DataFrame:
     str_filters = [
@@ -160,7 +202,7 @@ def get_arch_param_grad_norm_by_edge(
     return get_df_with_columns(df, str_filters)
 
 
-def get_skip_connections(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
+def get_skip_connections_df(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
     str_filters = [
         f"skip_connections/{cell_type}",
     ]
@@ -168,7 +210,7 @@ def get_skip_connections(df: pd.DataFrame, cell_type: str) -> pd.DataFrame:
     return get_df_with_columns(df, str_filters)
 
 
-def get_mean_gradient_matching_score(df: pd.DataFrame) -> pd.DataFrame:
+def get_mean_gradient_matching_score_df(df: pd.DataFrame) -> pd.DataFrame:
     str_filters = [
         "gm_scores/mean_gm",
     ]
@@ -176,7 +218,7 @@ def get_mean_gradient_matching_score(df: pd.DataFrame) -> pd.DataFrame:
     return get_df_with_columns(df, str_filters)
 
 
-def get_benchmark_test_acc(df: pd.DataFrame) -> pd.DataFrame:
+def get_benchmark_test_acc_df(df: pd.DataFrame) -> pd.DataFrame:
     str_filters = [
         "benchmark/test_top1",
     ]
@@ -184,7 +226,7 @@ def get_benchmark_test_acc(df: pd.DataFrame) -> pd.DataFrame:
     return get_df_with_columns(df, str_filters)
 
 
-def get_layer_alignment_scores_all_cells(
+def get_layer_alignment_scores_all_cells_df(
     df: pd.DataFrame, cell_type: str
 ) -> pd.DataFrame:
     str_filters = [
@@ -195,7 +237,7 @@ def get_layer_alignment_scores_all_cells(
     return get_df_with_columns(df, str_filters)
 
 
-def get_layer_alignment_scores_first_and_last_cells(
+def get_layer_alignment_scores_first_and_last_cells_df(
     df: pd.DataFrame, cell_type: str
 ) -> pd.DataFrame:
     str_filters = [
