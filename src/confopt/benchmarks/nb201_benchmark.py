@@ -41,15 +41,26 @@ class NB201Benchmark(BenchmarkBase):
         **api_kwargs: str,  # noqa: ARG002
     ) -> dict:
         result = self.api.query_by_arch(genotype, hp="200")
-        result_train, result_valid, result_test = self._distill_result(  # type: ignore
-            result, dataset
-        )
+        datasets = ["cifar10", "cifar100", "imagenet16"]
+        results_metric = {}
+        for ds in datasets:
+            result_train, result_valid, result_test = self._distill_result(
+                result, ds  # type: ignore
+            )
 
-        results_metric = {
-            "benchmark/train_top1": result_train,
-            "benchmark/valid_top1": result_valid,
-            "benchmark/test_top1": result_test,
-        }
+            results_metric.update(
+                {
+                    f"benchmark/{ds}/train_top1": result_train,
+                    f"benchmark/{ds}/valid_top1": result_valid,
+                    f"benchmark/{ds}/test_top1": result_test,
+                }
+            )
+            if ds == dataset:
+                results_metric.update(
+                    {
+                        "benchmark/test_top1": result_test,
+                    }
+                )
 
         return results_metric
 
