@@ -1,7 +1,7 @@
 #!/bin/bash
 
-samplers=(darts drnas)
-datasets=(cifar10 cifar100 imgnet16_120)
+samplers=(darts)
+datasets=(cifar10 cifar100)
 epochs=100
 comments="'None'"
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 searchspace=nb201
-datasets=(cifar100 cifar10 imgnet16_120)
-samplers=(darts drnas)
+datasets=(cifar10 cifar100)
+samplers=(darts)
 epochs=100
 rank=1
 lora_warmup_epochs=16
