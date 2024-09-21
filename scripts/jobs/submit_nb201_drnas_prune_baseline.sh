@@ -18,10 +18,10 @@ searchspace=nb201
 dataset=$1
 sampler=$2
 epochs=$3
-meta_info="'NB201-DrNAS-Prune-Baseline'"
+meta_info="NB201-DrNAS-Prune-Baseline"
 comments=$4
 partial_connection_k=4
-partial_connection_warm_epochs=15
+partial_connection_warm_epochs=16
 
 python scripts/experiments/run_experiment.py \
         --searchspace $searchspace \

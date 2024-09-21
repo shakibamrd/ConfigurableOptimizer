@@ -32,6 +32,6 @@ python scripts/experiments/run_experiment.py \
         --comments $comments
 
 end=`date +%s`
-runtime=$((end-start))                   
+runtime=$((end-start))
 
 echo Runtime: $runtime

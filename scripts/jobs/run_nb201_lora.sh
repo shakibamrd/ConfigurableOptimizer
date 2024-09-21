@@ -6,16 +6,16 @@ samplers=(darts drnas)
 epochs=100
 rank=1
 lora_warmup_epochs=16
-meta_info="'NB201-DARTS-LoRA'"
+meta_info="NB201-DARTS-LoRA"
 comments="'None'"
 
 for sampler in "${samplers[@]}"; do
     for dataset in "${datasets[@]}"; do
         exp_name=${searchspace}-${dataset}-${sampler}-epochs${epochs}-rank${rank}-warm${lora_warmup_epochs}
         if [ "$sampler" = "darts" ]; then
-            meta_info="'NB201-DARTS-LoRA'"
+            meta_info="NB201-DARTS-LoRA"
         elif [ "$sampler" = "drnas" ]; then
-            meta_info="'NB201-DrNAS-LoRA'"
+            meta_info="NB201-DrNAS-LoRA"
         else
             echo "invalid sampler"
             exit 1

@@ -6,15 +6,15 @@ samplers=(darts drnas)
 epochs=100
 threshold=0.7
 frequency=20
-meta_info="'DrNAS-OLES-Threshold-Ablation'"
+meta_info="DrNAS-OLES-Threshold"
 comments="'None'"
 
 for sampler in "${samplers[@]}"; do
     for dataset in "${datasets[@]}"; do
         if [ "$sampler" = "darts" ]; then
-            meta_info="'NB201-DARTS-OLES'"
+            meta_info="NB201-DARTS-OLES"
         elif [ "$sampler" = "drnas" ]; then
-            meta_info="'NB201-DrNAS-OLES'"
+            meta_info="NB201-DrNAS-OLES"
         else   
             echo $sampler
             echo "invalid sampler"
