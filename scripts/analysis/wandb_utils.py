@@ -155,7 +155,7 @@ def get_normalized_arch_values_by_edge_df(
     str_filters = [
         "arch_values",
         f"alpha_{cell_type_to_idx[cell_type]}",
-        f"edge_{edge_idx}",
+        f"edge_{edge_idx}_",
     ]
 
     return get_df_with_columns(df, str_filters)
