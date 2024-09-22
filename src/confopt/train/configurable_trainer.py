@@ -178,6 +178,9 @@ class ConfigurableTrainer:
                     )
                 is_warm_epoch = False
 
+            if epoch == 16:
+                self.model.freeze_everything_except_candidate_ops()
+
             self._component_new_step_or_epoch(network, calling_frequency="epoch")
             self.update_sample_function(
                 search_space_handler, network, calling_frequency="epoch"

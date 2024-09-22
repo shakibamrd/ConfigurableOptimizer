@@ -13,6 +13,7 @@ import torch.nn.functional as F  # noqa: N812
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
     calc_layer_alignment_score,
+    freeze,
     get_pos_new_cell_darts,
     get_pos_reductions_darts,
     preserve_gradients_in_module,
@@ -110,6 +111,10 @@ class Cell(nn.Module):
                 ops = MixedOp(C, stride, primitives, k)._ops
                 op = OperationChoices(ops, is_reduction_cell=reduction)
                 self._ops.append(op)
+
+    def freeze_everything_except_ops(self) -> None:
+        freeze(self.preprocess0)
+        freeze(self.preprocess1)
 
     def forward(
         self,
@@ -973,6 +978,13 @@ class Network(nn.Module):
                 total_cell_flops = 1
             flops += torch.log(total_cell_flops)
         return flops / len(self.cells)
+
+    def freeze_everything_except_candidate_ops(self) -> None:
+        freeze(self.stem)
+        freeze(self.classifier)
+
+        for cell in self.cells:
+            cell.freeze_everything_except_ops()
 
 
 def preserve_grads(m: nn.Module) -> None:

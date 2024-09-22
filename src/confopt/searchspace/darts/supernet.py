@@ -245,3 +245,6 @@ class DARTSSearchSpace(
 
     def get_fair_darts_arch_parameters(self) -> list[torch.Tensor]:
         return self.get_sampled_weights()
+
+    def freeze_everything_except_candidate_ops(self) -> None:
+        self.model.freeze_everything_except_candidate_ops()

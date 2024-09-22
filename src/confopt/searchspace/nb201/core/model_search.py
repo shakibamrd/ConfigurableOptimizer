@@ -15,6 +15,7 @@ from torch import nn
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
     calc_layer_alignment_score,
+    freeze,
     preserve_gradients_in_module,
     prune,
 )
@@ -492,6 +493,11 @@ class NB201SearchModel(nn.Module):
                     total_cell_flops = 1
                 flops += torch.log(total_cell_flops)
         return flops / len(self.cells)
+
+    def freeze_everything_except_candidate_ops(self) -> None:
+        freeze(self.stem)
+        freeze(self.lastact)
+        freeze(self.classifier)
 
 
 def preserve_grads(m: nn.Module) -> None:
