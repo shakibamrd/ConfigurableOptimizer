@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -180,9 +182,9 @@ def plot_everything(
 
 
 def plot_arch_values_by_edges(
-    mean_df: pd.DataFrame, std_df: pd.DataFrame, edges: Any = range(14), title: str = ""
+    mean_df: pd.DataFrame, std_df: pd.DataFrame, edges: Any = range(14), title: str = "", cell_types: Any = ("normal", "reduce"), ignore_ops: list[int] | None = None
 ) -> None:
-    for cell_type in ("normal", "reduce"):
+    for cell_type in cell_types:
         for edge_idx in edges:
             arch_values_mean_df = get_normalized_arch_values_by_edge_df(
                 mean_df, cell_type, edge_idx
@@ -190,6 +192,11 @@ def plot_arch_values_by_edges(
             arch_values_std_df = get_normalized_arch_values_by_edge_df(
                 std_df, cell_type, edge_idx
             )
+
+            if ignore_ops:
+                for op in ignore_ops:
+                    arch_values_mean_df = arch_values_mean_df.drop(arch_values_mean_df.filter(like=f"_op_{op}").columns, axis=1)
+                    arch_values_std_df = arch_values_std_df.drop(arch_values_std_df.filter(like=f"_op_{op}").columns, axis=1)
 
             plot_line_chart_with_std_dev(arch_values_mean_df, arch_values_std_df, title)
 
@@ -207,3 +214,40 @@ def plot_arch_values_by_ops(
             )
 
             plot_line_chart_with_std_dev(arch_values_mean_df, arch_values_std_df, title)
+
+def plot_gradient_matching_scores(mean_df: pd.DataFrame, std_df: pd.DataFrame, meta_info: str) -> None:
+    gm_scores_mean_df = get_mean_gradient_matching_score_df(mean_df)
+    gm_scores_std_df = get_mean_gradient_matching_score_df(std_df)
+    plot_line_chart_with_std_dev(gm_scores_mean_df, gm_scores_std_df, meta_info)
+
+
+def plot_skip_connections(mean_df: pd.DataFrame, std_df: pd.DataFrame, meta_info: str) -> None:
+    skip_connections_mean_dfs = [
+        get_skip_connections_df(mean_df, idx) for idx in ("normal", "reduce")
+    ]
+    skip_connections_std_dfs = [
+        get_skip_connections_df(std_df, idx) for idx in ("normal", "reduce")
+    ]
+    skip_connections_mean_df = pd.concat(skip_connections_mean_dfs, axis=1)
+    skip_connections_std_df = pd.concat(skip_connections_std_dfs, axis=1)
+    plot_line_chart_with_std_dev(
+        skip_connections_mean_df, skip_connections_std_df, meta_info
+    )
+
+def plot_benchmark_test_acc(mean_df: pd.DataFrame, std_df: pd.DataFrame, meta_info: str) -> None:
+    mean_test_acc_df = get_benchmark_test_acc_df(mean_df)
+    std_test_acc_df = get_benchmark_test_acc_df(std_df)
+    plot_line_chart_with_std_dev(mean_test_acc_df, std_test_acc_df, meta_info)
+
+
+def plot_layer_alignment_scores(mean_df: pd.DataFrame, std_df: pd.DataFrame, meta_info: str, cell_types: tuple = ("normal", "reduce")) -> None:
+    for cell_type in cell_types:
+        mean_layer_alignment_df = get_layer_alignment_scores_all_cells_df(
+            mean_df, cell_type
+        )
+        std_layer_alignment_df = get_layer_alignment_scores_all_cells_df(
+            std_df, cell_type
+        )
+        plot_line_chart_with_std_dev(
+            mean_layer_alignment_df, std_layer_alignment_df, meta_info
+        )

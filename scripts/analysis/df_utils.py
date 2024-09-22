@@ -61,10 +61,20 @@ def clean_dfs(dfs: Any) -> list[pd.DataFrame]:
 
     for df in dfs:
         df_clean, dropped_columns = drop_nan_columns(df)
-        df_clean = df_clean.drop(columns=["arch_parameters/0", "arch_parameters/1"])
+        df_clean = df_clean.drop(columns=["arch_parameters/0"])
+
+        if "arch_parameters/1" in df_clean.columns:
+            df_clean = df_clean.drop(columns=["arch_parameters/1"])
+
         clean_dfs.append(df_clean)
         print(f"Dropped {len(dropped_columns)} columns have {dropped_columns}")
         # print(df_clean)
 
     clean_dfs = sort_order_of_columns(*clean_dfs)
     return clean_dfs
+
+
+def concat_dfs_with_column_prefixes(dfs: list[pd.DataFrame], names: list[str]) -> pd.DataFrame:
+    assert len(dfs) == len(names)
+    dfs_ = [df.add_prefix(name + "/") for df, name in zip(dfs, names)]
+    return pd.concat(dfs_, axis=1)
