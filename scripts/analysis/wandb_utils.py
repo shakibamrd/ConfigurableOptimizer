@@ -5,6 +5,29 @@ import wandb
 import pandas as pd
 
 
+meta_infos = {
+    # DARTS
+    0: "'DARTS-Baseline'",
+    1: "DARTS-OLES-Threshold-Ablation",
+    2: "DARTS-LoRA-Rank-Ablation",
+    3: "DARTS-LoRA-Warmup-Ablation",
+    # DARTS with pruning at 50%
+    4: "'DARTS-Prune-Baseline'",
+    5: "DARTS-Prune-LoRA-Rank-Ablation",
+    6: "DARTS-Prune-LoRA-Warmup-Ablation",
+    # DrNAS with partial connections (k=6), pruning at 50%, 8 cells, 36 initial channels, regularization term
+    7: "'DrNAS-Baseline'",
+    8: "DrNAS-OLES-Threshold-Ablation",
+    9: "DrNAS-LoRA-Rank-Ablation",
+    10: "DrNAS-LoRA-Warmup-Ablation",
+    # DrNAS without progressive learning (no partial connections, no pruning, 8 cells, init channels 16, regularization term)
+    11: "'DrNAS-Baseline-Basic'",
+    12: "DrNAS-OLES-Threshold-Ablation",
+    13: "DrNAS-LoRA-Rank-Ablation-Basic",
+    14: "DrNAS-LoRA-Warmup-Ablation-Baic",
+}
+
+
 def fetch_runs(
     filter_criteria: dict,
     entity: str = "confopt-team",
