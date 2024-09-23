@@ -259,7 +259,7 @@ class Experiment:
 
         self.logger.log(
             "Logs and checkpoints will be saved in the following directory: "
-            + self.logger.path()
+            + self.logger.path(None)
         )
 
         self._enum_to_objects(
