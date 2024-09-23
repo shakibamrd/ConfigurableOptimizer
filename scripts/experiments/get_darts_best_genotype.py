@@ -104,7 +104,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         print(f"Training genotype for 100 epochs: {genotype}")
 
-        profile = DiscreteProfile(epochs=100, use_ddp=False)
+        profile = DiscreteProfile(epochs=100, use_ddp=False, train_portion=0.9)
         exp_type = f"DISCRETE_{searchspace}-{args.dataset}_seed{args.seed}_genotype_{i}"
         profile.genotype = genotype
 
