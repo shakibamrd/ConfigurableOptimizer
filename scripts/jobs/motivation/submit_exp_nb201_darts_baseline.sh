@@ -18,7 +18,7 @@ searchspace=nb201
 dataset=cifar10
 sampler=darts
 epochs=100
-meta_info="Motivation-NB201-DARTS-Freeze-ALl-But-Ops-Warm-Start-Baseline"
+meta_info="Motivation-NB201-DARTS-Full-Rank-Warm-Start-Baseline"
 
 python scripts/experiments/run_experiment.py \
         --searchspace $searchspace \
