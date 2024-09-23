@@ -60,7 +60,6 @@ python scripts/experiments/get_darts_best_genotype.py \
         --project-name iclr-experiments \
         --meta-info $meta_info \
         --comments $comments \
-        --debug-mode
 
 end=`date +%s`
 runtime=$((end-start))
