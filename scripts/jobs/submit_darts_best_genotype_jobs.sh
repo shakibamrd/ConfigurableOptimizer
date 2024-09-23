@@ -12,14 +12,13 @@ echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CUPS_PER_NODE gpus per node w
 start=`date +%s`
 
 source ~/.bashrc
-conda activate confopt_workspace
+conda activate confopt
 
 dataset=cifar10
 
 genotype_folder=$1
 sampler=darts
 dataset=cifar10
-epochs=100
 meta_info="'DARTS-Genotypes-100-Epochs'"
 comments="'None'"
 
