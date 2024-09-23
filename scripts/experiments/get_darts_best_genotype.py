@@ -52,7 +52,7 @@ def read_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--project-name",
-        default="lora-darts-iclr",
+        default="iclr-darts-genotypes",
         help="project name for wandb logging",
         type=str,
     )
@@ -109,7 +109,10 @@ if __name__ == "__main__":
         profile.genotype = genotype
 
         config = copy.deepcopy(profile.get_trainer_config())
-        config.update({"genotype": profile.get_genotype()})
+        config.update({
+            "genotype": profile.get_genotype(),
+            "is_last_genotype_in_group": i == len(genotypes) - 1,
+        })
 
         config.update(
             {
@@ -157,7 +160,7 @@ if __name__ == "__main__":
             best_acc = acc
             best_genotype = i
 
-        if i == 3:
+        if i == len(genotypes) - 1:
             print(
                 f"Genotype {best_genotype + 1} is the best genotype: ",
                 genotypes[best_genotype],
