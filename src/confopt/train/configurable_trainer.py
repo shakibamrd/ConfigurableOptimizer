@@ -152,7 +152,7 @@ class ConfigurableTrainer:
             batch_size=self.batch_size,
             n_workers=0,
         )
-        is_warm_epoch = False
+        is_warm_epoch = True
         if lora_warm_epochs > 0:
             assert (
                 search_space_handler.lora_configs is not None
