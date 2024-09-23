@@ -178,6 +178,7 @@ class Experiment:
     ) -> ConfigurableTrainer:
         config = profile.get_config()
         run_name = profile.get_name_wandb_run()
+        config["dataset"] = self.dataset_str.value
 
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
