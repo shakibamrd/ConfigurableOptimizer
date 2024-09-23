@@ -146,4 +146,6 @@ class MaxPool2d(nn.Module):
             device (torch.device, optional): The device to which the operations are
             moved. Defaults to DEVICE.
         """
-        ...
+
+
+OLES_OPS = [Pooling, Conv3x3BnRelu, Conv1x1BnRelu]
