@@ -45,6 +45,7 @@ from confopt.profiles import (
 )
 from confopt.searchspace import (
     BabyDARTSSearchSpace,
+    DARTSGenotype,  # noqa: F401
     DARTSImageNetModel,
     DARTSModel,
     DARTSSearchSpace,
@@ -55,9 +56,6 @@ from confopt.searchspace import (
     RobustDARTSSearchSpace,
     SearchSpace,
     TransNASBench101SearchSpace,
-)
-from confopt.searchspace import (
-    DARTSGenotype as Genotype,  # noqa: F401
 )
 from confopt.train import ConfigurableTrainer, DiscreteTrainer, SearchSpaceHandler
 from confopt.train.projection import PerturbationArchSelection
