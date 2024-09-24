@@ -11,6 +11,7 @@ from typing import Callable
 
 import torch
 from torch import nn
+from torch.distributions import Dirichlet
 
 from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
@@ -141,6 +142,8 @@ class NB201SearchModel(nn.Module):
         self.num_edges = num_edge
         self.num_nodes = max_nodes - 1
         self.num_ops = len(search_space)
+        self.anchor = Dirichlet(torch.ones_like(self.arch_parameters).to(DEVICE))
+
         self._initialize_projection_params()
 
         # Multi-head attention for architectural parameters
@@ -245,6 +248,11 @@ class NB201SearchModel(nn.Module):
             arch_parameters = self._compute_arch_attention(self.arch_parameters)
         else:
             arch_parameters = self.arch_parameters
+
+        arch_parameters = torch.softmax(arch_parameters, dim=-1)
+
+        if self.mask is not None:
+            arch_parameters = normalize_params(arch_parameters, self.mask)
 
         for i in range(1, self.max_nodes):
             xlist = []
