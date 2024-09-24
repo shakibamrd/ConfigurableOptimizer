@@ -56,7 +56,7 @@ python scripts/experiments/get_darts_best_genotype.py \
         --genotype-4 "$genotype_4" \
         --dataset $dataset \
         --seed  $SLURM_ARRAY_TASK_ID\
-        --project-name iclr-experiments \
+        --project-name iclr-train-genotypes \
         --meta-info $meta_info \
         --comments $comments \
 
