@@ -166,7 +166,7 @@ def get_wandb_runs_as_dfs(
     runs = sorted(runs, key=lambda run: run.name)
     dfs = []
     for run in runs:
-        print(run.name)
+        print(run.name, run.id)
         dfs.append(run.history())  # every df represents one run
 
     return dfs
