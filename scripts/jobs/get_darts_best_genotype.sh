@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # add exps here
-genotype_exps=("'DARTS-Baseline'" "DARTS-LoRA-Rank-Ablation" "DARTS-OLES-Threshold-Ablation" "'DrNAS-Baseline'" "'DrNAS-Baseline-Basic'" "DrNAS-LoRA-Rank-Ablation" "DrNAS-LoRA-Rank-Ablation-Basic" "DrNAS-OLES-Threshold-Ablation" "DrNAS-OLES-Threshold-Ablation-Basic")
+genotype_exps=("DARTS-Baseline" "DARTS-LoRA-Rank-Ablation" "DARTS-OLES-Threshold-Ablation" "DrNAS-Baseline" "DrNAS-Baseline-Basic" "DrNAS-LoRA-Rank-Ablation" "DrNAS-LoRA-Rank-Ablation-Basic" "DrNAS-OLES-Threshold-Ablation" "DrNAS-OLES-Threshold-Ablation-Basic")
 
 for exp in "${genotype_exps[@]}"; do
     genotype_folder="scripts/genotypes/${exp}"
