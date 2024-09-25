@@ -889,6 +889,7 @@ class Experiment:
         load_saved_model: bool = False,
         is_wandb_log: bool = False,
         run_name: str = "darts-pt",
+        src_folder_path: str | None = None,
     ) -> PerturbationArchSelection:
         # find pt_configs in the profile
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
@@ -919,6 +920,7 @@ class Experiment:
                 use_supernet_checkpoint=True,
                 arch_selection=arch_selection,
                 last_run=last_run,
+                custom_log_path=src_folder_path,
             )
         else:
             assert (
