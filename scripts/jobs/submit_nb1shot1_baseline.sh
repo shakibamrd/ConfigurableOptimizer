@@ -26,7 +26,7 @@ is_basic=$7
 
 basic=""
 if [ "$is_basic" = "1" ]; then
-    basic="--basic"
+    basic="--drnas-basic"
 fi
 
 python scripts/experiments/run_experiment.py \
