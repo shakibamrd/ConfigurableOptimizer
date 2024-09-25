@@ -29,7 +29,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument(
         "--searchspace",
         default="darts",
-        help="choose the search space (darts, nb201)",
+        help="choose the search space (darts, nb201, nb1shot1)",
         type=str,
     )
 
@@ -189,6 +189,13 @@ def read_args() -> argparse.Namespace:
         "--prune", action="store_true", default=False, help="Whether to prune or not"
     )
 
+    parser.add_argument(
+        "--nb1shot1-searchspace",
+        default="none",
+        help="choose when nb1shot1 searchspace is chosen (S1, S2, S3)",
+        type=str,
+    )
+
     args = parser.parse_args()
     return args
 
@@ -272,7 +279,12 @@ if __name__ == "__main__":
     assert args.searchspace in [
         "darts",
         "nb201",
+        "nb1shot1"
     ], f"Does not support space of type {args.searchspace}"  # type: ignore
+
+    if args.searchspace == "nb1shot1":
+        assert args.nb1shot1_searchspace in ["S1", "S2", "S3"]
+
     assert args.dataset in [
         "cifar10",
         "cifar100",
@@ -308,6 +320,9 @@ if __name__ == "__main__":
     searchspace_config = {
         "num_classes": dataset_size[args.dataset],
     }
+
+    if args.searchspace == "nb1shot1":
+            searchspace_config.update({"search_space": args.nb1shot1_searchspace})
 
     if args.sampler == "drnas":
         if args.searchspace == "darts":
