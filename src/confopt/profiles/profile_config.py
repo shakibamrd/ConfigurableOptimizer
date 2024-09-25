@@ -475,11 +475,26 @@ class BaseProfile:
             "lora_warm_epochs": self.lora_warm_epochs,
             "optim": "sgd",
             "arch_optim": "adam",
+            "optim_config": {
+                "momentum": 0.9,
+                "nesterov": False,
+                "weight_decay": 3e-4,
+            },
+            "arch_optim_config": {
+                "weight_decay": 1e-3,
+                "betas": (0.5, 0.999),
+            },
+            "scheduler": "cosine_annealing_lr",
+            "scheduler_config": {},
+            "criterion": "cross_entropy",
+            "batch_size": 64,
+            "learning_rate_min": 0.001,
             "use_data_parallel": False,
             "checkpointing_freq": 1,
             "seed": self.seed,
             "cutout": -1,
             "cutout_length": 16,
+            "train_portion": 0.5,
         }
         self.trainer_config = trainer_config
 
