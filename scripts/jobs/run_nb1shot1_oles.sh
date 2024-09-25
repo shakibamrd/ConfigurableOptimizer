@@ -5,7 +5,6 @@
 spaces=(S1 S2 S3)
 dataset=cifar10
 samplers=(darts drnas)
-epochs=100
 frequency=20
 thresholds=(0.2 0.3 0.4 0.5 0.6 0.7)
 
@@ -13,9 +12,11 @@ comments="'None'"
 
 for sampler in "${samplers[@]}"; do
     if [ "$sampler" = "darts" ]; then
-        meta_info="NB1Shot1-DARTS-OLES"
+        meta_info="NB1Shot1-DARTS-OLES-Threshold-Ablation"
+        epochs=50
     elif [ "$sampler" = "drnas" ]; then
-        meta_info="NB1Shot1-DrNAS-OLES"
+        meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation"
+        epochs=100
     else
         echo "invalid sampler"
         exit 1
@@ -23,8 +24,15 @@ for sampler in "${samplers[@]}"; do
     for space in "${spaces[@]}"; do
         for threshold in "${thresholds[@]}"; do
             exp_name=nb1shot1-${space}-${dataset}-${sampler}-epochs${epochs}-threshold${threshold}
-            echo $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments
-            sbatch -J $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments
+            echo $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 0
+            sbatch -J $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 0
+
+            if [ "$sampler" = "drnas" ]; then
+                meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation-Basic"
+                exp_name=nb1shot1-${space}-${dataset}-${sampler}-epochs${epochs}-threshold${threshold}
+                echo $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 1
+                sbatch -J $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 1
+            fi
         done
     done
 done
