@@ -196,6 +196,13 @@ def read_args() -> argparse.Namespace:
         type=str,
     )
 
+    parser.add_argument(
+        "--drnas-basic",
+        action="store_true",
+        default=False,
+        help="Use basic DRNAS configuration (no pruning or partial connections)",
+    )
+
     args = parser.parse_args()
     return args
 
@@ -236,9 +243,11 @@ def get_configuration(
             },
         }
         is_regularization_enabled = True
-        is_partial_connection = True
-        prune_epochs = [args.epochs // 2]
-        prune_fractions = [0.5]
+
+        if not args.drnas_basic:
+            is_partial_connection = True
+            prune_epochs = [args.epochs // 2]
+            prune_fractions = [0.5]
 
     profile = profile_type(
         epochs=args.epochs,
@@ -324,13 +333,17 @@ if __name__ == "__main__":
     if args.searchspace == "nb1shot1":
             searchspace_config.update({"search_space": args.nb1shot1_searchspace})
 
-    if args.sampler == "drnas":
+    if args.sampler == "drnas" and not args.drnas_basic:
         if args.searchspace == "darts":
             searchspace_config.update({"C": 36, "layers": 8})
             profile.configure_partial_connector(num_warm_epoch=0, k=6)
 
         if args.searchspace == "nb201":
             profile.configure_partial_connector(num_warm_epoch=0, k=4)
+
+        if args.searchspace == "nb1shot1":
+            searchspace_config.update({"C": 72}) # NB101 has 128 channels, NB1Shot1 has 16 channels.
+            profile.configure_partial_connector(num_warm_epoch=0, k=6)
 
     profile.set_searchspace_config(searchspace_config)
 
