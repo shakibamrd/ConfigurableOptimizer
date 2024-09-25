@@ -183,5 +183,8 @@ class NASBench201SearchSpace(
     def get_fair_darts_arch_parameters(self) -> list[torch.Tensor]:
         return self.get_sampled_weights()
 
+    def get_projected_arch_parameters(self) -> list[torch.Tensor]:
+        return [self.model.get_projected_weights()]
+
     def get_drnas_anchors(self) -> list[torch.Tensor]:
         return [self.model.anchor]
