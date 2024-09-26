@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections import namedtuple
 from typing import Any
 
+from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 from confopt.utils import get_num_classes
 
 from .profile_config import BaseProfile
-
-Genotype = namedtuple("Genotype", "normal normal_concat reduce reduce_concat")
 
 
 class DARTSProfile(BaseProfile, ABC):
@@ -234,6 +232,7 @@ class DiscreteProfile:
 
     def _initialize_trainer_config(self) -> None:
         default_train_config = {
+            "searchspace_str": "darts",
             "lr": 0.025,
             "epochs": 100,
             "optim": "sgd",
@@ -252,15 +251,16 @@ class DiscreteProfile:
             "auxiliary_weight": 0.4,
             "cutout": 1,
             "cutout_length": 16,
-            "train_portion": 0.7,
+            "train_portion": 1,
             "use_ddp": True,
             "checkpointing_freq": 2,
+            "seed": 0,
         }
         self.train_config = default_train_config
 
     def _initializa_genotype(self) -> None:
         self.genotype = str(
-            Genotype(
+            DARTSGenotype(
                 normal=[
                     ("sep_conv_3x3", 1),
                     ("sep_conv_3x3", 0),
@@ -315,3 +315,11 @@ class DiscreteProfile:
             raise ValueError("search space is not correct")
         searchspace_config["num_classes"] = get_num_classes(dataset_str)
         return searchspace_config
+
+    def get_name_wandb_run(self) -> str:
+        name_wandb_run = []
+        name_wandb_run.append(f"ss_{self.train_config.get('searchspace_str')}")
+        name_wandb_run.append(f"epochs_{self.train_config.get('epochs')}")
+        name_wandb_run.append(f"seed_{self.train_config.get('seed')}")
+        name_wandb_run_str = "-".join(name_wandb_run)
+        return name_wandb_run_str
