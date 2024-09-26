@@ -6,7 +6,7 @@ spaces=(S1 S2 S3)
 dataset=cifar10
 samplers=(darts drnas)
 frequency=20
-thresholds=(0.2 0.3 0.4 0.5 0.6 0.7)
+thresholds=(0.3 0.4 0.5 0.6)
 
 comments="'None'"
 
