@@ -258,8 +258,8 @@ class DiscreteTrainer(ConfigurableTrainer):
             logits_aux, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
             if (
-                hasattr(network, "_auxiliary")
-                and network._auxiliary
+                hasattr(unwrap_model(network), "_auxiliary")
+                and unwrap_model(network)._auxiliary
                 and self.aux_weight > 0.0
             ):
                 loss_aux = criterion(logits_aux, base_targets)
