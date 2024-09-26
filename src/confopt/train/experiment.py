@@ -560,6 +560,7 @@ class Experiment:
             self.search_space_str.value, self.dataset_str.value
         )
         genotype_str = profile.get_genotype()
+        run_name = profile.get_name_wandb_run()
 
         return self._train_discrete_model(
             searchspace_config=searchspace_config,
@@ -569,6 +570,7 @@ class Experiment:
             load_best_model=load_best_model,
             use_supernet_checkpoint=use_supernet_checkpoint,
             genotype_str=genotype_str,
+            run_name=run_name,
         )
 
     def get_discrete_model_from_genotype_str(
@@ -675,6 +677,7 @@ class Experiment:
         use_supernet_checkpoint: bool = False,
         use_expr_search_space: bool = False,
         genotype_str: str | None = None,
+        run_name: str = "discrete_run",
     ) -> DiscreteTrainer:
         # should not care where the model comes from => genotype should be a
         # different function
@@ -792,6 +795,8 @@ class Experiment:
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
         )
+        if self.is_wandb_log:
+            self._init_wandb(run_name, config=train_config)
 
         trainer.train(
             epochs=trainer_arguments.epochs,  # type: ignore
