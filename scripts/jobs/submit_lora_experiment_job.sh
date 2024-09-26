@@ -33,7 +33,8 @@ python scripts/experiments/run_experiment.py \
         --seed $SLURM_ARRAY_TASK_ID \
         --project-name iclr-experiments \
         --meta-info $meta_info \
-        --comments $comments
+        --comments $comments \
+        --drnas-basic
 
 end=`date +%s`
 runtime=$((end-start))

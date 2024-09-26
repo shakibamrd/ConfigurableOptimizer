@@ -364,6 +364,7 @@ if __name__ == "__main__":
             "extra:experiment-name": exp_type,
             "extra:is-debug": args.debug_mode,
             "extra:meta-info": args.meta_info,
+            "extra:dataset": args.dataset,
         }
     )
 

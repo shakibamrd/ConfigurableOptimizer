@@ -1,8 +1,8 @@
 #!/bin/bash
 
 searchspace=nb201
-datasets=(cifar10 cifar100)
-samplers=(darts)
+datasets=(cifar10 cifar100 imagenet_120)
+samplers=(drnas)
 epochs=100
 threshold=0.7
 frequency=20
@@ -14,7 +14,7 @@ for sampler in "${samplers[@]}"; do
         if [ "$sampler" = "darts" ]; then
             meta_info="NB201-DARTS-OLES"
         elif [ "$sampler" = "drnas" ]; then
-            meta_info="NB201-DrNAS-OLES"
+            meta_info="NB201-DrNAS-OLES-Redo"
         else   
             echo $sampler
             echo "invalid sampler"
