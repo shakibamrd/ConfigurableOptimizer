@@ -19,7 +19,6 @@ from confopt.searchspace import SearchSpace
 from confopt.searchspace.common.base_search import (
     GradientMatchingScoreSupport,
     GradientStatsSupport,
-    LayerAlignmentScoreSupport,
     OperationStatisticsSupport,
 )
 from confopt.utils import (
@@ -255,14 +254,14 @@ class ConfigurableTrainer:
                 self.logger.update_wandb_logs(ops_stats)
 
             # Log Layer Alignment scores
-            if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
-                layer_alignment_scores = unwrapped_network.get_layer_alignment_scores()
-                self.logger.update_wandb_logs(layer_alignment_scores)
-                layer_alignment_scores_list = (
-                    unwrapped_network.get_layer_alignment_scores_as_strings()
-                )
-                for la_score in layer_alignment_scores_list:
-                    self.logger.log(f"[{epoch_str}] " + la_score)
+            # if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
+            #   layer_alignment_scores = unwrapped_network.get_layer_alignment_scores()
+            #     self.logger.update_wandb_logs(layer_alignment_scores)
+            #     layer_alignment_scores_list = (
+            #         unwrapped_network.get_layer_alignment_scores_as_strings()
+            #     )
+            #     for la_score in layer_alignment_scores_list:
+            #         self.logger.log(f"[{epoch_str}] " + la_score)
 
             # Log gradient stats
             if isinstance(unwrapped_network, GradientStatsSupport):
@@ -332,14 +331,14 @@ class ConfigurableTrainer:
             ):
                 unwrapped_network.reset_gm_scores()
 
-            if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
-                unwrapped_network.reset_layer_alignment_scores()
+            # if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
+            #     unwrapped_network.reset_layer_alignment_scores()
 
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
 
-    def _train_epoch(  # noqa: C901
+    def _train_epoch(
         self,
         search_space_handler: SearchSpaceHandler,
         train_loader: DataLoader,
@@ -371,6 +370,7 @@ class ConfigurableTrainer:
         end = time.time()
 
         for step, (base_inputs, base_targets) in enumerate(train_loader):
+            start_time = time.time()
             # FIXME: What was the point of this? and is it safe to remove?
             # self.scheduler.update(None, 1.0 * step / len(xloader))
             self._component_new_step_or_epoch(network, calling_frequency="step")
@@ -391,6 +391,7 @@ class ConfigurableTrainer:
             # measure data loading time
             data_time.update(time.time() - end)
 
+            # s_time = time.time()
             if not is_warm_epoch:
                 arch_optimizer.zero_grad()
                 _, logits = network(arch_inputs)
@@ -412,10 +413,14 @@ class ConfigurableTrainer:
                     top1_meter=arch_top1,
                     top5_meter=arch_top5,
                 )
+            # print("arch step", time.time() - s_time)
 
+            # s_time = time.time()
             if isinstance(unwrapped_network, GradientStatsSupport):
                 unwrapped_network.update_arch_params_grad_stats()
+            # print("grad stats arch", time.time() - s_time)
 
+            # s_time = time.time()
             # calculate gm_score
             if calc_gm_score and isinstance(
                 unwrapped_network, GradientMatchingScoreSupport
@@ -425,17 +430,22 @@ class ConfigurableTrainer:
                     early_stop_frequency=oles_frequency,
                     early_stop_threshold=oles_threshold,
                 )  # type: ignore
+            # print("gm score", time.time() - s_time)
 
             # update the model weights
             w_optimizer.zero_grad()
 
+            # s_time = time.time()
             _, logits = network(base_inputs)
             base_loss = criterion(logits, base_targets)
             base_loss = search_space_handler.add_reg_terms(unwrapped_network, base_loss)
             base_loss.backward()
+            # print("base loss", time.time() - s_time)
 
-            if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
-                unwrapped_network.update_layer_alignment_scores()
+            # s_time = time.time()
+            # if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
+            #     unwrapped_network.update_layer_alignment_scores()
+            # print("layer alignment", time.time() - s_time)
 
             torch.nn.utils.clip_grad_norm_(
                 unwrapped_network.model_weight_parameters(), 5
@@ -443,14 +453,18 @@ class ConfigurableTrainer:
 
             w_optimizer.step()
 
+            # s_time = time.time()
             # save grads of operations for gm_score
             if calc_gm_score and isinstance(
                 unwrapped_network, GradientMatchingScoreSupport
             ):
                 unwrapped_network.preserve_grads()  # type: ignore
+            # print("preserve grads", time.time() - s_time)
 
+            # s_time = time.time()
             if isinstance(unwrapped_network, GradientStatsSupport):
                 unwrapped_network.update_cell_grad_stats()
+            # print("grad stats cell", time.time() - s_time)
 
             self._update_meters(
                 inputs=base_inputs,
@@ -480,6 +494,8 @@ class ConfigurableTrainer:
 
                 # logger.log(Sstr + " " + Tstr + " " + Wstr + " " + Astr)
                 ...
+
+                print("step", step, "time", time.time() - start_time)
 
             if self.debug_mode and step > DEBUG_STEPS:
                 break
@@ -722,8 +738,8 @@ class ConfigurableTrainer:
             unwrapped_network.reset_gm_score_attributes()
 
         # TODO-ICLR: Check if this is needed
-        if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
-            unwrapped_network.reset_layer_alignment_scores()
+        # if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
+        #     unwrapped_network.reset_layer_alignment_scores()
 
     def get_all_running_mean_scores(self, network: torch.nn.Module) -> dict:
         running_sim_dict = {}

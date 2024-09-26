@@ -308,7 +308,7 @@ class Network(nn.Module):
 
             # Sample the input weights for the nodes in the cell
             input_weights_cell = [weight.clone() for weight in input_weights]
-            self.save_weight_grads(mixed_op_weights_cell)
+            # self.save_weight_grads(mixed_op_weights_cell)
             s0 = cell(
                 s0, mixed_op_weights_cell, output_weights_cell, input_weights_cell
             )
