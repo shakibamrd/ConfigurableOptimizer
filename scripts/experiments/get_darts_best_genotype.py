@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 
 import torch
 import wandb
@@ -104,32 +103,24 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         print(f"Training genotype for 100 epochs: {genotype}")
 
-        profile = DiscreteProfile(epochs=100, use_ddp=False, train_portion=0.9)
+        profile = DiscreteProfile(
+            epochs=3, use_ddp=True, train_portion=0.9, batch_size=48
+        )
         exp_type = f"DISCRETE_{searchspace}-{args.dataset}_seed{args.seed}_genotype_{i}"
         profile.genotype = genotype
 
-        config = copy.deepcopy(profile.get_trainer_config())
-        config.update({
-            "genotype": profile.get_genotype(),
-            "is_last_genotype_in_group": i == len(genotypes) - 1,
-        })
-
+        config = profile.get_trainer_config()
         config.update(
             {
+                "genotype": profile.get_genotype(),
+                "is_last_genotype_in_group": i == len(genotypes) - 1,
                 "project_name": args.project_name,
-                "extra:comments": args.comments,
-                "extra:experiment-name": exp_type,
-                "extra:is-debug": args.debug_mode,
-                "extra:meta-info": args.meta_info,
+                "extra_comments": args.comments,
+                "extra_experiment_name": exp_type,
+                "extra_is_debug": args.debug_mode,
+                "extra_meta_info": args.meta_info,
+                "experiment_group": args.experiment_group,
             }
-        )
-
-        # instantiate wandb run
-        wandb.init(  # type: ignore
-            name=exp_type,
-            project=args.project_name,
-            group=args.experiment_group,
-            config=config,
         )
 
         experiment = Experiment(
@@ -141,11 +132,9 @@ if __name__ == "__main__":
             is_wandb_log=True,
         )
 
-        # experiment.init_ddp()
+        experiment.init_ddp()
 
         discrete_trainer = experiment.train_discrete_model(profile)
-
-        # experiment.cleanup_ddp()
 
         _, val_loader, _ = discrete_trainer.data.get_dataloaders(
             batch_size=discrete_trainer.batch_size,
@@ -160,9 +149,10 @@ if __name__ == "__main__":
             best_acc = acc
             best_genotype = i
 
+        experiment.cleanup_ddp()
         if i == len(genotypes) - 1:
             print(
                 f"Genotype {best_genotype + 1} is the best genotype: ",
                 genotypes[best_genotype],
             )
-        wandb.finish() # type: ignore
+        wandb.finish()  # type: ignore
