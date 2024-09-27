@@ -166,7 +166,7 @@ def get_wandb_runs_as_dfs(
     runs = sorted(runs, key=lambda run: run.name)
     dfs = []
     for run in runs:
-        print(run.name, run.id)
+        print(run.name, run.id, f"https://wandb.ai/confopt-team/iclr-experiments/runs/{run.id}")
         dfs.append(run.history())  # every df represents one run
 
     return dfs
