@@ -1,10 +1,12 @@
 #!/bin/bash
-#SBATCH -p alldlc_gpu-rtx2080
+#SBATCH -p relea_gpu-rtx2080
 #SBATCH -o logs/%x.%N.%j.out # STDOUT
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 0-3 # array size
 #SBATCH --cpus-per-task=8 # Number of CPU cores per task
+#SBATCH --gres=gpu:2 # Number of GPU per task
 #SBATCH -J DARTS-Genotype-100-epochs # sets the job name. If not
+
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
 echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CUPS_PER_NODE gpus per node with given JID $SLURM_JOB_ID on queue $SLURM_JOB_PARTITION";
@@ -48,7 +50,7 @@ genotype_4=$(<"$genotype_4_file")
 
 experiment_group=${genotype_folder##*/}
 
-python scripts/experiments/get_darts_best_genotype.py \
+torchrun scripts/experiments/get_darts_best_genotype.py \
         --experiment-group $experiment_group \
         --genotype-1 "$genotype_1" \
         --genotype-2 "$genotype_2" \

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-samplers=(darts)
-datasets=(cifar10 cifar100)
+samplers=(drnas)
+datasets=(cifar10 cifar100 imagenet_120)
 epochs=100
 comments="'None'"
 
@@ -10,7 +10,7 @@ for sampler in "${samplers[@]}"; do
         if [ "$sampler" = "darts" ]; then
             meta_info="NB201-DARTS-Baseline"
         elif [ "$sampler" = "drnas" ]; then
-            meta_info="NB201-DrNAS-Baseline-Basic"
+            meta_info="NB201-DrNAS-Baseline-Basic-Redo"
         else
             echo "invalid sampler"
             exit 1
