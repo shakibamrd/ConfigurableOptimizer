@@ -28,7 +28,7 @@ for sampler in "${samplers[@]}"; do
             sbatch -J $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 0
 
             if [ "$sampler" = "drnas" ]; then
-                meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation-Basic"
+                meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation-Basic-2stage"
                 exp_name=nb1shot1-${space}-${dataset}-${sampler}-epochs${epochs}-threshold${threshold}
                 echo $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 1
                 sbatch -J $exp_name scripts/jobs/submit_nb1shot1_oles.sh $space $dataset $sampler $epochs $frequency $threshold $meta_info $comments 1
