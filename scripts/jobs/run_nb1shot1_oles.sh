@@ -4,7 +4,7 @@
 
 spaces=(S1 S2 S3)
 dataset=cifar10
-samplers=(darts drnas)
+samplers=(drnas)
 frequency=20
 thresholds=(0.3 0.4 0.5 0.6)
 
@@ -15,7 +15,7 @@ for sampler in "${samplers[@]}"; do
         meta_info="NB1Shot1-DARTS-OLES-Threshold-Ablation"
         epochs=50
     elif [ "$sampler" = "drnas" ]; then
-        meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation"
+        meta_info="NB1Shot1-DrNAS-OLES-Threshold-Ablation-2stage"
         epochs=100
     else
         echo "invalid sampler"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-samplers=(darts drnas)
+samplers=(drnas)
 dataset=cifar10
 nb1shot1_spaces=(S1 S2 S3)
 comments="'None'"
@@ -11,7 +11,7 @@ for sampler in "${samplers[@]}"; do
             meta_info="NB1Shot1-DARTS-Baseline"
             epochs=50
         elif [ "$sampler" = "drnas" ]; then
-            meta_info="NB1Shot1-DrNAS-Baseline"
+            meta_info="NB1Shot1-DrNAS-Baseline-2stage"
             epochs=100
         else
             echo "invalid sampler"

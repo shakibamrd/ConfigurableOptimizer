@@ -2,7 +2,7 @@
 
 spaces=(S1 S2 S3)
 datasets=(cifar10)
-samplers=(darts drnas)
+samplers=(drnas)
 rank=1
 lora_warmup_epochs=16
 comments="'None'"
@@ -15,7 +15,7 @@ for sampler in "${samplers[@]}"; do
                 meta_info="NB1Shot1-DARTS-LoRA-Rank-Ablation"
                 epochs=50
             elif [ "$sampler" = "drnas" ]; then
-                meta_info="NB1Shot1-DrNAS-LoRA-Rank-Ablation"
+                meta_info="NB1Shot1-DrNAS-LoRA-Rank-Ablation-2stage"
                 epochs=100
             else
                 echo "invalid sampler"
