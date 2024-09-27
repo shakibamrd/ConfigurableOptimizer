@@ -425,7 +425,7 @@ class BaseProfile:
             "learning_rate_min": 0.0,
             "cutout": -1,
             "cutout_length": 16,
-            "train_portion": 0.5,
+            "train_portion": 0.4,
             "use_data_parallel": False,
             "checkpointing_freq": 1,
             "seed": self.seed,
@@ -458,7 +458,7 @@ class BaseProfile:
             "learning_rate_min": 0.001,
             "cutout": -1,
             "cutout_length": 16,
-            "train_portion": 0.5,
+            "train_portion": 0.4,
             "use_data_parallel": False,
             "checkpointing_freq": 1,
             "seed": self.seed,
@@ -494,7 +494,7 @@ class BaseProfile:
             "seed": self.seed,
             "cutout": -1,
             "cutout_length": 16,
-            "train_portion": 0.5,
+            "train_portion": 0.4,
         }
         self.trainer_config = trainer_config
 

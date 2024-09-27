@@ -170,12 +170,23 @@ class CIFARData(AbstractData):
             num_train = len(train_data)  # type: ignore
             indices = list(range(num_train))
             split = int(np.floor(self.train_portion * num_train))
+            stage_2_validation_split = int(np.floor(0.2 * num_train))
             train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
                 indices[:split]
             )
             val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
-                indices[split:num_train]
+                indices[split:-stage_2_validation_split]
             )
+
+            print(
+                "Stage 1 validation split indices: ",
+                indices[split:-stage_2_validation_split],
+            )
+            print(
+                "Stage 2 validation split indices: ",
+                indices[-stage_2_validation_split:],
+            )
+
             return (
                 (train_data, train_sampler),
                 (train_data, val_sampler),

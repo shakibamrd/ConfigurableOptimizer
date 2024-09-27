@@ -65,6 +65,13 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--lr",
+        default=0.025,
+        help="learning rate",
+        type=float,
+    )
+
+    parser.add_argument(
         "--debug-mode", action="store_true", help="run experiment in debug mode"
     )
 
@@ -90,6 +97,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         use_ddp=True,
         train_portion=1.0,
+        lr=args.lr,
     )
 
     exp_type = f"DISCRETE_{searchspace}-{args.dataset}_seed{args.seed}"
