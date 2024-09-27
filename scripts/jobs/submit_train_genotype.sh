@@ -39,6 +39,7 @@ torchrun scripts/experiments/train_darts_genotype.py \
         --project-name iclr-train-genotypes \
         --meta-info $meta_info \
         --comments $comments \
+        --lr 0.05
 
 
 end=`date +%s`
