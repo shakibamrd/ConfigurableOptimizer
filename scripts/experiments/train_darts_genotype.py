@@ -125,8 +125,8 @@ if __name__ == "__main__":
         is_wandb_log=True,
     )
 
-    experiment.init_ddp()
+    # experiment.init_ddp()
 
     discrete_trainer = experiment.train_discrete_model(profile)
 
-    experiment.cleanup_ddp()
+    # experiment.cleanup_ddp()

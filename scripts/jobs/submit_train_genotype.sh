@@ -30,7 +30,7 @@ fi
 
 genotype=$(<"$genotype_file")
 
-torchrun scripts/experiments/train_darts_genotype.py \
+python scripts/experiments/train_darts_genotype.py \
         --genotype "$genotype" \
         --dataset $dataset \
         --seed  $SLURM_ARRAY_TASK_ID\
