@@ -784,7 +784,7 @@ class Experiment:
             criterion=criterion,
             logger=self.logger,
             batch_size=trainer_arguments.batch_size,  # type: ignore
-            use_ddp=trainer_arguments.use_ddp,  # type: ignore
+            use_ddp=False,  # type: ignore
             print_freq=trainer_arguments.print_freq,  # type: ignore
             drop_path_prob=trainer_arguments.drop_path_prob,  # type: ignore
             aux_weight=trainer_arguments.auxiliary_weight,  # type: ignore
