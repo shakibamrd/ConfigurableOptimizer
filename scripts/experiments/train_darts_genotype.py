@@ -95,7 +95,7 @@ if __name__ == "__main__":
         epochs=args.epochs,
         seed=args.seed,
         batch_size=args.batch_size,
-        use_ddp=True,
+        use_ddp=False,
         train_portion=1.0,
         lr=args.lr,
     )
