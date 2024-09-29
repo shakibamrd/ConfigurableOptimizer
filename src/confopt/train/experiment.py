@@ -795,6 +795,8 @@ class Experiment:
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
         )
+
+        train_config["save_dir"] = self.logger.path(None)  # type: ignore
         if self.is_wandb_log:
             self._init_wandb(run_name, config=train_config)
 

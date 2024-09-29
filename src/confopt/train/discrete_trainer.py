@@ -179,7 +179,7 @@ class DiscreteTrainer(ConfigurableTrainer):
                     name="best_model", checkpointables=checkpointables
                 )
 
-            if epoch == total_epochs - 1:
+            if epoch % self.checkpointing_freq == 0:
                 self.checkpointer.save(
                     name="model_final", checkpointables=checkpointables
                 )
