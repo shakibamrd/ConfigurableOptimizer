@@ -87,7 +87,7 @@ class DiscreteTrainer(ConfigurableTrainer):
 
         return None
 
-    def _train_epoch(
+    def _train_epoch(  # noqa: C901
         self,
         network: SearchSpace | DistributedDataParallel,
         train_loader: DataLoader,
@@ -180,6 +180,11 @@ class DiscreteTrainer(ConfigurableTrainer):
                 )
 
             if epoch % self.checkpointing_freq == 0:
+                self.checkpointer.save(
+                    name=f"model_{epoch:03d}", checkpointables=checkpointables
+                )
+
+            if epoch == total_epochs - 1:
                 self.checkpointer.save(
                     name="model_final", checkpointables=checkpointables
                 )
