@@ -36,7 +36,7 @@ python scripts/experiments/train_darts_genotype.py \
         --seed  $SLURM_ARRAY_TASK_ID\
         --batch-size $batch_size \
         --epochs $epochs \
-        --project-name iclr-train-genotypes \
+        --project-name iclr-train-genotypes-redo-with-save-dir \
         --meta-info $meta_info \
         --comments $comments \
 
