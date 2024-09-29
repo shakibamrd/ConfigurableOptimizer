@@ -348,11 +348,13 @@ class Network(nn.Module):
             self.num_nodes += 1
 
         # Total architecture parameters
-        self._arch_parameters = [
-            self.alphas_mixed_op,
-            self.alphas_output,
-            *self.alphas_inputs,
-        ]
+        self._arch_parameters = nn.ParameterList(
+            [
+                self.alphas_mixed_op,
+                self.alphas_output,
+                *self.alphas_inputs,
+            ]
+        )
 
         # TODO-ICLR: Beta parameters for edge normalization
         self._beta_parameters = []  # type: ignore

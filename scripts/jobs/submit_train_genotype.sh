@@ -4,7 +4,7 @@
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 0-3 # array size
 #SBATCH --cpus-per-task=8 # Number of CPU cores per task
-#SBATCH --gres=gpu:2 # Number of GPU per task
+#SBATCH --gres=gpu:1 # Number of GPU per task
 #SBATCH -J DARTS-Genotype # sets the job name. If not
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
@@ -30,16 +30,15 @@ fi
 
 genotype=$(<"$genotype_file")
 
-torchrun scripts/experiments/train_darts_genotype.py \
+python scripts/experiments/train_darts_genotype.py \
         --genotype "$genotype" \
         --dataset $dataset \
         --seed  $SLURM_ARRAY_TASK_ID\
         --batch-size $batch_size \
         --epochs $epochs \
-        --project-name iclr-train-genotypes \
+        --project-name iclr-train-genotypes-redo-with-save-dir \
         --meta-info $meta_info \
         --comments $comments \
-        --lr 0.05
 
 
 end=`date +%s`

@@ -179,11 +179,6 @@ class DiscreteTrainer(ConfigurableTrainer):
                     name="best_model", checkpointables=checkpointables
                 )
 
-            if epoch == total_epochs - 1:
-                self.checkpointer.save(
-                    name="model_final", checkpointables=checkpointables
-                )
-
         # measure elapsed time
         epoch_time.update(time.time() - start_time)
         start_time = time.time()
@@ -217,7 +212,7 @@ class DiscreteTrainer(ConfigurableTrainer):
 
         train_loader, val_loader, _ = self.data.get_dataloaders(
             batch_size=self.batch_size,
-            n_workers=0,  # FIXME: This looks suboptimal
+            n_workers=4,  # FIXME: This looks suboptimal
             use_distributed_sampler=self.use_ddp,
         )
 
@@ -250,7 +245,6 @@ class DiscreteTrainer(ConfigurableTrainer):
         end = time.time()
 
         for _step, (base_inputs, base_targets) in enumerate(train_loader):
-            print("ALL: Step", _step)
             # FIXME: What was the point of this? and is it safe to remove?
             # scheduler.update(None, 1.0 * step / len(xloader))
 

@@ -95,7 +95,7 @@ if __name__ == "__main__":
         epochs=args.epochs,
         seed=args.seed,
         batch_size=args.batch_size,
-        use_ddp=True,
+        use_ddp=False,
         train_portion=1.0,
         lr=args.lr,
     )
@@ -125,8 +125,8 @@ if __name__ == "__main__":
         is_wandb_log=True,
     )
 
-    experiment.init_ddp()
+    # experiment.init_ddp()
 
     discrete_trainer = experiment.train_discrete_model(profile)
 
-    experiment.cleanup_ddp()
+    # experiment.cleanup_ddp()
