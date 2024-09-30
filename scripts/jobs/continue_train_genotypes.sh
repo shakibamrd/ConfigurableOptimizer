@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # add genotype paths here
-genotypes=("test_gen")
-continue_paths=("scripts/blabla/test_discrete")
+genotypes=("DARTS-Baseline")
+continue_paths=("logs/DISCRETE_darts-cifar10_seed1/darts/cifar10/1/discrete/2024-09-29-12:07:52.900")
 
 if [ "${#genotypes[@]}" -ne "${#continue_paths[@]}" ]; then
     echo "Both genotypes and continue_folders should contain same number of paths"
