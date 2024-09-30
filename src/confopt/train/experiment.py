@@ -554,6 +554,7 @@ class Experiment:
         load_saved_model: bool = False,
         load_best_model: bool = False,
         use_supernet_checkpoint: bool = False,
+        src_folder_path: str | None = None,
     ) -> DiscreteTrainer:
         train_config = profile.get_trainer_config()
         searchspace_config = profile.get_searchspace_config(
@@ -571,6 +572,7 @@ class Experiment:
             use_supernet_checkpoint=use_supernet_checkpoint,
             genotype_str=genotype_str,
             run_name=run_name,
+            src_folder_path=src_folder_path,
         )
 
     def get_discrete_model_from_genotype_str(
@@ -678,6 +680,7 @@ class Experiment:
         use_expr_search_space: bool = False,
         genotype_str: str | None = None,
         run_name: str = "discrete_run",
+        src_folder_path: str | None = None,
     ) -> DiscreteTrainer:
         # should not care where the model comes from => genotype should be a
         # different function
@@ -699,6 +702,7 @@ class Experiment:
                 runtime=self.runtime,
                 use_supernet_checkpoint=use_supernet_checkpoint,
                 last_run=last_run,
+                custom_log_path=src_folder_path,
             )
         else:
             self.logger = Logger(
