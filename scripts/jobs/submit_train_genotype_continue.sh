@@ -4,7 +4,7 @@
 #SBATCH -e logs/%x.%N.%j.err # STDERR
 #SBATCH -a 0-3 # array size
 #SBATCH --cpus-per-task=8 # Number of CPU cores per task
-#SBATCH --gres=gpu:2 # Number of GPU per task
+#SBATCH --gres=gpu:1 # Number of GPU per task
 #SBATCH -J DARTS-Genotype-Continue # sets the job name. If not
 echo "Workingdir: $PWD";
 echo "Started at $(date)";
@@ -37,7 +37,7 @@ fi
 
 genotype=$(<"$genotype_file")
 
-torchrun scripts/experiments/train_darts_genotype.py \
+python scripts/experiments/train_darts_genotype.py \
         --genotype "$genotype" \
         --continue_folder $continue_folder \
         --continue_runtime $continue_runtime \
@@ -48,7 +48,6 @@ torchrun scripts/experiments/train_darts_genotype.py \
         --project-name iclr-train-genotypes \
         --meta-info $meta_info \
         --comments $comments \
-        --lr 0.05 \
 
 end=`date +%s`
 runtime=$((end-start))
