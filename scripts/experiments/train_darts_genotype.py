@@ -75,12 +75,31 @@ def read_args() -> argparse.Namespace:
         "--debug-mode", action="store_true", help="run experiment in debug mode"
     )
 
+    parser.add_argument(
+        "--continue_folder",
+        default="",
+        type=str,
+        help="folder to load logs from (binded with runtime)",
+    )
+
+    parser.add_argument(
+        "--continue_runtime",
+        default="",
+        type=str,
+        help="runtime to load logs from to continue experiment",
+    )
+
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = read_args()
+
+    is_continue_folder = args.continue_folder != ""
+    is_continue_runtime = args.continue_runtime != ""
+
+    assert is_continue_folder == is_continue_runtime
 
     searchspace = "darts"
     assert args.dataset in [
@@ -116,6 +135,10 @@ if __name__ == "__main__":
 
     config = profile.get_trainer_config()
 
+    runtime = None
+    if is_continue_folder:
+        runtime = args.continue_runtime
+
     experiment = Experiment(
         search_space=SearchSpaceType(searchspace),
         dataset=DatasetType(args.dataset),
@@ -123,10 +146,21 @@ if __name__ == "__main__":
         debug_mode=args.debug_mode,
         exp_name=exp_type,
         is_wandb_log=True,
+        runtime=runtime,
     )
 
     # experiment.init_ddp()
 
-    discrete_trainer = experiment.train_discrete_model(profile)
+    load_saved_model = False
+    continue_folder = None
+    if is_continue_folder:
+        load_saved_model = True
+        continue_folder = args.continue_folder
+
+    discrete_trainer = experiment.train_discrete_model(
+        profile,
+        load_saved_model=load_saved_model,
+        src_folder_path=continue_folder,
+    )
 
     # experiment.cleanup_ddp()
