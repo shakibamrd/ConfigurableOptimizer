@@ -15,7 +15,11 @@ start=`date +%s`
 source ~/.bashrc
 conda activate confopt
 
-python scripts/experiments/train_random_darts_genotype.py --seed $SLURM_ARRAY_TASK_ID
+python scripts/experiments/train_random_darts_genotype.py --seed $SLURM_ARRAY_TASK_ID  --channels 36 --layers 4 --train-portion 0.4
+# python scripts/experiments/train_random_darts_genotype.py --seed $SLURM_ARRAY_TASK_ID  --channels 36 --layers 4 --train-portion 0.1
+
+# python scripts/experiments/train_random_darts_genotype.py --seed $SLURM_ARRAY_TASK_ID  --channels 16 --layers 4 --train-portion 0.4
+# python scripts/experiments/train_random_darts_genotype.py --seed $SLURM_ARRAY_TASK_ID  --channels 16 --layers 4 --train-portion 0.1
 
 end=`date +%s`
 runtime=$((end-start))
