@@ -79,6 +79,20 @@ def read_args() -> argparse.Namespace:
         "--debug-mode", action="store_true", help="run experiment in debug mode"
     )
 
+    parser.add_argument(
+        "--train-portion",
+        default=0.8,
+        help="train portion",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--layers",
+        default=4,
+        help="number of layers",
+        type=int,
+    )
+
     args = parser.parse_args()
     return args
 
@@ -98,14 +112,14 @@ def train_model(genotype_str: str) -> None:
         seed=args.seed,
         batch_size=args.batch_size,
         use_ddp=False,
-        train_portion=0.8,
+        train_portion=args.train_portion,
         lr=args.lr,
     )
     profile.genotype = genotype_str
 
     searchspace_config = {
         "C": args.channels,  # init channels
-        "layers": 4,  # number of layers
+        "layers": args.layers,  # number of layers
         "auxiliary": True,
         "num_classes": 10,
     }
