@@ -729,6 +729,10 @@ class Experiment:
             genotype_str=genotype_str,
         )
         model.to(device=DEVICE)
+
+        n_params_model = sum(p.numel() for p in model.parameters())
+        train_config["n_params_model"] = n_params_model
+
         # TODO: do i need this line?
         if use_supernet_checkpoint:
             start_epoch = 0
