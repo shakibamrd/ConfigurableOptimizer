@@ -1,20 +1,35 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Union
+import os
+from typing import Callable, Tuple, Union
 
 import numpy as np
+from skimage import io
 import torch
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, Sampler
 from torchvision import transforms
 import torchvision.datasets as dset
 from torchvision.transforms import Compose
 
+from confopt.dataset import load_ops
 import confopt.utils.distributed as dist_utils
 
 from .imgnet16 import ImageNet16
 
 DS = Tuple[Union[Dataset, None], Union[Sampler, None]]
+DOMAIN_DATA_SOURCE = {
+    "rgb": ("rgb", "png", "rgb"),
+    "autoencoder": ("rgb", "png", "autoencoder"),
+    "class_object": ("class_object", "npy", "class_object"),
+    "class_scene": ("class_scene", "npy", "class_places"),
+    "normal": ("normal", "png", "normal"),
+    "room_layout": ("room_layout", "npy", "room_layout"),
+    "segmentsemantic": ("segmentsemantic", "png", "segmentsemantic"),
+    "jigsaw": ("rgb", "png", "jigsaw"),
+}
+TASKONOMY_TRAIN_FILENAMES_FINAL5K = "train_filenames_final5k.json"
+TASKONOMY_TEST_FILENAMES_FINAL5K = "test_filenames_final5k.json"
 
 
 class CUTOUT:
@@ -81,8 +96,8 @@ class AbstractData(ABC):
 
         if use_distributed_sampler:
             rank, world_size = dist_utils.get_rank(), dist_utils.get_world_size()
-            choose_sampler = (
-                lambda data, sampler: sampler if sampler is not None else data
+            choose_sampler = lambda data, sampler: (
+                sampler if sampler is not None else data
             )
             train_sampler = DistributedSampler(
                 choose_sampler(train_data, train_sampler),
@@ -120,7 +135,7 @@ class AbstractData(ABC):
         else:
             valid_queue = None
 
-        test_queue = torch.utils.data.DataLoader(
+        test_queue = DataLoader(
             test_data,
             batch_size=batch_size,
             pin_memory=True,
@@ -313,3 +328,217 @@ class ImageNet16120Data(ImageNetData):
         assert len(test_data) == 6000
 
         return train_data, test_data
+
+
+class TaskonomyDataset(Dataset):
+    def __init__(
+        self,
+        templates: list[str],
+        dataset_dir: str,
+        domain: str,
+        target_load_fn: Callable,
+        target_load_kwargs: dict,
+        transform: Callable | None = None,
+    ) -> None:
+        self.dataset_dir = dataset_dir
+        self.domain = domain
+        self.label_type = DOMAIN_DATA_SOURCE[domain][1]
+        self.all_templates = (
+            templates  # load_ops.get_all_templates(dataset_dir, json_path)
+        )
+        self.target_load_kwargs = target_load_kwargs
+        self.target_load_fn = target_load_fn
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.all_templates)
+
+    def __getitem__(
+        self, idx: int | torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor | np.ndarray]:
+        try:
+            if torch.is_tensor(idx):
+                idx = idx.item()  # type: ignore
+            template = os.path.join(self.dataset_dir, self.all_templates[idx])
+            image = io.imread(".".join([template.format(domain="rgb"), "png"]))
+            label = self.get_label(template)
+            sample = {"image": image, "label": label}
+            if self.transform:
+                sample = self.transform(sample)
+        except Exception as err:  # noqa: BLE001
+            template = os.path.join(self.dataset_dir, self.all_templates[idx])
+            raise Exception(
+                f"Error for img {'.'.join([template.format(domain='rgb'), 'png'])}"
+            ) from err
+        return sample["image"], sample["label"]
+
+    def get_label(self, template: str) -> np.ndarray:
+        template = template.replace("{domain}", "{domain_task}", 1)
+        label_path = ".".join(
+            [
+                template.format(
+                    domain_task=DOMAIN_DATA_SOURCE[self.domain][0],
+                    domain=DOMAIN_DATA_SOURCE[self.domain][2],
+                ),
+                DOMAIN_DATA_SOURCE[self.domain][1],
+            ]
+        )
+        label = self.target_load_fn(label_path, **self.target_load_kwargs)
+        return label
+
+
+class TaskonomyData(AbstractData):
+    def __init__(
+        self,
+        train_portion: float,
+        dataset_dir: str,
+        domain: str,
+        target_load_fn: Callable,
+        num_classes: int,
+        target_dim: int,
+        data_split_dir: str,
+    ) -> None:
+        super().__init__(dataset_dir, train_portion)
+        self.dataset_dir = dataset_dir
+        self.domain = domain
+        self.label_type = DOMAIN_DATA_SOURCE[domain][1]
+        self.target_load_fn = target_load_fn
+        self.num_classes = num_classes
+        self.target_dim = target_dim
+        self.data_split_dir = data_split_dir
+
+    def load_datasets(
+        self,
+        # TODO: Remove the unused argument
+        root: str,  # noqa: ARG002
+        train_transform: load_ops.Compose,
+        test_transform: load_ops.Compose,
+    ) -> tuple[Dataset, Dataset]:
+        train_templates = load_ops.get_all_templates(
+            self.dataset_dir,
+            os.path.join(self.data_split_dir, TASKONOMY_TRAIN_FILENAMES_FINAL5K),
+        )
+        target_load_kwargs = {
+            "selected": self.target_dim < self.num_classes,
+            "final5k": "final5k" in TASKONOMY_TRAIN_FILENAMES_FINAL5K,
+        }
+        train_data = TaskonomyDataset(
+            templates=train_templates,
+            dataset_dir=self.dataset_dir,
+            domain=self.domain,
+            target_load_fn=self.target_load_fn,
+            target_load_kwargs=target_load_kwargs,
+            transform=train_transform,
+        )
+        test_templates = load_ops.get_all_templates(
+            self.dataset_dir,
+            os.path.join(self.data_split_dir, TASKONOMY_TEST_FILENAMES_FINAL5K),
+        )
+        test_data = TaskonomyDataset(
+            templates=test_templates,
+            dataset_dir=self.dataset_dir,
+            domain=self.domain,
+            target_load_fn=self.target_load_fn,
+            target_load_kwargs=target_load_kwargs,
+            transform=test_transform,
+        )
+        return train_data, test_data
+
+    def get_transforms(self) -> tuple[load_ops.Compose, load_ops.Compose]:
+        normal_params = {
+            "mean": [0.5224, 0.5222, 0.5221],
+            "std": [0.2234, 0.2235, 0.2236],
+            "inplace": False,
+        }
+        train_transform = load_ops.Compose(
+            self.domain,
+            [
+                load_ops.ToPILImage(),
+                load_ops.Resize([256, 256]),  # (1024, 1024)
+                load_ops.RandomHorizontalFlip(0.5),
+                load_ops.ColorJitter(
+                    brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
+                ),
+                load_ops.ToTensor(),
+                load_ops.Normalize(**normal_params),
+            ],
+        )
+        test_transform = load_ops.Compose(
+            self.domain,
+            [
+                load_ops.ToPILImage(),
+                load_ops.Resize([256, 256]),
+                load_ops.ToTensor(),
+                load_ops.Normalize(**normal_params),
+            ],
+        )
+        return train_transform, test_transform
+
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets("", train_transform, test_transform)
+
+        if self.train_portion < 1:
+            num_train = len(train_data)  # type: ignore
+            indices = list(range(num_train))
+            split = int(np.floor(self.train_portion * num_train))
+            train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+                indices[:split]
+            )
+            val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+                indices[split:num_train]
+            )
+            return (
+                (train_data, train_sampler),
+                (train_data, val_sampler),
+                (test_data, None),
+            )
+        return (train_data, None), (None, None), (test_data, None)
+
+
+class TaskonomyClassObjectData(TaskonomyData):
+    def __init__(
+        self,
+        root: str = "datasets",
+        dataset_dir: str = "taskonomydata_mini",
+        train_portion: float = 0.5,
+        # TODO: Remove the unused argument
+        cutout: int = -1,  # noqa: ARG002
+        cutout_length: int = 16,  # noqa: ARG002
+        num_classes: int = 1000,
+        target_dim: int = 75,
+        data_split_dir: str = "final5K_splits",
+    ) -> None:
+        super().__init__(
+            train_portion=train_portion,
+            dataset_dir=os.path.join(root, dataset_dir),
+            domain="class_object",
+            target_load_fn=load_ops.load_class_object_logits,
+            num_classes=num_classes,
+            target_dim=target_dim,
+            data_split_dir=os.path.join(root, dataset_dir, data_split_dir),
+        )
+
+
+class TaskonomyClassSceneData(TaskonomyData):
+    def __init__(
+        self,
+        root: str = "datasets",
+        dataset_dir: str = "taskonomydata_mini",
+        train_portion: float = 0.5,
+        # TODO: Remove the unused argument
+        cutout: int = -1,  # noqa: ARG002
+        cutout_length: int = 16,  # noqa: ARG002
+        num_classes: int = 365,
+        target_dim: int = 47,
+        data_split_dir: str = "final5K_splits",
+    ) -> None:
+        super().__init__(
+            dataset_dir=os.path.join(root, dataset_dir),
+            train_portion=train_portion,
+            domain="class_scene",
+            target_load_fn=load_ops.load_class_scene_logits,
+            num_classes=num_classes,
+            target_dim=target_dim,
+            data_split_dir=os.path.join(root, dataset_dir, data_split_dir),
+        )

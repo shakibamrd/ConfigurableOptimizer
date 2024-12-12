@@ -83,6 +83,9 @@ def calc_accuracy(
 
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
+    # when target has shape (batch_size, num_classes) apply softmax
+    if len(target.shape) == 2 and target.shape[1] == output.shape[1]:
+        target = target.argmax(dim=-1)
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
@@ -109,13 +112,19 @@ def drop_path(x: torch.Tensor, drop_prob: float) -> torch.Tensor:
     return x
 
 
-def get_num_classes(dataset: str) -> int:
+def get_num_classes(dataset: str, domain: str | None = None) -> int:
     if dataset == "cifar10":
         num_classes = 10
     elif dataset == "cifar100":
         num_classes = 100
     elif dataset in ("imgnet16_120", "imgnet16"):
         num_classes = 120
+    elif dataset == "taskonomy":
+        assert domain in ["class_object", "class_scene"]
+        if "class_object" in domain:
+            num_classes = 75
+        elif "class_scene" in domain:
+            num_classes = 47
     else:
         raise ValueError("dataset is not defined.")
     return num_classes
