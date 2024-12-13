@@ -271,6 +271,7 @@ class Network(nn.Module):
         edge_normalization: bool = False,
         discretized: bool = False,
         is_baby_darts: bool = False,
+        primitives: list[str] | None = None,
         k: int = 1,
     ) -> None:
         """Implementation of DARTS search space's network model.
@@ -287,6 +288,7 @@ class Network(nn.Module):
             discretized (bool): Whether supernet is discretized to only have one operation on
             each edge or not.
             is_baby_darts (bool): Controls which primitive list to use
+            primitives: the primitive operations to use in the supernet
             k (int): how much of the channel width should be used in the forward pass. Defaults to 1 which mean the whole channel width.
 
         Attributes:
@@ -328,6 +330,12 @@ class Network(nn.Module):
             self.primitives = BABY_PRIMITIVES
         else:
             self.primitives = PRIMITIVES
+
+        if primitives is not None:
+            assert (
+                len(set(primitives) - set(OPS.keys())) == 0
+            ), "Illegal keys found in the custom primitives."
+            self.primitives = primitives
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()

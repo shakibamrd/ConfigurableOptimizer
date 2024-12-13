@@ -5,7 +5,12 @@ import json
 
 import wandb
 
-from confopt.profiles import DARTSProfile, DiscreteProfile
+from confopt.profiles import (
+    BaseProfile,
+    DARTSProfile,
+    DRNASProfile,
+    GDASProfile,
+)
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 
 dataset_size = {
@@ -22,6 +27,12 @@ def read_args() -> argparse.Namespace:
         "--searchspace",
         default="darts",
         help="search space in (darts, nb201)",
+        type=str,
+    )
+    parser.add_argument(
+        "--sampler",
+        default="gdas",
+        help="NAS optimizer to use (DARTS, DrNAS, GDAS)",
         type=str,
     )
     parser.add_argument(
@@ -55,9 +66,16 @@ def read_args() -> argparse.Namespace:
     return args
 
 
-def get_darts_profile(args: argparse.Namespace) -> DARTSProfile:
-    profile = DARTSProfile(
-        epochs=args.search_epochs,
+def get_profile(args: argparse.Namespace) -> BaseProfile:
+    profile_cls = {
+        "darts": DARTSProfile,
+        "drnas": DRNASProfile,
+        "gdas": GDASProfile,
+    }
+
+    profile = profile_cls[args.sampler](
+        "darts",
+        epochs=5 if IS_DEBUG_MODE else args.search_epochs,
         sampler_sample_frequency="step",
     )
     # nb201 take in default configs, but for darts, we require different config
@@ -67,7 +85,13 @@ def get_darts_profile(args: argparse.Namespace) -> DARTSProfile:
     if args.searchspace == "darts":
         # profile.set_partial_connector(is_partial_connection=True)
         # profile.configure_partial_connector(k=4)
-        searchspace_config.update({"C": 16, "layers": 8})
+        searchspace_config.update(
+            {
+                "C": 16,
+                "layers": 8,
+                "primitives": ["dil_conv_3x3"] * 4,  # type: ignore
+            }
+        )
     profile.set_searchspace_config(searchspace_config)
 
     train_config = {
@@ -91,47 +115,31 @@ def get_darts_profile(args: argparse.Namespace) -> DARTSProfile:
 
 
 if __name__ == "__main__":
+    IS_DEBUG_MODE = False
+    IS_WANDB_LOG = True
+
     args = read_args()
     assert args.searchspace in ["darts", "nb201"], "Unsupported searchspace"
+
     searchspace = SearchSpaceType(args.searchspace)  # type: ignore
     dataset = DatasetType(args.dataset)  # type: ignore
-    seed = args.seed
 
-    profile = get_darts_profile(args)
-
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
-    discrete_profile.configure_trainer(batch_size=96)
-
-    discrete_config = discrete_profile.get_trainer_config()
-    profile.configure_extra(
-        {
-            "discrete_trainer": discrete_config,
-            "project_name": "BASELINES",
-            "run_type": "DRNAS",
-        }
-    )
+    profile = get_profile(args)
+    profile.configure_extra({"project_name": "DARTS-Bench-Suite"})
     config = profile.get_config()
 
     print(json.dumps(config, indent=2, default=str))
 
-    IS_DEBUG_MODE = False
-    IS_WANDB_LOG = False
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
-        seed=seed,
+        seed=args.seed,
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
-        exp_name="DRNAS_BASELINE",
+        exp_name="DARTS-Primitive-4x-DilConv3x3",
     )
 
     trainer = experiment.train_supernet(profile)
 
-    discret_trainer = experiment.train_discrete_model(
-        discrete_profile,
-        # start_epoch=args.eval_epochs,
-        # load_saved_model=args.load_saved_model,
-        # load_best_model=args.load_best_model,
-    )
     if IS_WANDB_LOG:
         wandb.finish()  # type: ignore

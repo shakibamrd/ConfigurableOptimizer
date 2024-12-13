@@ -145,7 +145,7 @@ line-length = 88
 [tool.ruff]
 target-version = "py38"
 line-length = 88
-show-source = true
+#show-source = true
 src = ["src", "tests"]
 
 # Allow unused variables when underscore-prefixed.

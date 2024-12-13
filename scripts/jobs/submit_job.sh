@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:5
 #SBATCH -o logs/slurm_logs/%A.%N.out       # STDOUT  (the folder log has to exist) %A will be replaced by the SLURM_ARRAY_JOB_ID value
 #SBATCH -e logs/slurm_logs/%A.%N.err       # STDERR  (the folder log has to exist) %A will be replaced by the SLURM_ARRAY_JOB_ID value
-#SBATCH -J darts-profile              # sets the job name. 
+#SBATCH -J darts-same-primitives           # sets the job name.
 #SBATCH -a 1-5 # array size
 # Print some information about the job to STDOUT
 
