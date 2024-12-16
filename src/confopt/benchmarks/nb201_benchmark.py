@@ -12,8 +12,8 @@ from .benchmark_base import BenchmarkBase
 
 
 class NB201Benchmark(BenchmarkBase):
-    def __init__(self) -> None:
-        self.api_dir = "api/nb201"
+    def __init__(self, api_root_dir: str="api") -> None:
+        self.api_dir = os.path.join(api_root_dir, "nb201")
         # self.api_file_name = "NAS-Bench-201-v1_1-096897.pth" # newer version
         self.api_file_name = "NAS-Bench-201-v1_0-e61699.pth"
         self.api_path = f"{self.api_dir}/{self.api_file_name}"

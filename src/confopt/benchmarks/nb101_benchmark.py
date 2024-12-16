@@ -17,8 +17,9 @@ class NB101Benchmark(BenchmarkBase):
     def __init__(
         self,
         benchmark_type: Literal["full", "only108"],
+        api_root_dir: str = "api",
     ) -> None:
-        self.api_dir = "api/nb101"
+        self.api_dir = os.path.join(api_root_dir, "nb101")
         self.benchmark_type = benchmark_type
 
         if benchmark_type == "full":

@@ -14,10 +14,11 @@ class NB301Benchmark(BenchmarkBase):
         self,
         model_version: Literal["0.9", "1.0"] = "0.9",
         model_name: Literal["xgb", "gnn_gin", "lgb_runtime"] = "xgb",
+        api_root_dir: str = "api",
     ) -> None:
+        self.api_dir = os.path.join(api_root_dir, "nb301")
         self.model_version = model_version
         self.model_name = model_name
-        self.api_dir = "api/nb301"
         self.download_api()
 
         query_model_dir = self.model_paths[model_name]
