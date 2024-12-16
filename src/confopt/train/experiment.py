@@ -147,6 +147,8 @@ class Experiment:
         exp_name: str = "test",
         runtime: str | None = None,
         domain: str | None = None,
+        dataset_dir: str = "datasets",
+        api_dir: str="api",
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
@@ -156,6 +158,8 @@ class Experiment:
         self.exp_name = exp_name
         self.runtime = runtime
         self.domain = domain
+        self.dataset_dir = dataset_dir
+        self.api_dir = api_dir
 
     def set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
@@ -366,19 +370,19 @@ class Experiment:
         if search_space == SearchSpaceType.NB1SHOT1:
             from confopt.benchmarks import NB101Benchmark
 
-            self.benchmark_api = NB101Benchmark("full")
+            self.benchmark_api = NB101Benchmark("full", self.api_dir)
         elif search_space == SearchSpaceType.NB201:
             from confopt.benchmarks import NB201Benchmark
 
-            self.benchmark_api = NB201Benchmark()
+            self.benchmark_api = NB201Benchmark(self.api_dir)
         elif search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
             from confopt.benchmarks import NB301Benchmark
 
-            self.benchmark_api = NB301Benchmark(**config)
+            self.benchmark_api = NB301Benchmark(api_root_dir=self.api_dir, **config)
         elif search_space == SearchSpaceType.TNB101:
             from confopt.benchmarks import TNB101Benchmark
 
-            self.benchmark_api = TNB101Benchmark()
+            self.benchmark_api = TNB101Benchmark(self.api_dir)
         else:
             print(f"Benchmark does not exist for the {search_space.value} searchspace")
             self.benchmark_api = None
@@ -770,7 +774,7 @@ class Experiment:
         trainer_arguments = Arguments(**train_config)  # type: ignore
 
         data = self._get_dataset(self.dataset_str, self.domain)(
-            root="datasets",
+            root=self.dataset_dir,
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
@@ -842,7 +846,7 @@ class Experiment:
         )
 
         data = self._get_dataset(self.dataset_str, self.domain)(
-            root="datasets",
+            root=self.dataset_dir,
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore

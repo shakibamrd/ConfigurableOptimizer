@@ -11,8 +11,8 @@ from confopt.utils import TransNASBenchAPI
 
 
 class TNB101Benchmark(BenchmarkBase):
-    def __init__(self) -> None:
-        self.api_dir = "api/tnb101"
+    def __init__(self, api_root_dir:str = "api") -> None:
+        self.api_dir = os.path.join(api_root_dir, "tnb101")
         self.api_file_name = "transnas-bench_v10141024.pth"
         self.api_path = f"{self.api_dir}/{self.api_file_name}"
         self.download_api()
