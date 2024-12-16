@@ -137,6 +137,8 @@ if __name__ == "__main__":
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
         exp_name="DARTS-Primitive-4x-DilConv3x3",
+        dataset_dir="/work/dlclarge2/krishnan-confopt/datasets",
+        api_dir="/work/dlclarge2/krishnan-confopt/apis"
     )
 
     trainer = experiment.train_supernet(profile)
