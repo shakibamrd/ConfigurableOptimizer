@@ -117,7 +117,7 @@ def get_profile(args: argparse.Namespace) -> BaseProfile:
 if __name__ == "__main__":
 
     while True:
-        print("This")
+        print("That")
 
     IS_DEBUG_MODE = False
     IS_WANDB_LOG = True
