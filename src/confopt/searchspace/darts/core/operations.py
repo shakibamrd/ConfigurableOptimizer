@@ -214,7 +214,7 @@ class Pooling(nn.Module):
             This method performs a forward pass through the Pooling block
             applying pooling based on the specified mode.
         """
-        return self.op(inputs)  # type: ignore
+        return self.op(inputs) + inputs # type: ignore
 
     def change_channel_size(
         self,
@@ -309,7 +309,7 @@ class DilConv(ConvolutionalWEModule):
         Returns:
             torch.Tensor: The output tensor after applying the Dilated Convolution.
         """
-        return self.op(x)  # type: ignore
+        return self.op(x) + x # type: ignore
 
     def change_channel_size(
         self,
@@ -454,7 +454,7 @@ class SepConv(ConvolutionalWEModule):
         Returns:
             torch.Tensor: The output tensor after applying the Dilated Convolution.
         """
-        return self.op(x)  # type: ignore
+        return self.op(x) + x  # type: ignore
 
     def change_channel_size(
         self,
@@ -835,7 +835,7 @@ class Conv7x1Conv1x7BN(nn.Module):
             torch.Tensor: The output tensor after applying the convolution operation.
 
         """
-        return self.op(x)
+        return self.op(x) + x
 
     def change_channel_size(
         self,

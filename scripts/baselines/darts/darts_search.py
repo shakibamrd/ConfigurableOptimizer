@@ -89,7 +89,7 @@ def get_profile(args: argparse.Namespace) -> BaseProfile:
             {
                 "C": 16,
                 "layers": 8,
-                "primitives": ["dil_conv_3x3"] * 4,  # type: ignore
+                # "primitives": ["dil_conv_3x3"] * 4,  # type: ignore
             }
         )
     profile.set_searchspace_config(searchspace_config)
@@ -125,7 +125,10 @@ if __name__ == "__main__":
     dataset = DatasetType(args.dataset)  # type: ignore
 
     profile = get_profile(args)
-    profile.configure_extra({"project_name": "DARTS-Bench-Suite"})
+    profile.configure_extra({
+        "project_name": "DARTS-Bench-Suite",
+        "exp-type": "Every-Op-Has-Residuals"
+    })
     config = profile.get_config()
 
     print(json.dumps(config, indent=2, default=str))
@@ -136,7 +139,7 @@ if __name__ == "__main__":
         seed=args.seed,
         debug_mode=IS_DEBUG_MODE,
         is_wandb_log=IS_WANDB_LOG,
-        exp_name="DARTS-Primitive-4x-DilConv3x3",
+        exp_name="DARTS-Every-Op-Has-Residual-Connection",
         dataset_dir="/work/dlclarge2/krishnan-confopt/datasets",
         api_dir="/work/dlclarge2/krishnan-confopt/apis"
     )
