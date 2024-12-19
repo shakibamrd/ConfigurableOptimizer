@@ -38,6 +38,13 @@ OPS = {
     ),
 }
 
+def forward_with_residual_connection(op: nn.Module, inputs: torch.Tensor) -> torch.Tensor:
+    outputs = op(inputs)
+
+    if outputs.shape == inputs.shape:
+        outputs += inputs
+
+    return outputs
 
 class ReLUConvBN(nn.Module):
     def __init__(
@@ -214,7 +221,8 @@ class Pooling(nn.Module):
             This method performs a forward pass through the Pooling block
             applying pooling based on the specified mode.
         """
-        return self.op(inputs) + inputs # type: ignore
+        return forward_with_residual_connection(self.op, inputs)
+        # return self.op(inputs) + inputs # type: ignore
 
     def change_channel_size(
         self,
@@ -309,7 +317,8 @@ class DilConv(ConvolutionalWEModule):
         Returns:
             torch.Tensor: The output tensor after applying the Dilated Convolution.
         """
-        return self.op(x) + x # type: ignore
+        return forward_with_residual_connection(self.op, x)
+        # return self.op(x) + x # type: ignore
 
     def change_channel_size(
         self,
@@ -454,7 +463,8 @@ class SepConv(ConvolutionalWEModule):
         Returns:
             torch.Tensor: The output tensor after applying the Dilated Convolution.
         """
-        return self.op(x) + x  # type: ignore
+        return forward_with_residual_connection(self.op, x)
+        # return self.op(x) + x  # type: ignore
 
     def change_channel_size(
         self,
@@ -835,7 +845,8 @@ class Conv7x1Conv1x7BN(nn.Module):
             torch.Tensor: The output tensor after applying the convolution operation.
 
         """
-        return self.op(x) + x
+        return forward_with_residual_connection(self.op, x)
+        # return self.op(x) + x
 
     def change_channel_size(
         self,
