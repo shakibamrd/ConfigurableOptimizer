@@ -89,7 +89,7 @@ def get_profile(args: argparse.Namespace) -> BaseProfile:
             {
                 "C": 16,
                 "layers": 8,
-                # "primitives": ["dil_conv_3x3"] * 4,  # type: ignore
+                "primitives": ["dil_conv_3x3"] + ["skip_connect"] * 3,  # type: ignore
             }
         )
     profile.set_searchspace_config(searchspace_config)

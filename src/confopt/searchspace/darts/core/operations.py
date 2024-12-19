@@ -40,6 +40,7 @@ OPS = {
 
 def forward_with_residual_connection(op: nn.Module, inputs: torch.Tensor) -> torch.Tensor:
     outputs = op(inputs)
+    return outputs
 
     if outputs.shape == inputs.shape:
         outputs += inputs
