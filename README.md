@@ -2,6 +2,32 @@
 
 Break down one-shot optimizers into their core ideas, modularize them, and then search the space of optimizers for the best one.
 
+## Installation with uv
+First, install `uv` in a new environment (or system-wide, it doesn't matter)
+
+Then, run uv. The first time `uv run` is called, it automatically creates an environment in `.venv` and installs all the dependencies.
+```
+uv run python
+```
+
+The python that is installed in this `.venv` is what shall be used for the project.
+
+Install the project as an editable dependency (it would be nice if we could find a way to install the project by default whenever `uv run` is invoked)
+```
+uv pip install -e .
+```
+
+Try importing confopt:
+```
+uv run python
+>>> import confopt
+```
+
+Now try running the light demo
+```
+uv run python examples/demo_light.py
+```
+
 ## Installation and Development
 First, install the dependencies required for development and testing in your environment.
 

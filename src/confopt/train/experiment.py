@@ -52,7 +52,7 @@ from confopt.searchspace import (
     DARTSModel,
     DARTSSearchSpace,
     NAS201Genotype,
-    NASBench1Shot1SearchSpace,
+    # NASBench1Shot1SearchSpace,
     NASBench201Model,
     NASBench201SearchSpace,
     RobustDARTSSearchSpace,
@@ -353,8 +353,8 @@ class Experiment:
             self.search_space = NASBench201SearchSpace(**config)
         elif search_space == SearchSpaceType.DARTS:
             self.search_space = DARTSSearchSpace(**config)
-        elif search_space == SearchSpaceType.NB1SHOT1:
-            self.search_space = NASBench1Shot1SearchSpace(**config)
+        # elif search_space == SearchSpaceType.NB1SHOT1:
+        #     self.search_space = NASBench1Shot1SearchSpace(**config)
         elif search_space == SearchSpaceType.TNB101:
             self.search_space = TransNASBench101SearchSpace(**config)
         elif search_space == SearchSpaceType.BABYDARTS:
