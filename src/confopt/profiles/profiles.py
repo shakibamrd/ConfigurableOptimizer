@@ -175,10 +175,11 @@ class DRNASProfile(BaseProfile, ABC):
         # self.tau_min = 1
         # self.tau_max = 10
         self.trainer_config = trainer_config
+        searchspace_config = {"N": 5, "C": 16}
         if hasattr(self, "searchspace_config"):
-            self.searchspace_config.update({"N": 5, "C": 16})
+            self.searchspace_config.update(**searchspace_config)
         else:
-            self.searchspace_config = {"N": 5, "C": 16}
+            self.searchspace_config = searchspace_config
 
     def _initialize_trainer_config_darts(self) -> None:
         default_train_config = {
@@ -210,10 +211,11 @@ class DRNASProfile(BaseProfile, ABC):
             "seed": self.seed,
         }
         self.trainer_config = default_train_config
+        searchspace_config = {"layers": 20, "C": 36}
         if hasattr(self, "searchspace_config"):
-            self.searchspace_config.update({"layers": 20, "C": 36})
+            self.searchspace_config.update(**searchspace_config)
         else:
-            self.searchspace_config = {"layers": 20, "C": 36}
+            self.searchspace_config = searchspace_config
 
 
 class DiscreteProfile:

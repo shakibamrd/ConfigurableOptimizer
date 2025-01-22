@@ -18,7 +18,7 @@ if __name__ == "__main__":
         prune_fractions=[0.2, 0.2],
     )
 
-    profile.set_searchspace_config({"layers": 4, "C": 76})
+    profile.configure_searchspace(layers=4, C=76)
     profile.configure_lora(
         lora_alpha=2.0,  # used in scaling in LoRA
     )

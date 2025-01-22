@@ -77,7 +77,7 @@ if __name__ == "__main__":
     if args.searchspace == "darts":
         profile.configure_partial_connector(k=4)
         searchspace_config.update({"C": 36, "layers": 20})
-    profile.set_searchspace_config(searchspace_config)
+    profile.configure_searchspace(**searchspace_config)
 
     train_config = {
         "train_portion": 0.5,

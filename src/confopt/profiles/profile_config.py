@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 import warnings
 
 import torch
@@ -266,7 +266,7 @@ class BaseProfile:
     def _initialize_partial_connector_config(self) -> None:
         if self.is_partial_connection:
             partial_connector_config = {"k": 4, "num_warm_epoch": 15}
-            self.set_searchspace_config({"k": 4})
+            self.configure_searchspace(**partial_connector_config)
         else:
             partial_connector_config = None
         self.partial_connector_config = partial_connector_config
@@ -335,7 +335,7 @@ class BaseProfile:
             ]
 
         if kwargs.get("k"):
-            self.set_searchspace_config({"k": kwargs["k"]})
+            self.configure_searchspace(k=kwargs["k"])
 
     def configure_trainer(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
@@ -386,7 +386,7 @@ class BaseProfile:
             )
             self.pt_select_configs[config_key] = kwargs[config_key]
 
-    def set_searchspace_config(self, config: dict) -> None:
+    def configure_searchspace(self, **config: Any) -> None:
         if not hasattr(self, "searchspace_config"):
             self.searchspace_config = config
         else:

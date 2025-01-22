@@ -8,7 +8,7 @@ from confopt.utils import get_num_classes
 if __name__ == "__main__":
     domain = "class_object"
     profile = GDASProfile(searchspace="tnb101", epochs=3, searchspace_domain=domain)
-    profile.set_searchspace_config({"num_classes": get_num_classes("taskonomy", domain)})
+    profile.configure_searchspace(num_classes=get_num_classes("taskonomy", domain))
     experiment = Experiment(
         search_space=SearchSpaceType.TNB101,
         dataset=DatasetType.TASKONOMY,

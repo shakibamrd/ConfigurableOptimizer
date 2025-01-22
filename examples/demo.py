@@ -28,7 +28,7 @@ if __name__ == "__main__":
         is_regularization_enabled=True,
         regularization_config=reg_config,
     )
-    profile.set_searchspace_config({"layers": 8, "C": 2})
+    profile.configure_searchspace(layers=8, C=2)
     config = profile.get_config()
 
     print(config)
