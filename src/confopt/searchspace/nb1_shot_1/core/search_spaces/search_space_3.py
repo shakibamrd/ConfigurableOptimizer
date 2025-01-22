@@ -49,12 +49,14 @@ class NB1Shot1Space3(NB1Shot1Space):
     ) -> np.ndarray:
         return self._create_adjacency_matrix_with_loose_ends(parents)
 
-    def generate_adjacency_matrix_without_loose_ends(self) -> Generator:
+    def generate_adjacency_matrix_without_loose_ends(
+        self,
+    ) -> Generator[np.ndarray, None, None]:
         yield from self._generate_adjacency_matrix(
             adjacency_matrix=np.zeros([7, 7]), node=OUTPUT_NODE
         )
 
-    def generate_with_loose_ends(self) -> Generator:
+    def generate_with_loose_ends(self) -> Generator[np.ndarray, None, None]:
         for (
             parent_node_2,
             parent_node_3,

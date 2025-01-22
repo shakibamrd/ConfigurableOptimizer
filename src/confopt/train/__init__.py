@@ -1,6 +1,9 @@
-from .configurable_trainer import ConfigurableTrainer, DEBUG_STEPS  # noqa: I001
+from .configurable_trainer import (
+    DEBUG_STEPS,
+    ConfigurableTrainer,
+    TrainingMetrics,
+)
 from .discrete_trainer import DiscreteTrainer
-from .search_space_handler import SearchSpaceHandler
 from .experiment import (
     DatasetType,
     Experiment,
@@ -8,6 +11,7 @@ from .experiment import (
     SamplerType,
     SearchSpaceType,
 )
+from .search_space_handler import SearchSpaceHandler
 
 __all__ = [
     "ConfigurableTrainer",
@@ -18,5 +22,6 @@ __all__ = [
     "SearchSpaceType",
     "DatasetType",
     "SamplerType",
+    "TrainingMetrics",
     "PerturbatorType",
 ]

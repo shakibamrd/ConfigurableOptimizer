@@ -343,7 +343,7 @@ class PerturbationArchSelectionSupport(ModelWrapper):
         self,
         selected_node: int,  # noqa: ARG002
         selected_edges: list[int],  # noqa: ARG002
-        cell_type: str | None = None,  # noqa: ARG002
+        cell_type: Any | None = None,  # noqa: ARG002
     ) -> None:
         """Mark an operation on a given edge (of the cell type) in the candidate flags
         and projected weights to be already projected.

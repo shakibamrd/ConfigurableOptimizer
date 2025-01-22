@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from typing import Literal
 import warnings
 
@@ -233,11 +232,9 @@ class BaseProfile:
             config.update(self.extra_config)
         return config
 
-    @abstractmethod
     def _initialize_sampler_config(self) -> None:
         self.sampler_config = None
 
-    @abstractmethod
     def _initialize_perturbation_config(self) -> None:
         if self.perturb_type == "adverserial":
             perturb_config = {
@@ -258,7 +255,6 @@ class BaseProfile:
 
         self.perturb_config = perturb_config
 
-    @abstractmethod
     def _initialize_partial_connector_config(self) -> None:
         if self.is_partial_connection:
             partial_connector_config = {"k": 4, "num_warm_epoch": 15}
@@ -267,7 +263,6 @@ class BaseProfile:
             partial_connector_config = None
         self.partial_connector_config = partial_connector_config
 
-    @abstractmethod
     def _initialize_trainer_config(self) -> None:
         if self.searchspace_str == "nb201":
             self._initialize_trainer_config_nb201()
@@ -278,7 +273,6 @@ class BaseProfile:
         elif self.searchspace_str == "tnb101":
             self._initialize_trainer_config_tnb101()
 
-    @abstractmethod
     def _initialize_dropout_config(self) -> None:
         dropout_config = {
             "p": self.dropout if self.dropout is not None else 0.0,
@@ -384,14 +378,12 @@ class BaseProfile:
             )
             self.pt_select_configs[config_key] = kwargs[config_key]
 
-    @abstractmethod
     def set_searchspace_config(self, config: dict) -> None:
         if not hasattr(self, "searchspace_config"):
             self.searchspace_config = config
         else:
             self.searchspace_config.update(config)
 
-    @abstractmethod
     def configure_extra(self, config: dict) -> None:
         self.extra_config = config
 
@@ -413,7 +405,6 @@ class BaseProfile:
         name_wandb_run_str = "-".join(name_wandb_run)
         return name_wandb_run_str
 
-    @abstractmethod
     def _initialize_trainer_config_nb201(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -445,7 +436,6 @@ class BaseProfile:
 
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_darts(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -478,7 +468,6 @@ class BaseProfile:
 
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_1shot1(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -495,7 +484,6 @@ class BaseProfile:
         }
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_tnb101(self) -> None:
         trainer_config = {
             "lr": 0.025,

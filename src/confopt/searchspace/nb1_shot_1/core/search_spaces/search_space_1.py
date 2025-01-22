@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import Any
+from typing import Any, Generator
 
 import ConfigSpace
 from nasbench import api
@@ -24,9 +24,7 @@ class NB1Shot1Space1(NB1Shot1Space):
         self.test_min_error = 0.05448716878890991
         self.valid_min_error = 0.049278855323791504
 
-    def create_nasbench_adjacency_matrix(  # type: ignore
-        self, parents, **kwargs  # noqa: ARG002
-    ):
+    def create_nasbench_adjacency_matrix(self, parents: dict[str, Any]) -> np.ndarray:
         adjacency_matrix = self._create_adjacency_matrix(
             parents, adjacency_matrix=np.zeros([6, 6]), node=OUTPUT_NODE - 1
         )
@@ -40,7 +38,9 @@ class NB1Shot1Space1(NB1Shot1Space):
             self._create_adjacency_matrix_with_loose_ends(parents)
         )
 
-    def generate_adjacency_matrix_without_loose_ends(self):  # type: ignore
+    def generate_adjacency_matrix_without_loose_ends(
+        self,
+    ) -> Generator[np.ndarray, None, None]:
         for adjacency_matrix in self._generate_adjacency_matrix(
             adjacency_matrix=np.zeros([6, 6]), node=OUTPUT_NODE - 1
         ):
@@ -60,7 +60,7 @@ class NB1Shot1Space1(NB1Shot1Space):
         nasbench_data = nasbench.query(model_spec, epochs=budget)
         return nasbench_data["validation_accuracy"], nasbench_data["training_time"]
 
-    def generate_with_loose_ends(self):  # type: ignore
+    def generate_with_loose_ends(self) -> Generator[np.ndarray, None, None]:
         for _, parent_node_3, parent_node_4, output_parents in itertools.product(
             *[
                 itertools.combinations(list(range(int(node))), num_parents)

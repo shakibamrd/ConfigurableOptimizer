@@ -13,6 +13,7 @@ import torch
 from torch.backends import cudnn
 import wandb
 
+from confopt.benchmarks.benchmark_base import BenchmarkBase
 from confopt.dataset import (
     CIFAR10Data,
     CIFAR100Data,
@@ -22,6 +23,7 @@ from confopt.dataset import (
     TaskonomyClassSceneData,
 )
 from confopt.oneshot.archsampler import (
+    BaseSampler,
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
@@ -37,6 +39,7 @@ from confopt.oneshot.regularizer import (
     DrNASRegularizationTerm,
     FairDARTSRegularizationTerm,
     FLOPSRegularizationTerm,
+    RegularizationTerm,
     Regularizer,
 )
 from confopt.oneshot.weightentangler import WeightEntangler
@@ -148,7 +151,7 @@ class Experiment:
         runtime: str | None = None,
         domain: str | None = None,
         dataset_dir: str = "datasets",
-        api_dir: str="api",
+        api_dir: str = "api",
     ) -> None:
         self.search_space_str = search_space
         self.dataset_str = dataset
@@ -191,7 +194,7 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
-        self.dropout = profile.dropout
+        self.dropout_p = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
         oles_config = config["oles"]
@@ -322,6 +325,7 @@ class Experiment:
         self.set_partial_connector(config.get("partial_connector", {}))
         self.set_dropout(config.get("dropout", {}))
         self.set_pruner(config.get("pruner", {}))
+        self.benchmark_api: None | BenchmarkBase = None
 
         if use_benchmark:
             if (
@@ -393,9 +397,9 @@ class Experiment:
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
-        if sampler == SamplerType.DARTS:
-            self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
-        elif sampler == SamplerType.DRNAS:
+        self.sampler: BaseSampler = DARTSSampler(**config, arch_parameters=arch_params)
+
+        if sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)
@@ -409,40 +413,36 @@ class Experiment:
         petubrator_enum: PerturbatorType,
         pertub_config: dict,
     ) -> None:
+        self.perturbator: SDARTSPerturbator | None = None
         if petubrator_enum != PerturbatorType.NONE:
             self.perturbator = SDARTSPerturbator(
                 **pertub_config,
                 search_space=self.search_space,
                 arch_parameters=self.search_space.arch_parameters,
-                attack_type=petubrator_enum.value,
+                attack_type=petubrator_enum.value,  # type: ignore
             )
-        else:
-            self.perturbator = None
 
     def set_partial_connector(self, config: dict) -> None:
+        self.partial_connector: PartialConnector | None = None
         if self.is_partial_connection:
             self.partial_connector = PartialConnector(**config)
-        else:
-            self.partial_connector = None
 
     def set_dropout(self, config: dict) -> None:
-        if self.dropout is not None:
+        self.dropout: Dropout | None = None
+        if self.dropout_p is not None:
             self.dropout = Dropout(**config)
-        else:
-            self.dropout = None
 
     def set_weight_entangler(self) -> None:
         self.weight_entangler = WeightEntangler() if self.entangle_op_weights else None
 
     def set_pruner(self, config: dict) -> None:
+        self.pruner: Pruner | None = None
         if config:
             self.pruner = Pruner(
                 searchspace=self.search_space,
                 prune_epochs=config.get("prune_epochs", []),
                 prune_fractions=config.get("prune_fractions", []),
             )
-        else:
-            self.pruner = None
 
     def set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
         if lora_config.get("r", 0) == 0:
@@ -468,7 +468,7 @@ class Experiment:
             self.regularizer = None
             return
 
-        reg_terms = []
+        reg_terms: list[RegularizationTerm] = []
         for term in config["active_reg_terms"]:
             if term == "drnas":
                 reg_terms.append(DrNASRegularizationTerm(**config["drnas_config"]))
@@ -962,7 +962,7 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
-        self.dropout = profile.dropout
+        self.dropout_p = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
 
@@ -1115,6 +1115,7 @@ if __name__ == "__main__":
     args.epochs = 3
 
     profile = GDASProfile(
+        searchspace_str=searchspace.value,
         epochs=args.epochs,
         is_partial_connection=args.is_partial_connector,
         perturbation=args.perturbator,
@@ -1145,9 +1146,9 @@ if __name__ == "__main__":
     #     load_best_model=args.load_best_model,
     # )
 
-    profile = DiscreteProfile()
+    discrete_profile = DiscreteProfile(searchspace.value)
     discret_trainer = experiment.train_discrete_model(
-        profile,
+        discrete_profile,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
         load_best_model=args.load_best_model,

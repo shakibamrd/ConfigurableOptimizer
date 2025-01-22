@@ -34,14 +34,14 @@ def parent_combinations(node: int, num_parents: int) -> list:
 
 class NB1Shot1Space:
     def __init__(self, search_space_number: int, num_intermediate_nodes: int) -> None:
-        self.search_space_number = search_space_number
         self.num_intermediate_nodes = num_intermediate_nodes
+        self.search_space_number = search_space_number
         self.num_parents_per_node: dict[str, Any] = {}
 
         self.run_history = []  # type: ignore
 
     @abstractmethod
-    def create_nasbench_adjacency_matrix(self, parents: dict[str, Any]) -> Any:
+    def create_nasbench_adjacency_matrix(self, parents: dict[str, Any]) -> np.ndarray:
         """Based on given connectivity pattern create the corresponding
         adjacency matrix.
         """
@@ -103,8 +103,9 @@ class NB1Shot1Space:
         return adjacency_matrix
 
     @abstractmethod
-    @typing.no_type_check
-    def generate_adjacency_matrix_without_loose_ends(self):
+    def generate_adjacency_matrix_without_loose_ends(
+        self,
+    ) -> Generator[np.ndarray, None, None]:
         """Returns every adjacency matrix in the search space without loose ends."""
 
     @typing.no_type_check

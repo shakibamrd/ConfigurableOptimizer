@@ -76,7 +76,7 @@ class AverageMeter:
 
 def calc_accuracy(
     output: torch.Tensor, target: torch.Tensor, topk: Iterable = (1,)
-) -> list[float]:
+) -> list[torch.Tensor]:
     """Computes the precision@k for the specified values of k."""
     maxk = max(topk)
     batch_size = target.size(0)
@@ -137,7 +137,7 @@ def freeze(m: torch.nn.Module) -> None:
 
 def preserve_gradients_in_module(
     m: torch.nn.Module,
-    ignored_modules: tuple[torch.nn.Module],
+    ignored_modules: tuple[type[torch.nn.Module], ...],
     oles_ops: list[torch.nn.Module],
 ) -> None:
     if isinstance(m, ignored_modules):

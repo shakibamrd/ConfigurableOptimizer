@@ -50,8 +50,8 @@ class WeightEntanglementModule(nn.Module, ABC):
 class ConvolutionalWEModule(WeightEntanglementModule):
     def __init__(self) -> None:
         super().__init__()
-        self.kernel_size = None
-        self.stride = None
+        self.kernel_size: None | int = None
+        self.stride: None | int | tuple[int, int] = None
         self.op: nn.Sequential = None
 
     def __post__init__(self) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 from typing import Any, Literal
+import warnings
 
 import torch
 from torch import nn
@@ -47,17 +48,22 @@ class NASBench1Shot1SearchSpace(
     FLOPSRegTermSupport,
     GradientMatchingScoreSupport,
 ):
-    def __init__(
-        self, search_space: Literal["S1", "S2", "S3"], *args: Any, **kwargs: dict
-    ) -> None:
+    def __init__(self, search_space: Literal["S1", "S2", "S3"], **kwargs: dict) -> None:
+        self.search_space_type = search_space_map[search_space]()  # type: ignore
         self.search_space = search_space
-        self.search_space_type = search_space_map[search_space]()
+
+        if "steps" in kwargs:
+            warnings.warn(
+                "The steps arguments should not be provided explicitly in"
+                "the initializer. Ignoring it.",
+                stacklevel=1,
+            )
+            del kwargs["steps"]
 
         model = NASBench1Shot1Network(
-            *args,
-            **kwargs,
             steps=self.search_space_type.num_intermediate_nodes,
             search_space=self.search_space_type,
+            **kwargs,  # type: ignore
         ).to(DEVICE)
 
         super().__init__(model)

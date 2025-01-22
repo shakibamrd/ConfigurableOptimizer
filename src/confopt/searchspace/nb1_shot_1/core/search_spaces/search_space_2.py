@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import Any
+from typing import Any, Generator
 
 import ConfigSpace
 from nasbench import api
@@ -51,7 +51,9 @@ class NB1Shot1Space2(NB1Shot1Space):
             self._create_adjacency_matrix_with_loose_ends(parents)
         )
 
-    def generate_adjacency_matrix_without_loose_ends(self):  # type: ignore
+    def generate_adjacency_matrix_without_loose_ends(
+        self,
+    ) -> Generator[np.ndarray, None, None]:
         for adjacency_matrix in self._generate_adjacency_matrix(
             adjacency_matrix=np.zeros([6, 6]), node=OUTPUT_NODE - 1
         ):
@@ -78,7 +80,7 @@ class NB1Shot1Space2(NB1Shot1Space):
 
         return nasbench_data["validation_accuracy"], nasbench_data["training_time"]
 
-    def generate_with_loose_ends(self):  # type: ignore
+    def generate_with_loose_ends(self) -> Generator[np.ndarray, None, None]:
         for (
             parent_node_2,
             parent_node_3,

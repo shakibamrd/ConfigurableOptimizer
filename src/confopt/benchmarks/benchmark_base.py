@@ -12,7 +12,7 @@ class BenchmarkBase:
     def query(
         self,
         genotype: Any,
-        dataset: str = "cifar10",
+        dataset: Any = "cifar10",
         **api_kwargs: Any,
     ) -> dict:
         pass

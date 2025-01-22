@@ -323,7 +323,7 @@ class DiscreteProfile:
         elif self.searchspace_str == "taskonomy":
             assert self.domain is not None, "domain must be specified"
             searchspace_config = {
-                "domain": self.domain,
+                "domain": self.domain,  # type: ignore
                 "num_classes": get_num_classes(dataset_str, domain=self.domain),
             }
         else:

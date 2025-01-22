@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import namedtuple
 import time
 
 from fvcore.common.checkpoint import Checkpointer
@@ -15,11 +14,9 @@ from torch.utils.data import DataLoader
 
 from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
-from confopt.train import DEBUG_STEPS, ConfigurableTrainer
+from confopt.train import DEBUG_STEPS, ConfigurableTrainer, TrainingMetrics
 from confopt.utils import AverageMeter, Logger, calc_accuracy, unwrap_model
 import confopt.utils.distributed as dist_utils
-
-TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
 
 class DiscreteTrainer(ConfigurableTrainer):
@@ -87,7 +84,7 @@ class DiscreteTrainer(ConfigurableTrainer):
 
         return None
 
-    def _train_epoch(
+    def _train_epoch(  # type: ignore
         self,
         network: SearchSpace | DistributedDataParallel,
         train_loader: DataLoader,
@@ -191,7 +188,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         if self.scheduler is not None:
             self.scheduler.step()
 
-    def train(self, epochs: int, is_wandb_log: bool = True) -> None:
+    def train(self, epochs: int, is_wandb_log: bool = True) -> None:  # type: ignore
         self.epochs = epochs
 
         self._init_experiment_state()
