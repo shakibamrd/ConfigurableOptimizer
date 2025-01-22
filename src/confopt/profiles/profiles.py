@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any
 
+from confopt.enums import SamplerType, SearchSpaceType
 from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 from confopt.utils import get_num_classes
 
@@ -10,21 +11,20 @@ from .profile_config import BaseProfile
 
 
 class DARTSProfile(BaseProfile, ABC):
+    SAMPLER_TYPE = SamplerType.DARTS
+
     def __init__(
         self,
-        searchspace_str: str,
+        searchspace: str | SearchSpaceType,
         epochs: int,
         **kwargs: Any,
     ) -> None:
-        PROFILE_TYPE = "DARTS"
-
         super().__init__(
-            PROFILE_TYPE,
-            searchspace_str,
+            self.SAMPLER_TYPE,
+            searchspace,
             epochs,
             **kwargs,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
     def _initialize_sampler_config(self) -> None:
         darts_config = {
@@ -35,11 +35,11 @@ class DARTSProfile(BaseProfile, ABC):
 
 
 class GDASProfile(BaseProfile, ABC):
-    PROFILE_TYPE = "GDAS"
+    SAMPLER_TYPE = SamplerType.GDAS
 
     def __init__(
         self,
-        searchspace_str: str,
+        searchspace: str | SearchSpaceType,
         epochs: int,
         tau_min: float = 0.1,
         tau_max: float = 10,
@@ -49,12 +49,11 @@ class GDASProfile(BaseProfile, ABC):
         self.tau_max = tau_max
 
         super().__init__(
-            self.PROFILE_TYPE,
-            searchspace_str,
+            self.SAMPLER_TYPE,
+            searchspace,
             epochs,
             **kwargs,
         )
-        self.sampler_type = str.lower(self.PROFILE_TYPE)
 
     def _initialize_sampler_config(self) -> None:
         gdas_config = {
@@ -81,32 +80,32 @@ class GDASProfile(BaseProfile, ABC):
 
 
 class ReinMaxProfile(GDASProfile):
-    PROFILE_TYPE = "REINMAX"
+    SAMPLER_TYPE = SamplerType.REINMAX
 
 
 class SNASProfile(BaseProfile, ABC):
+    SAMPLER_TYPE = SamplerType.SNAS
+
     def __init__(
         self,
-        searchspace_str: str,
+        searchspace: str | SearchSpaceType,
         epochs: int,
         temp_init: float = 1.0,
         temp_min: float = 0.03,
         temp_annealing: bool = True,
         **kwargs: Any,
     ) -> None:
-        PROFILE_TYPE = "SNAS"
         self.temp_init = temp_init
         self.temp_min = temp_min
         self.temp_annealing = temp_annealing
         self.total_epochs = epochs
 
         super().__init__(  # type: ignore
-            PROFILE_TYPE,
-            searchspace_str,
+            self.SAMPLER_TYPE,
+            searchspace,
             epochs,
             **kwargs,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
     def _initialize_sampler_config(self) -> None:
         snas_config = {
@@ -121,21 +120,20 @@ class SNASProfile(BaseProfile, ABC):
 
 
 class DRNASProfile(BaseProfile, ABC):
+    SAMPLER_TYPE = SamplerType.DRNAS
+
     def __init__(
         self,
-        searchspace_str: str,
+        searchspace: str | SearchSpaceType,
         epochs: int,
         **kwargs: Any,
     ) -> None:
-        PROFILE_TYPE = "DRNAS"
-
         super().__init__(  # type: ignore
-            PROFILE_TYPE,
-            searchspace_str,
+            self.SAMPLER_TYPE,
+            searchspace,
             epochs,
             **kwargs,
         )
-        self.sampler_type = str.lower(PROFILE_TYPE)
 
     def _initialize_sampler_config(self) -> None:
         drnas_config = {
@@ -221,11 +219,16 @@ class DRNASProfile(BaseProfile, ABC):
 class DiscreteProfile:
     def __init__(
         self,
-        searchspace_str: str,
+        searchspace: str | SearchSpaceType,
         domain: str | None = None,
         **kwargs: Any,
     ) -> None:
-        self.searchspace_str = searchspace_str
+        self.searchspace = (
+            searchspace if isinstance(searchspace, SearchSpaceType) else searchspace
+        )
+        assert isinstance(
+            self.searchspace, SearchSpaceType
+        ), f"Invalid searchspace type: {searchspace}"
         self.domain = domain
         self._initialize_trainer_config()
         self._initializa_genotype()
@@ -239,7 +242,7 @@ class DiscreteProfile:
 
     def _initialize_trainer_config(self) -> None:
         default_train_config = {
-            "searchspace_str": "darts",
+            "searchspace": "darts",
             "lr": 0.025,
             "epochs": 100,
             "optim": "sgd",
@@ -307,20 +310,20 @@ class DiscreteProfile:
     def get_searchspace_config(self, dataset_str: str) -> dict:
         if hasattr(self, "searchspace_config"):
             return self.searchspace_config
-        if self.searchspace_str == "nb201":
+        if self.searchspace == SearchSpaceType.NB201:
             searchspace_config = {
                 "N": 5,  # num_cells
                 "C": 16,  # channels
                 "num_classes": get_num_classes(dataset_str),
             }
-        elif self.searchspace_str == "darts":
+        elif self.searchspace == SearchSpaceType.DARTS:
             searchspace_config = {
                 "C": 36,  # init channels
                 "layers": 20,  # number of layers
                 "auxiliary": True,
                 "num_classes": get_num_classes(dataset_str),
             }
-        elif self.searchspace_str == "taskonomy":
+        elif self.searchspace == SearchSpaceType.TNB101:
             assert self.domain is not None, "domain must be specified"
             searchspace_config = {
                 "domain": self.domain,  # type: ignore
@@ -332,7 +335,7 @@ class DiscreteProfile:
 
     def get_name_wandb_run(self) -> str:
         name_wandb_run = []
-        name_wandb_run.append(f"ss_{self.train_config.get('searchspace_str')}")
+        name_wandb_run.append(f"ss_{self.train_config.get('searchspace')}")
         name_wandb_run.append(f"epochs_{self.train_config.get('epochs')}")
         name_wandb_run.append(f"seed_{self.train_config.get('seed')}")
         name_wandb_run_str = "-".join(name_wandb_run)

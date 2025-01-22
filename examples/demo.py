@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import torch
-from confopt.profiles import DARTSProfile, DRNASProfile, GDASProfile  # , ReinMaxProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.profiles import DARTSProfile, DRNASProfile, GDASProfile, ReinMaxProfile
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 if __name__ == "__main__":
-    torch.cuda.set_device(0)
 
     searchspace = SearchSpaceType.DARTS
     dataset = DatasetType.CIFAR10
@@ -21,6 +20,7 @@ if __name__ == "__main__":
     }
 
     profile = DRNASProfile(
+        searchspace=searchspace,
         epochs=10,
         oles=True,
         calc_gm_score=True,

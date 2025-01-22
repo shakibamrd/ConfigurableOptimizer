@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 from collections import namedtuple
-from enum import Enum
 import json
 import random
 from typing import Callable, Literal
@@ -21,6 +20,15 @@ from confopt.dataset import (
     ImageNet16120Data,
     TaskonomyClassObjectData,
     TaskonomyClassSceneData,
+)
+from confopt.enums import (
+    CriterionType,
+    DatasetType,
+    OptimizerType,
+    PerturbatorType,
+    SamplerType,
+    SchedulerType,
+    SearchSpaceType,
 )
 from confopt.oneshot.archsampler import (
     BaseSampler,
@@ -69,74 +77,6 @@ from confopt.utils import distributed as dist_utils
 from confopt.utils.time import check_date_format
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-# TODO Change this to real data
-ADVERSERIAL_DATA = (
-    torch.randn(2, 3, 32, 32).to(DEVICE),
-    torch.randint(0, 9, (2,)).to(DEVICE),
-)
-
-
-class SearchSpaceType(Enum):
-    DARTS = "darts"
-    NB201 = "nb201"
-    NB1SHOT1 = "nb1shot1"
-    TNB101 = "tnb101"
-    BABYDARTS = "baby_darts"
-    RobustDARTS = "robust_darts"
-
-
-class ModelType(Enum):
-    DARTS = "darts"
-    NB201 = "nb201"
-
-
-class SamplerType(Enum):
-    DARTS = "darts"
-    DRNAS = "drnas"
-    GDAS = "gdas"
-    SNAS = "snas"
-    REINMAX = "reinmax"
-
-
-class PerturbatorType(Enum):
-    RANDOM = "random"
-    ADVERSERIAL = "adverserial"
-    NONE = "none"
-
-
-PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = PerturbatorType("none")
-
-
-class DatasetType(Enum):
-    CIFAR10 = "cifar10"
-    CIFAR100 = "cifar100"
-    IMGNET16 = "imgnet16"
-    IMGNET16_120 = "imgnet16_120"
-    TASKONOMY = "taskonomy"
-
-
-N_CLASSES = {
-    DatasetType.CIFAR10: 10,
-    DatasetType.CIFAR100: 100,
-    DatasetType.IMGNET16_120: 120,
-}
-
-
-class CriterionType(Enum):
-    CROSS_ENTROPY = "cross_entropy"
-
-
-class OptimizerType(Enum):
-    ADAM = "adam"
-    SGD = "sgd"
-    ASGD = "asgd"
-
-
-class SchedulerType(Enum):
-    CosineAnnealingLR = "cosine_annealing_lr"
-    CosineAnnealingWarmRestart = "cosine_annealing_warm_restart"
 
 
 class Experiment:
@@ -597,10 +537,10 @@ class Experiment:
         genotype_str: str,
         searchspace_config: dict,
     ) -> torch.nn.Module:
-        if search_space_str == ModelType.NB201.value:
+        if search_space_str == SearchSpaceType.NB201.value:
             searchspace_config["genotype"] = NAS201Genotype.str2structure(genotype_str)
             discrete_model = NASBench201Model(**searchspace_config)
-        elif search_space_str == ModelType.DARTS.value:
+        elif search_space_str == SearchSpaceType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
             if self.dataset_str.value in ("cifar10", "cifar100"):
                 discrete_model = DARTSModel(**searchspace_config)
@@ -1115,7 +1055,7 @@ if __name__ == "__main__":
     args.epochs = 3
 
     profile = GDASProfile(
-        searchspace_str=searchspace.value,
+        searchspace=searchspace.value,
         epochs=args.epochs,
         is_partial_connection=args.is_partial_connector,
         perturbation=args.perturbator,

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from confopt.profiles import GDASProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 if __name__ == "__main__":
     search_space = SearchSpaceType.DARTS
 
     profile = GDASProfile(
+        searchspace=search_space,
         epochs=10,
         perturbation="random",
         entangle_op_weights=True,
@@ -41,14 +43,14 @@ if __name__ == "__main__":
         scheduler="cosine_annealing_warm_restart",
         batch_size=4,
         train_portion=0.7,  # portion of data to use for training the model
-        use_data_parallel=True,  # Use UseDataParallel is enabled
+        use_data_parallel=False,  # Use UseDataParallel is enabled
         checkpointing_freq=5,  # How frequently to save the supernet
     )
 
     # Add any additional configurations to this run
     # Used to tell runs apart in WandB, if required
     profile.configure_extra(
-        {
+        **{
             "project_name": "my-wandb-projectname",  # Name of the Wandb Project
             "run_purpose": "my-run-purpose",  # Purpose of the run
         }
@@ -60,10 +62,10 @@ if __name__ == "__main__":
         seed=9001,
         debug_mode=True,
         exp_name="demo-advanced",
-        is_wandb_log=True,  # enable logging with Weights and Biases
+        is_wandb_log=False,  # enable logging with Weights and Biases
     )
 
     experiment.train_supernet(
         profile,
-        use_benchmark=True,  # query the benchmark at the end of every epoch
+        use_benchmark=False,  # query the benchmark at the end of every epoch
     )

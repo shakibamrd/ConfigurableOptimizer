@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 
 from confopt.profiles import DARTSProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 if __name__ == "__main__":
     searchspace = SearchSpaceType("darts")
@@ -12,6 +13,7 @@ if __name__ == "__main__":
 
 
     profile = DARTSProfile(
+        searchspace=searchspace,
         is_partial_connection=True,
         perturbation="random",
         sampler_sample_frequency="step",
