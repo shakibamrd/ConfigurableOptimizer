@@ -70,8 +70,9 @@ from confopt.searchspace import (
     SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, DiscreteTrainer, SearchSpaceHandler
+from confopt.train import ConfigurableTrainer, DiscreteTrainer
 from confopt.train.projection import PerturbationArchSelection
+from confopt.train.search_space_handler import SearchSpaceHandler
 from confopt.utils import Logger
 from confopt.utils import distributed as dist_utils
 from confopt.utils.time import check_date_format
@@ -337,9 +338,10 @@ class Experiment:
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
-        self.sampler: BaseSampler = DARTSSampler(**config, arch_parameters=arch_params)
-
-        if sampler == SamplerType.DRNAS:
+        self.sampler: BaseSampler | None = None
+        if sampler == SamplerType.DARTS:
+            self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
+        elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.GDAS:
             self.sampler = GDASSampler(**config, arch_parameters=arch_params)

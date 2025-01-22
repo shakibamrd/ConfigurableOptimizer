@@ -4,8 +4,8 @@ from .configurable_trainer import (
     TrainingMetrics,
 )
 from .discrete_trainer import DiscreteTrainer
-from .experiment import Experiment
 from .search_space_handler import SearchSpaceHandler
+from .experiment import Experiment
 
 __all__ = [
     "ConfigurableTrainer",
