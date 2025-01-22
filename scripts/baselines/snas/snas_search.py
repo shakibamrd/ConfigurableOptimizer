@@ -6,7 +6,8 @@ import json
 import wandb
 
 from confopt.profiles import SNASProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 dataset_size = {
     "cifar10": 10,
@@ -56,6 +57,7 @@ def read_args() -> argparse.Namespace:
 def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
     # This will help to have consistent profile for discretizing
     profile = SNASProfile(
+        searchspace=args.search_space,
         epochs=args.search_epochs,
         sampler_sample_frequency="step",
         dropout=1e-3,
@@ -66,7 +68,7 @@ def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
         "num_classes": dataset_size[args.dataset],  # type: ignore
     }
 
-    profile.set_searchspace_config(searchspace_config)
+    profile.configure_searchspace(**searchspace_config)
 
     train_config = {
         "train_portion": 0.5,
@@ -84,10 +86,8 @@ def get_snas_profile(args: argparse.Namespace) -> SNASProfile:
     }
     profile.configure_trainer(**train_config)
     profile.configure_extra(
-        {
-            "project_name": "BASELINES",
-            "run_type": "SNAS",
-        }
+        project_name="BASELINES",
+        run_type="SNAS",
     )
     return profile
 

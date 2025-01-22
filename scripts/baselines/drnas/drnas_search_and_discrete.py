@@ -6,7 +6,8 @@ import json
 import wandb
 
 from confopt.profiles import DiscreteProfile, DRNASProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 dataset_size = {
     "cifar10": 10,
@@ -57,6 +58,7 @@ def read_args() -> argparse.Namespace:
 
 def get_drnas_profile(args: argparse.Namespace) -> DRNASProfile:
     profile = DRNASProfile(
+        searchspace=args.search_space,
         epochs=args.search_epochs,
         sampler_sample_frequency="step",
     )
@@ -65,10 +67,10 @@ def get_drnas_profile(args: argparse.Namespace) -> DRNASProfile:
         "num_classes": dataset_size[args.dataset],  # type: ignore
     }
     if args.searchspace == "darts":
-        profile.set_partial_connector(is_partial_connection=True)
+        profile._set_partial_connector(is_partial_connection=True)
         profile.configure_partial_connector(k=4)
         searchspace_config.update({"C": 36, "layers": 20})
-    profile.set_searchspace_config(searchspace_config)
+    profile.configure_searchspace(**searchspace_config)
 
     train_config = {
         "train_portion": 0.5,
@@ -98,12 +100,12 @@ if __name__ == "__main__":
 
     profile = get_drnas_profile(args)
 
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
+    discrete_profile = DiscreteProfile(searchspace=args.search_space, epochs=args.eval_epochs, train_portion=0.9)
     discrete_profile.configure_trainer(batch_size=128)
 
     discrete_config = discrete_profile.get_trainer_config()
     profile.configure_extra(
-        {
+        **{
             "discrete_trainer": discrete_config,
             "project_name": "BASELINES",
             "run_type": "DRNAS",
