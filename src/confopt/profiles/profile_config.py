@@ -395,23 +395,22 @@ class BaseProfile:
     def configure_extra(self, **config) -> None:  # type: ignore
         self.extra_config = config
 
-    def get_name_wandb_run(self) -> str:
-        name_wandb_run = []
-        name_wandb_run.append(f"ss_{self.searchspace_type}")
+    def get_run_description(self) -> str:
+        run_configs = []
+        run_configs.append(f"ss_{self.searchspace_type}")
         if self.entangle_op_weights:
-            name_wandb_run.append("type_we")
+            run_configs.append("type_we")
         else:
-            name_wandb_run.append("type_ws")
-        name_wandb_run.append(f"opt_{self.sampler_type}")
+            run_configs.append("type_ws")
+        run_configs.append(f"opt_{self.sampler_type}")
         if self.lora_warm_epochs > 0:
-            name_wandb_run.append(f"lorarank_{self.lora_config.get('r')}")
-            name_wandb_run.append(f"lorawarmup_{self.lora_warm_epochs}")
-        name_wandb_run.append(f"epochs_{self.trainer_config.get('epochs')}")
-        name_wandb_run.append(f"seed_{self.seed}")
+            run_configs.append(f"lorarank_{self.lora_config.get('r')}")
+            run_configs.append(f"lorawarmup_{self.lora_warm_epochs}")
+        run_configs.append(f"epochs_{self.trainer_config.get('epochs')}")
+        run_configs.append(f"seed_{self.seed}")
         if self.oles_config.get("oles"):
-            name_wandb_run.append("with_oles")
-        name_wandb_run_str = "-".join(name_wandb_run)
-        return name_wandb_run_str
+            run_configs.append("with_oles")
+        return "-".join(run_configs)
 
     def _initialize_trainer_config_nb201(self) -> None:
         trainer_config = {

@@ -333,10 +333,9 @@ class DiscreteProfile:
             raise ValueError("search space is not correct")
         return searchspace_config
 
-    def get_name_wandb_run(self) -> str:
-        name_wandb_run = []
-        name_wandb_run.append(f"ss_{self.train_config.get('searchspace')}")
-        name_wandb_run.append(f"epochs_{self.train_config.get('epochs')}")
-        name_wandb_run.append(f"seed_{self.train_config.get('seed')}")
-        name_wandb_run_str = "-".join(name_wandb_run)
-        return name_wandb_run_str
+    def get_run_description(self) -> str:
+        run_configs = []
+        run_configs.append(f"ss_{self.train_config.get('searchspace')}")
+        run_configs.append(f"epochs_{self.train_config.get('epochs')}")
+        run_configs.append(f"seed_{self.train_config.get('seed')}")
+        return "-".join(run_configs)

@@ -127,7 +127,7 @@ class Experiment:
         use_benchmark: bool = False,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
-        run_name = profile.get_name_wandb_run()
+        run_name = profile.get_run_description()
         config["dataset"] = self.dataset_str.value
 
         assert hasattr(profile, "sampler_type")
@@ -518,7 +518,7 @@ class Experiment:
         train_config = profile.get_trainer_config()
         searchspace_config = profile.get_searchspace_config(self.dataset_str.value)
         genotype_str = profile.get_genotype()
-        run_name = profile.get_name_wandb_run()
+        run_name = profile.get_run_description()
 
         return self._train_discrete_model(
             searchspace_config=searchspace_config,
