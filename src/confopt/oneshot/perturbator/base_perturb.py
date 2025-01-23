@@ -5,7 +5,7 @@ from typing import Literal
 
 import torch
 
-from confopt.oneshot.base_component import OneShotComponent
+from confopt.oneshot.base import OneShotComponent
 
 
 class BasePerturbator(OneShotComponent):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from torch.nn import DataParallel
 
-from confopt.oneshot.base_component import OneShotComponent
+from confopt.oneshot.base import OneShotComponent
 from confopt.searchspace.common.base_search import SearchSpace
 from confopt.searchspace.common.lora_layers import LoRALayer
 

@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
-from confopt.oneshot.base_component import OneShotComponent
+from confopt.oneshot.base import OneShotComponent
 from confopt.searchspace.common.lora_layers import Conv2DLoRA
 
 

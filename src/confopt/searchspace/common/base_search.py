@@ -10,7 +10,7 @@ import torch.nn as nn  # noqa: PLR0402
 from confopt.utils import AverageMeter, reset_gm_score_attributes
 
 if TYPE_CHECKING:
-    from confopt.oneshot.base_component import OneShotComponent
+    from confopt.oneshot.base import OneShotComponent
 
 
 class ModelWrapper(nn.Module, ABC):
