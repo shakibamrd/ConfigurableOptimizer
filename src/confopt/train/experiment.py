@@ -182,31 +182,19 @@ class Experiment:
 
         self._set_seed(self.seed)
 
-        if load_saved_model or load_best_model or start_epoch > 0:
-            last_run = False
-            if not self.runtime:
-                last_run = True
+        should_load_model = load_saved_model or load_best_model or start_epoch > 0
+        load_last_run = should_load_model and not self.runtime
 
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.searchspace_type.value,
-                dataset=str(self.dataset.value),
-                seed=self.seed,
-                runtime=self.runtime,
-                use_supernet_checkpoint=True,
-                last_run=last_run,
-            )
-        else:
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                dataset=str(self.dataset.value),
-                search_space=self.searchspace_type.value,
-                seed=self.seed,
-                runtime=self.runtime,
-                use_supernet_checkpoint=True,
-            )
+        self.logger = Logger(
+            log_dir="logs",
+            exp_name=self.exp_name,
+            search_space=self.searchspace_type.value,
+            dataset=str(self.dataset.value),
+            seed=self.seed,
+            runtime=self.runtime,
+            use_supernet_checkpoint=True,
+            last_run=load_last_run,
+        )
 
         self.logger.log(
             "Logs and checkpoints will be saved in the following directory: "
