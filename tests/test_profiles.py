@@ -1,10 +1,10 @@
 import unittest
 
 from confopt.profiles import (
+    BaseProfile,
     DARTSProfile,
     DRNASProfile,
     GDASProfile,
-    BaseProfile,
     SNASProfile,
 )
 
@@ -12,7 +12,7 @@ from confopt.profiles import (
 class TestBaseProfile(unittest.TestCase):
     def test_config_change(self) -> None:
         profile = BaseProfile(
-            "TEST",
+            "darts",
             epochs=1,
             is_partial_connection=True,
             dropout=0.5,
@@ -25,7 +25,7 @@ class TestBaseProfile(unittest.TestCase):
             lora_toggle_epochs=None,
             lora_toggle_probability=None,
             seed=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             oles=False,
             calc_gm_score=False,
             prune_epochs=None,
@@ -57,8 +57,8 @@ class TestBaseProfile(unittest.TestCase):
 
     def test_invalid_configuration(self) -> None:
         profile = BaseProfile(
-            "TEST",
-            searchspace_str="nb201",
+            "gdas",
+            searchspace="nb201",
             epochs=1,
             is_partial_connection=True,
             dropout=0.5,
@@ -110,7 +110,7 @@ class TestDartsProfile(unittest.TestCase):
             lora_toggle_epochs=None,
             lora_toggle_probability=None,
             seed=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             oles=False,
             calc_gm_score=False,
             prune_epochs=None,
@@ -134,7 +134,7 @@ class TestDartsProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = DARTSProfile(  # noqa: F841
                 epochs=100,
-                searchspace_str="nb201",
+                searchspace="nb201",
                 is_partial_connection=True,
                 perturbation="random",
                 sampler_sample_frequency="step",
@@ -145,7 +145,7 @@ class TestDartsProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = DARTSProfile(
             epochs=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             sampler_sample_frequency="step",
         )
         sampler_config = {"sample_frequency": "epoch"}
@@ -159,7 +159,7 @@ class TestDartsProfile(unittest.TestCase):
             profile.configure_sampler(invalid_config="step")
 
     def test_sampler_post_fn(self) -> None:
-        profile = DARTSProfile(epochs=1, searchspace_str="nb201")
+        profile = DARTSProfile(epochs=1, searchspace="nb201")
         assert profile.sampler_config["arch_combine_fn"] == "default"
         sampler_config = {"arch_combine_fn": "sigmoid"}
         profile.configure_sampler(**sampler_config)
@@ -189,7 +189,7 @@ class TestDRNASProfile(unittest.TestCase):
             lora_toggle_epochs=None,
             lora_toggle_probability=None,
             seed=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             oles=False,
             calc_gm_score=False,
             prune_epochs=None,
@@ -213,7 +213,7 @@ class TestDRNASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = DRNASProfile(  # noqa: F841
                 epochs=100,
-                searchspace_str="nb201",
+                searchspace="nb201",
                 is_partial_connection=True,
                 perturbation="random",
                 sampler_sample_frequency="step",
@@ -224,7 +224,7 @@ class TestDRNASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = DRNASProfile(
             epochs=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             sampler_sample_frequency="step",
         )
         sampler_config = {"sample_frequency": "epoch"}
@@ -238,7 +238,7 @@ class TestDRNASProfile(unittest.TestCase):
             profile.configure_sampler(invalid_config="step")
 
     def test_sampler_post_fn(self) -> None:
-        profile = DRNASProfile(epochs=1, searchspace_str="nb201",)
+        profile = DRNASProfile(epochs=1, searchspace="nb201",)
         assert profile.sampler_config["arch_combine_fn"] == "default"
         sampler_config = {"arch_combine_fn": "sigmoid"}
         profile.configure_sampler(**sampler_config)
@@ -270,7 +270,7 @@ class TestGDASProfile(unittest.TestCase):
             lora_toggle_epochs=None,
             lora_toggle_probability=None,
             seed=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             oles=False,
             calc_gm_score=False,
             prune_epochs=None,
@@ -294,7 +294,7 @@ class TestGDASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = GDASProfile(  # noqa: F841
                 epochs=100,
-                searchspace_str="nb201",
+                searchspace="nb201",
                 is_partial_connection=True,
                 perturbation="random",
                 sampler_sample_frequency="step",
@@ -305,7 +305,7 @@ class TestGDASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = GDASProfile(
             epochs=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             sampler_sample_frequency="step",
         )
         sampler_config = {"tau_max": 12, "tau_min": 0.3}
@@ -342,7 +342,7 @@ class TestSNASProfile(unittest.TestCase):
             lora_toggle_epochs=None,
             lora_toggle_probability=None,
             seed=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             oles=False,
             calc_gm_score=False,
             prune_epochs=None,
@@ -366,7 +366,7 @@ class TestSNASProfile(unittest.TestCase):
         with self.assertRaises(AssertionError):
             profile = SNASProfile(  # noqa: F841
                 epochs=100,
-                searchspace_str="nb201",
+                searchspace="nb201",
                 is_partial_connection=True,
                 perturbation="random",
                 sampler_sample_frequency="step",
@@ -377,7 +377,7 @@ class TestSNASProfile(unittest.TestCase):
     def test_sampler_change(self) -> None:
         profile = SNASProfile(
             epochs=100,
-            searchspace_str="nb201",
+            searchspace="nb201",
             sampler_sample_frequency="step",
         )
         sampler_config = {"temp_min": 0.5, "temp_init": 1.3}
