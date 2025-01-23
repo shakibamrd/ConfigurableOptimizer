@@ -7,7 +7,7 @@ from confopt.enums import SamplerType, SearchSpaceType
 from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 from confopt.utils import get_num_classes
 
-from .base_profiles import BaseProfile
+from .base import BaseProfile
 
 
 class DARTSProfile(BaseProfile, ABC):
