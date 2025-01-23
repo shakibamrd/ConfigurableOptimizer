@@ -94,8 +94,8 @@ class Experiment:
         dataset_dir: str = "datasets",
         api_dir: str = "api",
     ) -> None:
-        self.search_space_str = search_space
-        self.dataset_str = dataset
+        self.searchspace_type = search_space
+        self.dataset = dataset
         self.seed = seed
         self.log_with_wandb = log_with_wandb
         self.debug_mode = debug_mode
@@ -129,7 +129,7 @@ class Experiment:
     ) -> ConfigurableTrainer:
         config = profile.get_config()
         run_name = profile.get_run_description()
-        config["dataset"] = self.dataset_str.value
+        config["dataset"] = self.dataset.value
 
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
@@ -190,8 +190,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
+                search_space=self.searchspace_type.value,
+                dataset=str(self.dataset.value),
                 seed=self.seed,
                 runtime=self.runtime,
                 use_supernet_checkpoint=True,
@@ -201,8 +201,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
+                dataset=str(self.dataset.value),
+                search_space=self.searchspace_type.value,
                 seed=self.seed,
                 runtime=self.runtime,
                 use_supernet_checkpoint=True,
@@ -214,8 +214,8 @@ class Experiment:
         )
         config["save_dir"] = self.logger.path(None)  # type:ignore
 
-        self._enum_to_objects(
-            self.search_space_str,
+        self._init_components(
+            self.searchspace_type,
             self.sampler_str,
             self.perturbator_str,
             config=config,
@@ -250,19 +250,19 @@ class Experiment:
 
         return trainer
 
-    def _enum_to_objects(
+    def _init_components(
         self,
-        search_space_enum: SearchSpaceType,
-        sampler_enum: SamplerType,
-        perturbator_enum: PerturbatorType,
+        searchspace_type: SearchSpaceType,
+        sampler_type: SamplerType,
+        perturbator_type: PerturbatorType,
         config: dict | None = None,
         use_benchmark: bool = False,
     ) -> None:
         if config is None:
             config = {}  # type : ignore
-        self.set_search_space(search_space_enum, config.get("search_space", {}))
-        self.set_sampler(sampler_enum, config.get("sampler", {}))
-        self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
+        self.set_search_space(searchspace_type, config.get("search_space", {}))
+        self.set_sampler(sampler_type, config.get("sampler", {}))
+        self.set_perturbator(perturbator_type, config.get("perturbator", {}))
         self.set_partial_connector(config.get("partial_connector", {}))
         self.set_dropout(config.get("dropout", {}))
         self.set_pruner(config.get("pruner", {}))
@@ -270,7 +270,7 @@ class Experiment:
 
         if use_benchmark:
             if (
-                search_space_enum == SearchSpaceType.RobustDARTS
+                searchspace_type == SearchSpaceType.RobustDARTS
                 and config.get("search_space", {}).get("space") == "s4"
             ):
                 warnings.warn(
@@ -280,7 +280,7 @@ class Experiment:
                 )
                 self.benchmark_api = None
             else:
-                self.set_benchmark_api(search_space_enum, config.get("benchmark", {}))
+                self.set_benchmark_api(searchspace_type, config.get("benchmark", {}))
         else:
             self.benchmark_api = None
 
@@ -352,16 +352,16 @@ class Experiment:
 
     def set_perturbator(
         self,
-        petubrator_enum: PerturbatorType,
+        petubrator_type: PerturbatorType,
         pertub_config: dict,
     ) -> None:
         self.perturbator: SDARTSPerturbator | None = None
-        if petubrator_enum != PerturbatorType.NONE:
+        if petubrator_type != PerturbatorType.NONE:
             self.perturbator = SDARTSPerturbator(
                 **pertub_config,
                 search_space=self.search_space,
                 arch_parameters=self.search_space.arch_parameters,
-                attack_type=petubrator_enum.value,  # type: ignore
+                attack_type=petubrator_type.value,  # type: ignore
             )
 
     def set_partial_connector(self, config: dict) -> None:
@@ -518,7 +518,7 @@ class Experiment:
         use_supernet_checkpoint: bool = False,
     ) -> DiscreteTrainer:
         train_config = profile.get_trainer_config()
-        searchspace_config = profile.get_searchspace_config(self.dataset_str.value)
+        searchspace_config = profile.get_searchspace_config(self.dataset.value)
         genotype_str = profile.get_genotype()
         run_name = profile.get_run_description()
 
@@ -544,9 +544,9 @@ class Experiment:
             discrete_model = NASBench201Model(**searchspace_config)
         elif search_space_str == SearchSpaceType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
-            if self.dataset_str.value in ("cifar10", "cifar100"):
+            if self.dataset.value in ("cifar10", "cifar100"):
                 discrete_model = DARTSModel(**searchspace_config)
-            elif self.dataset_str.value in ("imgnet16", "imgnet16_120"):
+            elif self.dataset.value in ("imgnet16", "imgnet16_120"):
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")
@@ -620,7 +620,7 @@ class Experiment:
             raise ValueError("genotype cannot be empty")
 
         model = self.get_discrete_model_from_genotype_str(
-            self.search_space_str.value,
+            self.searchspace_type.value,
             genotype_str,  # type: ignore
             searchspace_config,
         )
@@ -653,8 +653,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
+                search_space=self.searchspace_type.value,
+                dataset=str(self.dataset.value),
                 seed=self.seed,
                 runtime=self.runtime,
                 use_supernet_checkpoint=use_supernet_checkpoint,
@@ -664,8 +664,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
+                search_space=self.searchspace_type.value,
+                dataset=str(self.dataset.value),
                 seed=self.seed,
                 runtime=None,
                 use_supernet_checkpoint=use_supernet_checkpoint,
@@ -715,7 +715,7 @@ class Experiment:
         )
         trainer_arguments = Arguments(**train_config)  # type: ignore
 
-        data = self._get_dataset(self.dataset_str, self.domain)(
+        data = self._get_dataset(self.dataset, self.domain)(
             root=self.dataset_dir,
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
@@ -787,7 +787,7 @@ class Experiment:
             criterion_str=trainer_arguments.criterion  # type: ignore
         )
 
-        data = self._get_dataset(self.dataset_str, self.domain)(
+        data = self._get_dataset(self.dataset, self.domain)(
             root=self.dataset_dir,
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
@@ -843,7 +843,7 @@ class Experiment:
             checkpointing_freq=trainer_arguments.checkpointing_freq,  # type: ignore
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
-            query_dataset=self.dataset_str.value,
+            query_dataset=self.dataset.value,
             benchmark_api=self.benchmark_api,
         )
 
@@ -882,8 +882,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
+                dataset=str(self.dataset.value),
+                search_space=self.searchspace_type.value,
                 seed=self.seed,
                 runtime=self.runtime,
                 use_supernet_checkpoint=True,
@@ -908,8 +908,8 @@ class Experiment:
         self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
 
-        self._enum_to_objects(
-            self.search_space_str,
+        self._init_components(
+            self.searchspace_type,
             self.sampler_str,
             self.perturbator_str,
             config=config,
@@ -935,8 +935,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
+                dataset=str(self.dataset.value),
+                search_space=self.searchspace_type.value,
                 seed=self.seed,
                 use_supernet_checkpoint=True,
                 arch_selection=True,
