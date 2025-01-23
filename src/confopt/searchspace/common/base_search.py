@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import numpy as np
 import torch
 import torch.nn as nn  # noqa: PLR0402
 
-from confopt.oneshot.base_component import OneShotComponent
 from confopt.utils import AverageMeter, reset_gm_score_attributes
+
+if TYPE_CHECKING:
+    from confopt.oneshot.base_component import OneShotComponent
 
 
 class ModelWrapper(nn.Module, ABC):

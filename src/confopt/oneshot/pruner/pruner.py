@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from confopt.oneshot.base_component import OneShotComponent
-from confopt.searchspace import SearchSpace
+
+if TYPE_CHECKING:
+    from confopt.searchspace.common.base_search import SearchSpace
 
 
 class Pruner(OneShotComponent):
