@@ -5,7 +5,7 @@ import json
 
 import wandb
 
-from confopt.profiles import SNASProfile
+from confopt.profile import SNASProfile
 from confopt.train import Experiment
 from confopt.enums import DatasetType, SearchSpaceType
 

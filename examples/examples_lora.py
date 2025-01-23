@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from confopt.profiles import DARTSProfile
+from confopt.profile import DARTSProfile
 from confopt.train import Experiment
 from confopt.enums import DatasetType, SearchSpaceType
 

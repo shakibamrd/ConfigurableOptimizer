@@ -5,7 +5,7 @@ import argparse
 from snas_search import get_snas_profile
 import wandb
 
-from confopt.profiles import DiscreteProfile
+from confopt.profile import DiscreteProfile
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 
 dataset_size = {

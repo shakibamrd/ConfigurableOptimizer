@@ -51,7 +51,7 @@ from confopt.oneshot.archsampler import (
     ReinMaxSampler,
     SNASSampler,
 )
-from confopt.profiles import (
+from confopt.profile import (
     BaseProfile,
     DiscreteProfile,
     GDASProfile,
