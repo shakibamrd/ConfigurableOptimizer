@@ -152,7 +152,7 @@ class ConfigurableTrainer:
     def train(  # noqa: C901, PLR0915, PLR0912
         self,
         search_space_handler: SearchSpaceHandler,
-        is_wandb_log: bool = True,
+        log_with_wandb: bool = True,
         lora_warm_epochs: int = 0,
         calc_gm_score: bool = False,
         oles: bool = False,
@@ -342,7 +342,7 @@ class ConfigurableTrainer:
             self.log_benchmark_result(network)
 
             # Push WandB Logs
-            if is_wandb_log:
+            if log_with_wandb:
                 self.logger.push_wandb_logs()
 
             # Log alpha values

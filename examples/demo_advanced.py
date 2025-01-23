@@ -62,7 +62,7 @@ if __name__ == "__main__":
         seed=9001,
         debug_mode=True,
         exp_name="demo-advanced",
-        is_wandb_log=False,  # enable logging with Weights and Biases
+        log_with_wandb=True,  # enable logging with Weights and Biases
     )
 
     experiment.train_supernet(

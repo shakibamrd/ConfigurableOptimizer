@@ -111,7 +111,7 @@ if __name__ == "__main__":
         dataset=dataset,
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
-        is_wandb_log=IS_WANDB_LOG,
+        log_with_wandb=IS_WANDB_LOG,
         exp_name="SNAS_BASELINE",
     )
 

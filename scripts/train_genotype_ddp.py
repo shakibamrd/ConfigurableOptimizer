@@ -12,7 +12,7 @@ if __name__ == "__main__":
         search_space=SearchSpaceType.DARTS,
         dataset=DatasetType.CIFAR10,
         seed=9001,
-        is_wandb_log=False,
+        log_with_wandb=False,
         exp_name="Debug Experiment",
         runtime="now",
     )

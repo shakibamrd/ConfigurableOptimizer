@@ -86,7 +86,7 @@ class Experiment:
         search_space: SearchSpaceType,
         dataset: DatasetType,
         seed: int,
-        is_wandb_log: bool = False,
+        log_with_wandb: bool = False,
         debug_mode: bool = False,
         exp_name: str = "test",
         runtime: str | None = None,
@@ -97,7 +97,7 @@ class Experiment:
         self.search_space_str = search_space
         self.dataset_str = dataset
         self.seed = seed
-        self.is_wandb_log = is_wandb_log
+        self.log_with_wandb = log_with_wandb
         self.debug_mode = debug_mode
         self.exp_name = exp_name
         self.runtime = runtime
@@ -221,7 +221,7 @@ class Experiment:
             config=config,
             use_benchmark=use_benchmark,
         )
-        if self.is_wandb_log:
+        if self.log_with_wandb:
             self._init_wandb(run_name, config)  # type: ignore
 
         trainer = self._initialize_configurable_trainer(
@@ -238,7 +238,7 @@ class Experiment:
 
         trainer.train(
             search_space_handler=self.profile,  # type: ignore
-            is_wandb_log=self.is_wandb_log,
+            log_with_wandb=self.log_with_wandb,
             lora_warm_epochs=config["trainer"].get(  # type: ignore
                 "lora_warm_epochs", 0
             ),
@@ -759,15 +759,15 @@ class Experiment:
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
         )
-        if self.is_wandb_log:
+        if self.log_with_wandb:
             self._init_wandb(run_name, config=train_config)
 
         trainer.train(
             epochs=trainer_arguments.epochs,  # type: ignore
-            is_wandb_log=self.is_wandb_log,
+            log_with_wandb=self.log_with_wandb,
         )
 
-        trainer.test(is_wandb_log=self.is_wandb_log)
+        trainer.test(log_with_wandb=self.log_with_wandb)
 
         return trainer
 
@@ -856,7 +856,7 @@ class Experiment:
         start_epoch: int = 0,
         load_best_model: bool = False,
         load_saved_model: bool = False,
-        is_wandb_log: bool = False,
+        log_with_wandb: bool = False,
         run_name: str = "darts-pt",
         src_folder_path: str | None = None,
     ) -> PerturbationArchSelection:
@@ -948,14 +948,14 @@ class Experiment:
 
         trainer._init_experiment_state()
 
-        if is_wandb_log:
+        if log_with_wandb:
             self._init_wandb(run_name, config)
 
         arch_selector = PerturbationArchSelection(
             trainer,
             config["pt_selection"].get("projection_criteria", "acc"),
             config["pt_selection"].get("projection_interval", 10),
-            is_wandb_log=is_wandb_log,
+            log_with_wandb=log_with_wandb,
         )
         arch_selector.select_architecture()
 
@@ -1050,7 +1050,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     IS_DEBUG_MODE = True
-    is_wandb_log = IS_DEBUG_MODE is False
+    log_with_wandb = IS_DEBUG_MODE is False
 
     searchspace = SearchSpaceType(args.searchspace)
     dataset = DatasetType(args.dataset)
@@ -1075,7 +1075,7 @@ if __name__ == "__main__":
         search_space=searchspace,
         dataset=dataset,
         seed=args.seed,
-        is_wandb_log=is_wandb_log,
+        log_with_wandb=log_with_wandb,
         debug_mode=IS_DEBUG_MODE,
         exp_name=args.exp_name,
         runtime=args.runtime,
@@ -1097,5 +1097,5 @@ if __name__ == "__main__":
         use_supernet_checkpoint=args.use_supernet_checkpoint,
     )
 
-    if is_wandb_log:
+    if log_with_wandb:
         wandb.finish()  # type: ignore

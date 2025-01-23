@@ -110,7 +110,7 @@ if __name__ == "__main__":
         search_space=searchspace,
         dataset=dataset,
         seed=seed,
-        is_wandb_log=IS_WANDB_LOG,
+        log_with_wandb=IS_WANDB_LOG,
         exp_name="SNAS_BASELINE",
     )
 
