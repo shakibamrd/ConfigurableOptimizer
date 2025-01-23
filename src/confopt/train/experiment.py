@@ -105,7 +105,7 @@ class Experiment:
         self.dataset_dir = dataset_dir
         self.api_dir = api_dir
 
-    def set_seed(self, rand_seed: int) -> None:
+    def _set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
         np.random.seed(rand_seed)
         cudnn.benchmark = True
@@ -180,7 +180,7 @@ class Experiment:
     ) -> ConfigurableTrainer:
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
-        self.set_seed(self.seed)
+        self._set_seed(self.seed)
 
         if load_saved_model or load_best_model or start_epoch > 0:
             last_run = False
@@ -260,12 +260,12 @@ class Experiment:
     ) -> None:
         if config is None:
             config = {}  # type : ignore
-        self.set_search_space(searchspace_type, config.get("search_space", {}))
-        self.set_sampler(sampler_type, config.get("sampler", {}))
-        self.set_perturbator(perturbator_type, config.get("perturbator", {}))
-        self.set_partial_connector(config.get("partial_connector", {}))
-        self.set_dropout(config.get("dropout", {}))
-        self.set_pruner(config.get("pruner", {}))
+        self._set_search_space(searchspace_type, config.get("search_space", {}))
+        self._set_sampler(sampler_type, config.get("sampler", {}))
+        self._set_perturbator(perturbator_type, config.get("perturbator", {}))
+        self._set_partial_connector(config.get("partial_connector", {}))
+        self._set_dropout(config.get("dropout", {}))
+        self._set_pruner(config.get("pruner", {}))
         self.benchmark_api: None | BenchmarkBase = None
 
         if use_benchmark:
@@ -280,16 +280,16 @@ class Experiment:
                 )
                 self.benchmark_api = None
             else:
-                self.set_benchmark_api(searchspace_type, config.get("benchmark", {}))
+                self._set_benchmark_api(searchspace_type, config.get("benchmark", {}))
         else:
             self.benchmark_api = None
 
-        self.set_lora_toggler(config.get("lora", {}), config.get("lora_extra", {}))
-        self.set_weight_entangler()
-        self.set_regularizer(config.get("regularization", {}))
-        self.set_profile(config)
+        self._set_lora_toggler(config.get("lora", {}), config.get("lora_extra", {}))
+        self._set_weight_entangler()
+        self._set_regularizer(config.get("regularization", {}))
+        self._set_profile(config)
 
-    def set_search_space(
+    def _set_search_space(
         self,
         search_space: SearchSpaceType,
         config: dict,
@@ -307,7 +307,7 @@ class Experiment:
         elif search_space == SearchSpaceType.RobustDARTS:
             self.search_space = RobustDARTSSearchSpace(**config)
 
-    def set_benchmark_api(
+    def _set_benchmark_api(
         self,
         search_space: SearchSpaceType,
         config: dict,
@@ -332,7 +332,7 @@ class Experiment:
             print(f"Benchmark does not exist for the {search_space.value} searchspace")
             self.benchmark_api = None
 
-    def set_sampler(
+    def _set_sampler(
         self,
         sampler: SamplerType,
         config: dict,
@@ -350,7 +350,7 @@ class Experiment:
         elif sampler == SamplerType.REINMAX:
             self.sampler = ReinMaxSampler(**config, arch_parameters=arch_params)
 
-    def set_perturbator(
+    def _set_perturbator(
         self,
         petubrator_type: PerturbatorType,
         pertub_config: dict,
@@ -364,20 +364,20 @@ class Experiment:
                 attack_type=petubrator_type.value,  # type: ignore
             )
 
-    def set_partial_connector(self, config: dict) -> None:
+    def _set_partial_connector(self, config: dict) -> None:
         self.partial_connector: PartialConnector | None = None
         if self.is_partial_connection:
             self.partial_connector = PartialConnector(**config)
 
-    def set_dropout(self, config: dict) -> None:
+    def _set_dropout(self, config: dict) -> None:
         self.dropout: Dropout | None = None
         if self.dropout_p is not None:
             self.dropout = Dropout(**config)
 
-    def set_weight_entangler(self) -> None:
+    def _set_weight_entangler(self) -> None:
         self.weight_entangler = WeightEntangler() if self.entangle_op_weights else None
 
-    def set_pruner(self, config: dict) -> None:
+    def _set_pruner(self, config: dict) -> None:
         self.pruner: Pruner | None = None
         if config:
             self.pruner = Pruner(
@@ -386,7 +386,7 @@ class Experiment:
                 prune_fractions=config.get("prune_fractions", []),
             )
 
-    def set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
+    def _set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
         if lora_config.get("r", 0) == 0:
             self.lora_toggler = None
             return
@@ -405,7 +405,7 @@ class Experiment:
         else:
             self.lora_toggler = None
 
-    def set_regularizer(self, config: dict) -> None:
+    def _set_regularizer(self, config: dict) -> None:
         if config is None or len(config["active_reg_terms"]) == 0:
             self.regularizer = None
             return
@@ -427,7 +427,7 @@ class Experiment:
             loss_weight=config["loss_weight"],
         )
 
-    def set_profile(self, config: dict) -> None:
+    def _set_profile(self, config: dict) -> None:
         assert self.sampler is not None
 
         self.profile = SearchSpaceHandler(
@@ -643,7 +643,7 @@ class Experiment:
         # different function
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
-        self.set_seed(self.seed)
+        self._set_seed(self.seed)
 
         if load_saved_model or load_best_model or start_epoch > 0:
             last_run = False
