@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 import gdown
 
-from confopt.benchmark.benchmark_base import BenchmarkBase
+from confopt.benchmark.base import BenchmarkBase
 from confopt.searchspace.tnb101.core.genotypes import TNB101Genotype as Genotype
 from confopt.utils import TransNASBenchAPI
 

@@ -12,7 +12,7 @@ import torch
 from torch.backends import cudnn
 import wandb
 
-from confopt.benchmark.benchmark_base import BenchmarkBase
+from confopt.benchmark.base import BenchmarkBase
 from confopt.dataset import (
     CIFAR10Data,
     CIFAR100Data,

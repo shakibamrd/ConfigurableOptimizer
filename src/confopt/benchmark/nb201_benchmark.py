@@ -8,7 +8,7 @@ from nas_201_api import NASBench201API
 
 from confopt.searchspace.nb201.core.genotypes import Structure as Genotype
 
-from .benchmark_base import BenchmarkBase
+from .base import BenchmarkBase
 
 
 class NB201Benchmark(BenchmarkBase):
