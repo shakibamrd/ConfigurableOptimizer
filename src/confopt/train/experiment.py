@@ -12,7 +12,7 @@ import torch
 from torch.backends import cudnn
 import wandb
 
-from confopt.benchmarks.benchmark_base import BenchmarkBase
+from confopt.benchmark.benchmark_base import BenchmarkBase
 from confopt.dataset import (
     CIFAR10Data,
     CIFAR100Data,
@@ -313,19 +313,19 @@ class Experiment:
         config: dict,
     ) -> None:
         if search_space == SearchSpaceType.NB1SHOT1:
-            from confopt.benchmarks import NB101Benchmark
+            from confopt.benchmark import NB101Benchmark
 
             self.benchmark_api = NB101Benchmark("full", self.api_dir)
         elif search_space == SearchSpaceType.NB201:
-            from confopt.benchmarks import NB201Benchmark
+            from confopt.benchmark import NB201Benchmark
 
             self.benchmark_api = NB201Benchmark(self.api_dir)
         elif search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
-            from confopt.benchmarks import NB301Benchmark
+            from confopt.benchmark import NB301Benchmark
 
             self.benchmark_api = NB301Benchmark(api_root_dir=self.api_dir, **config)
         elif search_space == SearchSpaceType.TNB101:
-            from confopt.benchmarks import TNB101Benchmark
+            from confopt.benchmark import TNB101Benchmark
 
             self.benchmark_api = TNB101Benchmark(self.api_dir)
         else:

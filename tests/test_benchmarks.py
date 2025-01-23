@@ -123,7 +123,7 @@ nb101_genotype = NASBench1Shot1ConfoptGenotype(matrix=matrix, ops=ops)
 class TestBenchmarks(unittest.TestCase):
     @pytest.mark.benchmark()  # type: ignore
     def test_nb201_benchmark(self) -> None:
-        from confopt.benchmarks import NB201Benchmark
+        from confopt.benchmark import NB201Benchmark
 
         api = NB201Benchmark()
 
@@ -154,7 +154,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_nb201_benchmark_fail(self) -> None:
-        from confopt.benchmarks import NB201Benchmark
+        from confopt.benchmark import NB201Benchmark
 
         api = NB201Benchmark()
 
@@ -178,7 +178,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_nb301_benchmark(self) -> None:
-        from confopt.benchmarks import NB301Benchmark
+        from confopt.benchmark import NB301Benchmark
 
         api = NB301Benchmark()
         query_result = api.query(nb301_genotype, with_noise=False)
@@ -189,7 +189,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_nb301_benchmark_fail_genotype(self) -> None:
-        from confopt.benchmarks import NB301Benchmark
+        from confopt.benchmark import NB301Benchmark
 
         api = NB301Benchmark()
         query_result = api.query(nb301_genotype_fail, with_noise=False)
@@ -198,7 +198,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_tnb101_benchmark(self) -> None:
-        from confopt.benchmarks import TNB101Benchmark
+        from confopt.benchmark import TNB101Benchmark
 
         api = TNB101Benchmark()
         query_result = api.query(tnb101_genotype)
@@ -207,7 +207,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_tnb101_benchmark_fail(self) -> None:
-        from confopt.benchmarks import TNB101Benchmark
+        from confopt.benchmark import TNB101Benchmark
 
         api = TNB101Benchmark()
         query_result = api.query(tnb101_genotype_fail)
@@ -216,7 +216,7 @@ class TestBenchmarks(unittest.TestCase):
 
     @pytest.mark.benchmark()  # type: ignore
     def test_nb101_benchmark(self) -> None:
-        from confopt.benchmarks import NB101Benchmark
+        from confopt.benchmark import NB101Benchmark
 
         api = NB101Benchmark("only108")
         import random

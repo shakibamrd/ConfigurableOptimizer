@@ -5,7 +5,7 @@ from typing import Literal
 
 import nasbench301 as nb301
 
-from confopt.benchmarks.benchmark_base import BenchmarkBase
+from confopt.benchmark.benchmark_base import BenchmarkBase
 from confopt.searchspace.darts.core.genotypes import DARTSGenotype as Genotype
 
 
