@@ -83,7 +83,6 @@ class Experiment:
         log_with_wandb: bool = False,
         debug_mode: bool = False,
         exp_name: str = "test",
-        runtime: str | None = None,
         dataset_domain: str | None = None,
         dataset_dir: str = "datasets",
         api_dir: str = "api",
@@ -95,7 +94,6 @@ class Experiment:
         self.log_with_wandb = log_with_wandb
         self.debug_mode = debug_mode
         self.exp_name = exp_name
-        self.runtime = runtime
         self.dataset_dir = dataset_dir
         self.api_dir = api_dir
 
@@ -119,6 +117,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_benchmark: bool = False,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
@@ -140,6 +139,7 @@ class Experiment:
             start_epoch=start_epoch,
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
+            exp_runtime_to_load=exp_runtime_to_load,
             use_benchmark=use_benchmark,
             run_name=run_name,
             calc_gm_score=oles_config["calc_gm_score"],
@@ -165,6 +165,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_benchmark: bool = False,
         run_name: str = "supernet_run",
         calc_gm_score: bool = False,
@@ -177,7 +178,7 @@ class Experiment:
         self._set_seed(self.seed)
 
         should_load_model = load_saved_model or load_best_model or start_epoch > 0
-        load_last_run = should_load_model and not self.runtime
+        load_last_run = should_load_model and not exp_runtime_to_load
 
         self.logger = Logger(
             log_dir="logs",
@@ -185,7 +186,7 @@ class Experiment:
             search_space=self.searchspace_type.value,
             dataset=str(self.dataset.value),
             seed=self.seed,
-            runtime=self.runtime,
+            runtime=exp_runtime_to_load,
             use_supernet_checkpoint=True,
             last_run=load_last_run,
         )
@@ -475,6 +476,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_supernet_checkpoint: bool = False,
     ) -> DiscreteTrainer:
         train_config = profile.get_trainer_config()
@@ -488,6 +490,7 @@ class Experiment:
             start_epoch=start_epoch,
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
+            exp_runtime_to_load=exp_runtime_to_load,
             use_supernet_checkpoint=use_supernet_checkpoint,
             genotype_str=genotype_str,
             run_name=run_name,
@@ -611,6 +614,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_supernet_checkpoint: bool = False,
         use_expr_search_space: bool = False,
         genotype_str: str | None = None,
@@ -624,7 +628,7 @@ class Experiment:
 
         if load_saved_model or load_best_model or start_epoch > 0:
             last_run = False
-            if not self.runtime:
+            if not exp_runtime_to_load:
                 last_run = True
 
             self.logger = Logger(
@@ -633,7 +637,7 @@ class Experiment:
                 search_space=self.searchspace_type.value,
                 dataset=str(self.dataset.value),
                 seed=self.seed,
-                runtime=self.runtime,
+                runtime=exp_runtime_to_load,
                 use_supernet_checkpoint=use_supernet_checkpoint,
                 last_run=last_run,
             )
@@ -831,6 +835,7 @@ class Experiment:
         start_epoch: int = 0,
         load_best_model: bool = False,
         load_saved_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         log_with_wandb: bool = False,
         run_name: str = "darts-pt",
         src_folder_path: str | None = None,
@@ -841,7 +846,7 @@ class Experiment:
         if load_best_model or load_saved_model or start_epoch:
             # self.searchspace is not trained
             last_run = False
-            if not self.runtime:
+            if not exp_runtime_to_load:
                 last_run = True
 
             if model_source == "supernet":
@@ -860,7 +865,7 @@ class Experiment:
                 dataset=str(self.dataset.value),
                 search_space=self.searchspace_type.value,
                 seed=self.seed,
-                runtime=self.runtime,
+                runtime=exp_runtime_to_load,
                 use_supernet_checkpoint=True,
                 arch_selection=arch_selection,
                 last_run=last_run,
@@ -1053,7 +1058,6 @@ if __name__ == "__main__":
         log_with_wandb=log_with_wandb,
         debug_mode=IS_DEBUG_MODE,
         exp_name=args.exp_name,
-        runtime=args.runtime,
     )
 
     # trainer = experiment.run_with_profile(
@@ -1064,12 +1068,15 @@ if __name__ == "__main__":
     # )
 
     discrete_profile = DiscreteProfile(searchspace.value)
+
+    exp_runtime_to_load = args.runtime if args.runtime != "" else None
     discret_trainer = experiment.train_discrete_model(
         discrete_profile,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
         load_best_model=args.load_best_model,
         use_supernet_checkpoint=args.use_supernet_checkpoint,
+        exp_runtime_to_load=exp_runtime_to_load,
     )
 
     if log_with_wandb:
