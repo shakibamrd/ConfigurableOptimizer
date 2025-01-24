@@ -4,7 +4,7 @@ import argparse
 from collections import namedtuple
 import json
 import random
-from typing import Callable, Literal
+from typing import Any, Callable, Literal
 import warnings
 
 import numpy as np
@@ -13,14 +13,8 @@ from torch.backends import cudnn
 import wandb
 
 from confopt.benchmark.base import BenchmarkBase
-from confopt.dataset import (
-    CIFAR10Data,
-    CIFAR100Data,
-    ImageNet16Data,
-    ImageNet16120Data,
-    TaskonomyClassObjectData,
-    TaskonomyClassSceneData,
-)
+from confopt.dataset import get_dataset
+from confopt.dataset.data import AbstractData
 from confopt.enums import (
     CriterionType,
     DatasetType,
@@ -432,28 +426,6 @@ class Experiment:
             regularizer=self.regularizer,
         )
 
-    def _get_dataset(self, dataset: DatasetType, domain: str | None = None) -> Callable:
-        if dataset == DatasetType.CIFAR10:
-            return CIFAR10Data
-        elif dataset == DatasetType.CIFAR100:  # noqa: RET505
-            return CIFAR100Data
-        elif dataset == DatasetType.IMGNET16:
-            return ImageNet16Data
-        elif dataset == DatasetType.IMGNET16_120:
-            return ImageNet16120Data
-        elif dataset == DatasetType.TASKONOMY:
-            assert domain is not None, "Domain should be provided for Taskonomy dataset"
-            return self._get_taskonomy_dataset(domain)
-        else:
-            raise ValueError("Invalid dataset")
-
-    def _get_taskonomy_dataset(self, domain: str) -> Callable:
-        if domain == "class_object":
-            return TaskonomyClassObjectData
-        elif domain == "class_scene":  # noqa: RET505
-            return TaskonomyClassSceneData
-        raise ValueError("Invalid domain for Taskonomy dataset")
-
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
         criterion = CriterionType(criterion_str)
         if criterion == CriterionType.CROSS_ENTROPY:
@@ -614,6 +586,23 @@ class Experiment:
         )
         return model, genotype_str  # type: ignore
 
+    def _get_dataset(
+        self,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float,
+        *args: Any,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
+    ) -> AbstractData:
+        return get_dataset(
+            dataset=self.dataset,
+            domain=self.domain,
+            root=self.dataset_dir,
+            cutout=cutout,  # type: ignore
+            cutout_length=cutout_length,  # type: ignore
+            train_portion=train_portion,  # type: ignore
+        )
+
     # refactor the name to train
     def _train_discrete_model(
         self,
@@ -703,8 +692,7 @@ class Experiment:
         )
         trainer_arguments = Arguments(**train_config)  # type: ignore
 
-        data = self._get_dataset(self.dataset, self.domain)(
-            root=self.dataset_dir,
+        data = self._get_dataset(
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
@@ -775,8 +763,7 @@ class Experiment:
             criterion_str=trainer_arguments.criterion  # type: ignore
         )
 
-        data = self._get_dataset(self.dataset, self.domain)(
-            root=self.dataset_dir,
+        data = self._get_dataset(
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore

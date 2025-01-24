@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
-from typing import Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 import numpy as np
 from skimage import io
@@ -60,7 +60,13 @@ class CUTOUT:
 
 
 class AbstractData(ABC):
-    def __init__(self, root: str, train_portion: float = 1.0) -> None:
+    def __init__(
+        self,
+        root: str,
+        train_portion: float = 1.0,
+        *args: Any,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
+    ) -> None:
         self.root = root
         self.train_portion = train_portion
         if train_portion == 1:
