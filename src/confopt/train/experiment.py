@@ -626,32 +626,18 @@ class Experiment:
 
         self._set_seed(self.seed)
 
-        if load_saved_model or load_best_model or start_epoch > 0:
-            last_run = False
-            if not exp_runtime_to_load:
-                last_run = True
-
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.searchspace_type.value,
-                dataset=str(self.dataset.value),
-                seed=self.seed,
-                runtime=exp_runtime_to_load,
-                use_supernet_checkpoint=use_supernet_checkpoint,
-                last_run=last_run,
-            )
-        else:
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.searchspace_type.value,
-                dataset=str(self.dataset.value),
-                seed=self.seed,
-                runtime=None,
-                use_supernet_checkpoint=use_supernet_checkpoint,
-                last_run=False,
-            )
+        should_load_model = load_saved_model or load_best_model or start_epoch > 0
+        load_last_run = should_load_model and not exp_runtime_to_load
+        self.logger = Logger(
+            log_dir="logs",
+            exp_name=self.exp_name,
+            search_space=self.searchspace_type.value,
+            dataset=str(self.dataset.value),
+            seed=self.seed,
+            runtime=exp_runtime_to_load,
+            use_supernet_checkpoint=use_supernet_checkpoint,
+            last_run=load_last_run,
+        )
 
         # different options to train a discrete model:
         # A) Use the experiment's self.search_space of the experiment.
