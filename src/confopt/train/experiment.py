@@ -219,7 +219,7 @@ class Experiment:
         )
 
         trainer.train(
-            search_space_handler=self.profile,  # type: ignore
+            search_space_handler=self.search_space_handler,  # type: ignore
             log_with_wandb=self.log_with_wandb,
             lora_warm_epochs=config["trainer"].get(  # type: ignore
                 "lora_warm_epochs", 0
@@ -412,7 +412,7 @@ class Experiment:
     def _set_profile(self, config: dict) -> None:
         assert self.sampler is not None
 
-        self.profile = SearchSpaceHandler(
+        self.search_space_handler = SearchSpaceHandler(
             sampler=self.sampler,
             edge_normalization=self.edge_normalization,
             partial_connector=self.partial_connector,
@@ -897,7 +897,7 @@ class Experiment:
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
         )
-        search_space_handler = self.profile
+        search_space_handler = self.search_space_handler
         search_space_handler.adapt_search_space(trainer.model)
 
         # Load from supernet
