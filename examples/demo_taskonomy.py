@@ -15,6 +15,6 @@ if __name__ == "__main__":
         seed=9001,
         debug_mode=True,
         exp_name="demo-simple",
-        domain=domain,
+        dataset_domain=domain,
     )
     experiment.train_supernet(profile)

@@ -84,18 +84,18 @@ class Experiment:
         debug_mode: bool = False,
         exp_name: str = "test",
         runtime: str | None = None,
-        domain: str | None = None,
+        dataset_domain: str | None = None,
         dataset_dir: str = "datasets",
         api_dir: str = "api",
     ) -> None:
         self.searchspace_type = search_space
         self.dataset = dataset
+        self.dataset_domain = dataset_domain
         self.seed = seed
         self.log_with_wandb = log_with_wandb
         self.debug_mode = debug_mode
         self.exp_name = exp_name
         self.runtime = runtime
-        self.domain = domain
         self.dataset_dir = dataset_dir
         self.api_dir = api_dir
 
@@ -596,7 +596,7 @@ class Experiment:
     ) -> AbstractData:
         return get_dataset(
             dataset=self.dataset,
-            domain=self.domain,
+            domain=self.dataset_domain,
             root=self.dataset_dir,
             cutout=cutout,  # type: ignore
             cutout_length=cutout_length,  # type: ignore
