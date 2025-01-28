@@ -12,7 +12,6 @@ import torch
 from torch.backends import cudnn
 import wandb
 
-from confopt.benchmark.base import BenchmarkBase
 from confopt.dataset import get_dataset
 from confopt.dataset.data import AbstractData
 from confopt.enums import (
@@ -249,7 +248,7 @@ class Experiment:
         self._set_partial_connector(config.get("partial_connector", {}))
         self._set_dropout(config.get("dropout", {}))
         self._set_pruner(config.get("pruner", {}))
-        self.benchmark_api: None | BenchmarkBase = None
+        self.benchmark_api: None | Any = None
 
         if use_benchmark:
             if (

@@ -63,7 +63,6 @@ class BaseProfile:
         ), f"Illegal value {self.sampler_type} for sampler_type"
 
         if self.searchspace_type == SearchSpaceType.TNB101:
-            print("domain", searchspace_domain)
             assert searchspace_domain in [
                 "class_object",
                 "class_scene",
