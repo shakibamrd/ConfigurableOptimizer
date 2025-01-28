@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
-from confopt.oneshot.base_component import OneShotComponent
+from confopt.oneshot.base import OneShotComponent
 from confopt.searchspace.common.lora_layers import Conv2DLoRA
 
 
@@ -50,8 +50,8 @@ class WeightEntanglementModule(nn.Module, ABC):
 class ConvolutionalWEModule(WeightEntanglementModule):
     def __init__(self) -> None:
         super().__init__()
-        self.kernel_size = None
-        self.stride = None
+        self.kernel_size: None | int = None
+        self.stride: None | int | tuple[int, int] = None
         self.op: nn.Sequential = None
 
     def __post__init__(self) -> None:

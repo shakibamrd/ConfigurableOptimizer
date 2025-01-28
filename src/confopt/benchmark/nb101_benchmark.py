@@ -7,7 +7,7 @@ import urllib.request
 
 from nasbench import api
 
-from confopt.benchmarks.benchmark_base import BenchmarkBase
+from confopt.benchmark.base import BenchmarkBase
 from confopt.searchspace.nb1_shot_1.core.search_spaces.genotypes import (
     NASBench1Shot1ConfoptGenotype,
 )

@@ -200,7 +200,7 @@ class DARTSSearchSpace(
         self,
         selected_edge: int,
         selected_op: int | None,
-        cell_type: Literal["normal", "reduce"],
+        cell_type: Literal["normal", "reduce"] = "normal",
     ) -> None:
         if self.topology is None:
             self.set_topology(False)
@@ -221,7 +221,7 @@ class DARTSSearchSpace(
         self,
         selected_node: int,
         selected_edges: list[int],
-        cell_type: Literal["normal", "reduce"],
+        cell_type: Literal["normal", "reduce"] = "normal",  # type: ignore
     ) -> None:
         self.model.mark_projected_edges(selected_node, selected_edges, cell_type)
 

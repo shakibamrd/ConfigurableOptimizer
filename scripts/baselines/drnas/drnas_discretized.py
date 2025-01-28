@@ -5,7 +5,7 @@ import argparse
 from drnas_search_and_discrete import get_drnas_profile
 import wandb
 
-from confopt.profiles import DiscreteProfile
+from confopt.profile import DiscreteProfile
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 
 dataset_size = {
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         search_space=searchspace,
         dataset=dataset,
         seed=seed,
-        is_wandb_log=IS_WANDB_LOG,
+        log_with_wandb=IS_WANDB_LOG,
         exp_name="DRNAS_BASELINE",
     )
 

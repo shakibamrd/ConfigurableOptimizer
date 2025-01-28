@@ -21,12 +21,12 @@ class PerturbationArchSelection:
         trainer: ConfigurableTrainer,
         projection_criteria: str | dict,
         projection_interval: int,
-        is_wandb_log: bool = False,
+        log_with_wandb: bool = False,
     ) -> None:
         self.trainer = trainer
         self.projection_criteria = projection_criteria
         self.projection_interval = projection_interval
-        self.is_wandb_log = is_wandb_log
+        self.log_with_wandb = log_with_wandb
 
         if self.projection_criteria == "loss":
             self.crit_idx = 1
@@ -272,7 +272,7 @@ class PerturbationArchSelection:
                 ):
                     self.trainer.logger.log(f"alpha {i} is {alpha}")
 
-            if self.is_wandb_log:
+            if self.log_with_wandb:
                 self.trainer.logger.push_wandb_logs()
 
             checkpointables = self.trainer._get_checkpointables(epoch=epoch)

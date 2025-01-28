@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import torch
-from confopt.profiles import DARTSProfile, DRNASProfile, GDASProfile  # , ReinMaxProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.profile import DARTSProfile, DRNASProfile, GDASProfile, ReinMaxProfile
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 if __name__ == "__main__":
-    torch.cuda.set_device(0)
 
     searchspace = SearchSpaceType.DARTS
     dataset = DatasetType.CIFAR10
@@ -21,6 +20,7 @@ if __name__ == "__main__":
     }
 
     profile = DRNASProfile(
+        searchspace=searchspace,
         epochs=10,
         oles=True,
         calc_gm_score=True,
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         is_regularization_enabled=True,
         regularization_config=reg_config,
     )
-    profile.set_searchspace_config({"layers": 8, "C": 2})
+    profile.configure_searchspace(layers=8, C=2)
     config = profile.get_config()
 
     print(config)

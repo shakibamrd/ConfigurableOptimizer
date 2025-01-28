@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import namedtuple
 import time
-from typing import Any
+from typing import Any, Literal
 
 from fvcore.common.checkpoint import Checkpointer, PeriodicCheckpointer
 import torch
@@ -106,6 +106,9 @@ class ConfigurableTrainer:
                 == 1
             )
             epoch = None
+
+            src: Literal["best", "last", "epoch"] = "best"
+
             if self.load_best_model is True:
                 src = "best"
             elif self.load_saved_model is True:
@@ -149,7 +152,7 @@ class ConfigurableTrainer:
     def train(  # noqa: C901, PLR0915, PLR0912
         self,
         search_space_handler: SearchSpaceHandler,
-        is_wandb_log: bool = True,
+        log_with_wandb: bool = True,
         lora_warm_epochs: int = 0,
         calc_gm_score: bool = False,
         oles: bool = False,
@@ -159,7 +162,7 @@ class ConfigurableTrainer:
         search_space_handler.adapt_search_space(self.model)
         self._init_experiment_state()
 
-        network = (
+        network: DataParallel | SearchSpace = (
             self._load_onto_data_parallel(self.model)
             if self.use_data_parallel
             else self.model
@@ -339,7 +342,7 @@ class ConfigurableTrainer:
             self.log_benchmark_result(network)
 
             # Push WandB Logs
-            if is_wandb_log:
+            if log_with_wandb:
                 self.logger.push_wandb_logs()
 
             # Log alpha values
@@ -529,7 +532,6 @@ class ConfigurableTrainer:
                 # prediction
                 arch_inputs = arch_inputs.to(self.device)
                 arch_targets = arch_targets.to(self.device, non_blocking=True)
-
                 _, logits = network(arch_inputs)
                 arch_loss = criterion(logits, arch_targets)
 
@@ -557,11 +559,11 @@ class ConfigurableTrainer:
 
         return network, criterion
 
-    def _load_onto_data_parallel(self, network: nn.Module) -> tuple[nn.Module, Loss]:
-        if torch.cuda.is_available():
-            network = DataParallel(self.model).cuda()
-
-        return network
+    def _load_onto_data_parallel(self, network: nn.Module) -> DataParallel:
+        assert (
+            torch.cuda.is_available()
+        ), "Cannot load onto DataParallel! Cuda not found!"
+        return DataParallel(network).cuda()
 
     def _init_empty_exp_state_info(self) -> None:
         self.start_epoch = 0
@@ -782,7 +784,7 @@ class ConfigurableTrainer:
         ):
             search_space_handler.reset_sample_function(model)
 
-    def get_arch_values_as_dict(self, model: SearchSpace) -> dict:
+    def get_arch_values_as_dict(self, model: SearchSpace | DataParallel) -> dict:
         if isinstance(model, DataParallel):
             model = model.module
         arch_values = model.arch_parameters

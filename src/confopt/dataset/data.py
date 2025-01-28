@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
-from typing import Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 import numpy as np
 from skimage import io
@@ -60,7 +60,13 @@ class CUTOUT:
 
 
 class AbstractData(ABC):
-    def __init__(self, root: str, train_portion: float = 1.0) -> None:
+    def __init__(
+        self,
+        root: str,
+        train_portion: float = 1.0,
+        *args: Any,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
+    ) -> None:
         self.root = root
         self.train_portion = train_portion
         if train_portion == 1:
@@ -460,7 +466,7 @@ class TaskonomyData(AbstractData):
                     brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
                 ),
                 load_ops.ToTensor(),
-                load_ops.Normalize(**normal_params),
+                load_ops.Normalize(**normal_params),  # type: ignore
             ],
         )
         test_transform = load_ops.Compose(
@@ -469,7 +475,7 @@ class TaskonomyData(AbstractData):
                 load_ops.ToPILImage(),
                 load_ops.Resize([256, 256]),
                 load_ops.ToTensor(),
-                load_ops.Normalize(**normal_params),
+                load_ops.Normalize(**normal_params),  # type: ignore
             ],
         )
         return train_transform, test_transform

@@ -8,11 +8,11 @@ from nas_201_api import NASBench201API
 
 from confopt.searchspace.nb201.core.genotypes import Structure as Genotype
 
-from .benchmark_base import BenchmarkBase
+from .base import BenchmarkBase
 
 
 class NB201Benchmark(BenchmarkBase):
-    def __init__(self, api_root_dir: str="api") -> None:
+    def __init__(self, api_root_dir: str = "api") -> None:
         self.api_dir = os.path.join(api_root_dir, "nb201")
         # self.api_file_name = "NAS-Bench-201-v1_1-096897.pth" # newer version
         self.api_file_name = "NAS-Bench-201-v1_0-e61699.pth"

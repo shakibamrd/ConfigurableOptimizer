@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import argparse
 from collections import namedtuple
-from enum import Enum
 import json
 import random
-from typing import Callable, Literal
+from typing import Any, Callable, Literal
 import warnings
 
 import numpy as np
@@ -13,34 +12,39 @@ import torch
 from torch.backends import cudnn
 import wandb
 
-from confopt.dataset import (
-    CIFAR10Data,
-    CIFAR100Data,
-    ImageNet16Data,
-    ImageNet16120Data,
-    TaskonomyClassObjectData,
-    TaskonomyClassSceneData,
+from confopt.dataset import get_dataset
+from confopt.dataset.data import AbstractData
+from confopt.enums import (
+    CriterionType,
+    DatasetType,
+    OptimizerType,
+    PerturbatorType,
+    SamplerType,
+    SchedulerType,
+    SearchSpaceType,
+)
+from confopt.oneshot import (
+    DrNASRegularizationTerm,
+    Dropout,
+    FairDARTSRegularizationTerm,
+    FLOPSRegularizationTerm,
+    LoRAToggler,
+    PartialConnector,
+    Pruner,
+    RegularizationTerm,
+    Regularizer,
+    SDARTSPerturbator,
+    WeightEntangler,
 )
 from confopt.oneshot.archsampler import (
+    BaseSampler,
     DARTSSampler,
     DRNASSampler,
     GDASSampler,
     ReinMaxSampler,
     SNASSampler,
 )
-from confopt.oneshot.dropout import Dropout
-from confopt.oneshot.lora_toggler import LoRAToggler
-from confopt.oneshot.partial_connector import PartialConnector
-from confopt.oneshot.perturbator import SDARTSPerturbator
-from confopt.oneshot.pruner.pruner import Pruner
-from confopt.oneshot.regularizer import (
-    DrNASRegularizationTerm,
-    FairDARTSRegularizationTerm,
-    FLOPSRegularizationTerm,
-    Regularizer,
-)
-from confopt.oneshot.weightentangler import WeightEntangler
-from confopt.profiles import (
+from confopt.profile import (
     BaseProfile,
     DiscreteProfile,
     GDASProfile,
@@ -59,81 +63,14 @@ from confopt.searchspace import (
     SearchSpace,
     TransNASBench101SearchSpace,
 )
-from confopt.train import ConfigurableTrainer, DiscreteTrainer, SearchSpaceHandler
+from confopt.train import ConfigurableTrainer, DiscreteTrainer
 from confopt.train.projection import PerturbationArchSelection
+from confopt.train.search_space_handler import SearchSpaceHandler
 from confopt.utils import Logger
 from confopt.utils import distributed as dist_utils
 from confopt.utils.time import check_date_format
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-# TODO Change this to real data
-ADVERSERIAL_DATA = (
-    torch.randn(2, 3, 32, 32).to(DEVICE),
-    torch.randint(0, 9, (2,)).to(DEVICE),
-)
-
-
-class SearchSpaceType(Enum):
-    DARTS = "darts"
-    NB201 = "nb201"
-    NB1SHOT1 = "nb1shot1"
-    TNB101 = "tnb101"
-    BABYDARTS = "baby_darts"
-    RobustDARTS = "robust_darts"
-
-
-class ModelType(Enum):
-    DARTS = "darts"
-    NB201 = "nb201"
-
-
-class SamplerType(Enum):
-    DARTS = "darts"
-    DRNAS = "drnas"
-    GDAS = "gdas"
-    SNAS = "snas"
-    REINMAX = "reinmax"
-
-
-class PerturbatorType(Enum):
-    RANDOM = "random"
-    ADVERSERIAL = "adverserial"
-    NONE = "none"
-
-
-PERTUB_DEFAULT_EPSILON = 0.03
-PERTUBRATOR_NONE = PerturbatorType("none")
-
-
-class DatasetType(Enum):
-    CIFAR10 = "cifar10"
-    CIFAR100 = "cifar100"
-    IMGNET16 = "imgnet16"
-    IMGNET16_120 = "imgnet16_120"
-    TASKONOMY = "taskonomy"
-
-
-N_CLASSES = {
-    DatasetType.CIFAR10: 10,
-    DatasetType.CIFAR100: 100,
-    DatasetType.IMGNET16_120: 120,
-}
-
-
-class CriterionType(Enum):
-    CROSS_ENTROPY = "cross_entropy"
-
-
-class OptimizerType(Enum):
-    ADAM = "adam"
-    SGD = "sgd"
-    ASGD = "asgd"
-
-
-class SchedulerType(Enum):
-    CosineAnnealingLR = "cosine_annealing_lr"
-    CosineAnnealingWarmRestart = "cosine_annealing_warm_restart"
 
 
 class Experiment:
@@ -142,26 +79,24 @@ class Experiment:
         search_space: SearchSpaceType,
         dataset: DatasetType,
         seed: int,
-        is_wandb_log: bool = False,
+        log_with_wandb: bool = False,
         debug_mode: bool = False,
         exp_name: str = "test",
-        runtime: str | None = None,
-        domain: str | None = None,
+        dataset_domain: str | None = None,
         dataset_dir: str = "datasets",
-        api_dir: str="api",
+        api_dir: str = "api",
     ) -> None:
-        self.search_space_str = search_space
-        self.dataset_str = dataset
+        self.searchspace_type = search_space
+        self.dataset = dataset
+        self.dataset_domain = dataset_domain
         self.seed = seed
-        self.is_wandb_log = is_wandb_log
+        self.log_with_wandb = log_with_wandb
         self.debug_mode = debug_mode
         self.exp_name = exp_name
-        self.runtime = runtime
-        self.domain = domain
         self.dataset_dir = dataset_dir
         self.api_dir = api_dir
 
-    def set_seed(self, rand_seed: int) -> None:
+    def _set_seed(self, rand_seed: int) -> None:
         random.seed(rand_seed)
         np.random.seed(rand_seed)
         cudnn.benchmark = True
@@ -181,17 +116,18 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_benchmark: bool = False,
     ) -> ConfigurableTrainer:
         config = profile.get_config()
-        run_name = profile.get_name_wandb_run()
-        config["dataset"] = self.dataset_str.value
+        run_name = profile.get_run_description()
+        config["dataset"] = self.dataset.value
 
         assert hasattr(profile, "sampler_type")
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
-        self.dropout = profile.dropout
+        self.dropout_p = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
         oles_config = config["oles"]
@@ -202,6 +138,7 @@ class Experiment:
             start_epoch=start_epoch,
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
+            exp_runtime_to_load=exp_runtime_to_load,
             use_benchmark=use_benchmark,
             run_name=run_name,
             calc_gm_score=oles_config["calc_gm_score"],
@@ -227,6 +164,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_benchmark: bool = False,
         run_name: str = "supernet_run",
         calc_gm_score: bool = False,
@@ -236,33 +174,21 @@ class Experiment:
     ) -> ConfigurableTrainer:
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
-        self.set_seed(self.seed)
+        self._set_seed(self.seed)
 
-        if load_saved_model or load_best_model or start_epoch > 0:
-            last_run = False
-            if not self.runtime:
-                last_run = True
+        should_load_model = load_saved_model or load_best_model or start_epoch > 0
+        load_last_run = should_load_model and not exp_runtime_to_load
 
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
-                seed=self.seed,
-                runtime=self.runtime,
-                use_supernet_checkpoint=True,
-                last_run=last_run,
-            )
-        else:
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
-                seed=self.seed,
-                runtime=self.runtime,
-                use_supernet_checkpoint=True,
-            )
+        self.logger = Logger(
+            log_dir="logs",
+            exp_name=self.exp_name,
+            search_space=self.searchspace_type.value,
+            dataset=str(self.dataset.value),
+            seed=self.seed,
+            runtime=exp_runtime_to_load,
+            use_supernet_checkpoint=True,
+            last_run=load_last_run,
+        )
 
         self.logger.log(
             "Logs and checkpoints will be saved in the following directory: "
@@ -270,14 +196,14 @@ class Experiment:
         )
         config["save_dir"] = self.logger.path(None)  # type:ignore
 
-        self._enum_to_objects(
-            self.search_space_str,
+        self._init_components(
+            self.searchspace_type,
             self.sampler_str,
             self.perturbator_str,
             config=config,
             use_benchmark=use_benchmark,
         )
-        if self.is_wandb_log:
+        if self.log_with_wandb:
             self._init_wandb(run_name, config)  # type: ignore
 
         trainer = self._initialize_configurable_trainer(
@@ -293,8 +219,8 @@ class Experiment:
         )
 
         trainer.train(
-            search_space_handler=self.profile,  # type: ignore
-            is_wandb_log=self.is_wandb_log,
+            search_space_handler=self.search_space_handler,  # type: ignore
+            log_with_wandb=self.log_with_wandb,
             lora_warm_epochs=config["trainer"].get(  # type: ignore
                 "lora_warm_epochs", 0
             ),
@@ -306,26 +232,27 @@ class Experiment:
 
         return trainer
 
-    def _enum_to_objects(
+    def _init_components(
         self,
-        search_space_enum: SearchSpaceType,
-        sampler_enum: SamplerType,
-        perturbator_enum: PerturbatorType,
+        searchspace_type: SearchSpaceType,
+        sampler_type: SamplerType,
+        perturbator_type: PerturbatorType,
         config: dict | None = None,
         use_benchmark: bool = False,
     ) -> None:
         if config is None:
             config = {}  # type : ignore
-        self.set_search_space(search_space_enum, config.get("search_space", {}))
-        self.set_sampler(sampler_enum, config.get("sampler", {}))
-        self.set_perturbator(perturbator_enum, config.get("perturbator", {}))
-        self.set_partial_connector(config.get("partial_connector", {}))
-        self.set_dropout(config.get("dropout", {}))
-        self.set_pruner(config.get("pruner", {}))
+        self._set_search_space(searchspace_type, config.get("search_space", {}))
+        self._set_sampler(sampler_type, config.get("sampler", {}))
+        self._set_perturbator(perturbator_type, config.get("perturbator", {}))
+        self._set_partial_connector(config.get("partial_connector", {}))
+        self._set_dropout(config.get("dropout", {}))
+        self._set_pruner(config.get("pruner", {}))
+        self.benchmark_api: None | Any = None
 
         if use_benchmark:
             if (
-                search_space_enum == SearchSpaceType.RobustDARTS
+                searchspace_type == SearchSpaceType.RobustDARTS
                 and config.get("search_space", {}).get("space") == "s4"
             ):
                 warnings.warn(
@@ -335,16 +262,16 @@ class Experiment:
                 )
                 self.benchmark_api = None
             else:
-                self.set_benchmark_api(search_space_enum, config.get("benchmark", {}))
+                self._set_benchmark_api(searchspace_type, config.get("benchmark", {}))
         else:
             self.benchmark_api = None
 
-        self.set_lora_toggler(config.get("lora", {}), config.get("lora_extra", {}))
-        self.set_weight_entangler()
-        self.set_regularizer(config.get("regularization", {}))
-        self.set_profile(config)
+        self._set_lora_toggler(config.get("lora", {}), config.get("lora_extra", {}))
+        self._set_weight_entangler()
+        self._set_regularizer(config.get("regularization", {}))
+        self._set_profile(config)
 
-    def set_search_space(
+    def _set_search_space(
         self,
         search_space: SearchSpaceType,
         config: dict,
@@ -362,37 +289,38 @@ class Experiment:
         elif search_space == SearchSpaceType.RobustDARTS:
             self.search_space = RobustDARTSSearchSpace(**config)
 
-    def set_benchmark_api(
+    def _set_benchmark_api(
         self,
         search_space: SearchSpaceType,
         config: dict,
     ) -> None:
         if search_space == SearchSpaceType.NB1SHOT1:
-            from confopt.benchmarks import NB101Benchmark
+            from confopt.benchmark import NB101Benchmark
 
             self.benchmark_api = NB101Benchmark("full", self.api_dir)
         elif search_space == SearchSpaceType.NB201:
-            from confopt.benchmarks import NB201Benchmark
+            from confopt.benchmark import NB201Benchmark
 
             self.benchmark_api = NB201Benchmark(self.api_dir)
         elif search_space in (SearchSpaceType.DARTS, SearchSpaceType.RobustDARTS):
-            from confopt.benchmarks import NB301Benchmark
+            from confopt.benchmark import NB301Benchmark
 
             self.benchmark_api = NB301Benchmark(api_root_dir=self.api_dir, **config)
         elif search_space == SearchSpaceType.TNB101:
-            from confopt.benchmarks import TNB101Benchmark
+            from confopt.benchmark import TNB101Benchmark
 
             self.benchmark_api = TNB101Benchmark(self.api_dir)
         else:
             print(f"Benchmark does not exist for the {search_space.value} searchspace")
             self.benchmark_api = None
 
-    def set_sampler(
+    def _set_sampler(
         self,
         sampler: SamplerType,
         config: dict,
     ) -> None:
         arch_params = self.search_space.arch_parameters
+        self.sampler: BaseSampler | None = None
         if sampler == SamplerType.DARTS:
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.DRNAS:
@@ -404,47 +332,43 @@ class Experiment:
         elif sampler == SamplerType.REINMAX:
             self.sampler = ReinMaxSampler(**config, arch_parameters=arch_params)
 
-    def set_perturbator(
+    def _set_perturbator(
         self,
-        petubrator_enum: PerturbatorType,
+        petubrator_type: PerturbatorType,
         pertub_config: dict,
     ) -> None:
-        if petubrator_enum != PerturbatorType.NONE:
+        self.perturbator: SDARTSPerturbator | None = None
+        if petubrator_type != PerturbatorType.NONE:
             self.perturbator = SDARTSPerturbator(
                 **pertub_config,
                 search_space=self.search_space,
                 arch_parameters=self.search_space.arch_parameters,
-                attack_type=petubrator_enum.value,
+                attack_type=petubrator_type.value,  # type: ignore
             )
-        else:
-            self.perturbator = None
 
-    def set_partial_connector(self, config: dict) -> None:
+    def _set_partial_connector(self, config: dict) -> None:
+        self.partial_connector: PartialConnector | None = None
         if self.is_partial_connection:
             self.partial_connector = PartialConnector(**config)
-        else:
-            self.partial_connector = None
 
-    def set_dropout(self, config: dict) -> None:
-        if self.dropout is not None:
+    def _set_dropout(self, config: dict) -> None:
+        self.dropout: Dropout | None = None
+        if self.dropout_p is not None:
             self.dropout = Dropout(**config)
-        else:
-            self.dropout = None
 
-    def set_weight_entangler(self) -> None:
+    def _set_weight_entangler(self) -> None:
         self.weight_entangler = WeightEntangler() if self.entangle_op_weights else None
 
-    def set_pruner(self, config: dict) -> None:
+    def _set_pruner(self, config: dict) -> None:
+        self.pruner: Pruner | None = None
         if config:
             self.pruner = Pruner(
                 searchspace=self.search_space,
                 prune_epochs=config.get("prune_epochs", []),
                 prune_fractions=config.get("prune_fractions", []),
             )
-        else:
-            self.pruner = None
 
-    def set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
+    def _set_lora_toggler(self, lora_config: dict, lora_extra: dict) -> None:
         if lora_config.get("r", 0) == 0:
             self.lora_toggler = None
             return
@@ -463,12 +387,12 @@ class Experiment:
         else:
             self.lora_toggler = None
 
-    def set_regularizer(self, config: dict) -> None:
+    def _set_regularizer(self, config: dict) -> None:
         if config is None or len(config["active_reg_terms"]) == 0:
             self.regularizer = None
             return
 
-        reg_terms = []
+        reg_terms: list[RegularizationTerm] = []
         for term in config["active_reg_terms"]:
             if term == "drnas":
                 reg_terms.append(DrNASRegularizationTerm(**config["drnas_config"]))
@@ -485,10 +409,10 @@ class Experiment:
             loss_weight=config["loss_weight"],
         )
 
-    def set_profile(self, config: dict) -> None:
+    def _set_profile(self, config: dict) -> None:
         assert self.sampler is not None
 
-        self.profile = SearchSpaceHandler(
+        self.search_space_handler = SearchSpaceHandler(
             sampler=self.sampler,
             edge_normalization=self.edge_normalization,
             partial_connector=self.partial_connector,
@@ -501,28 +425,6 @@ class Experiment:
             is_arch_attention_enabled=config.get("is_arch_attention_enabled", False),
             regularizer=self.regularizer,
         )
-
-    def _get_dataset(self, dataset: DatasetType, domain: str | None = None) -> Callable:
-        if dataset == DatasetType.CIFAR10:
-            return CIFAR10Data
-        elif dataset == DatasetType.CIFAR100:  # noqa: RET505
-            return CIFAR100Data
-        elif dataset == DatasetType.IMGNET16:
-            return ImageNet16Data
-        elif dataset == DatasetType.IMGNET16_120:
-            return ImageNet16120Data
-        elif dataset == DatasetType.TASKONOMY:
-            assert domain is not None, "Domain should be provided for Taskonomy dataset"
-            return self._get_taskonomy_dataset(domain)
-        else:
-            raise ValueError("Invalid dataset")
-
-    def _get_taskonomy_dataset(self, domain: str) -> Callable:
-        if domain == "class_object":
-            return TaskonomyClassObjectData
-        elif domain == "class_scene":  # noqa: RET505
-            return TaskonomyClassSceneData
-        raise ValueError("Invalid domain for Taskonomy dataset")
 
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
         criterion = CriterionType(criterion_str)
@@ -573,12 +475,13 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_supernet_checkpoint: bool = False,
     ) -> DiscreteTrainer:
         train_config = profile.get_trainer_config()
-        searchspace_config = profile.get_searchspace_config(self.dataset_str.value)
+        searchspace_config = profile.get_searchspace_config(self.dataset.value)
         genotype_str = profile.get_genotype()
-        run_name = profile.get_name_wandb_run()
+        run_name = profile.get_run_description()
 
         return self._train_discrete_model(
             searchspace_config=searchspace_config,
@@ -586,6 +489,7 @@ class Experiment:
             start_epoch=start_epoch,
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
+            exp_runtime_to_load=exp_runtime_to_load,
             use_supernet_checkpoint=use_supernet_checkpoint,
             genotype_str=genotype_str,
             run_name=run_name,
@@ -597,14 +501,14 @@ class Experiment:
         genotype_str: str,
         searchspace_config: dict,
     ) -> torch.nn.Module:
-        if search_space_str == ModelType.NB201.value:
+        if search_space_str == SearchSpaceType.NB201.value:
             searchspace_config["genotype"] = NAS201Genotype.str2structure(genotype_str)
             discrete_model = NASBench201Model(**searchspace_config)
-        elif search_space_str == ModelType.DARTS.value:
+        elif search_space_str == SearchSpaceType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
-            if self.dataset_str.value in ("cifar10", "cifar100"):
+            if self.dataset.value in ("cifar10", "cifar100"):
                 discrete_model = DARTSModel(**searchspace_config)
-            elif self.dataset_str.value in ("imgnet16", "imgnet16_120"):
+            elif self.dataset.value in ("imgnet16", "imgnet16_120"):
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")
@@ -678,11 +582,28 @@ class Experiment:
             raise ValueError("genotype cannot be empty")
 
         model = self.get_discrete_model_from_genotype_str(
-            self.search_space_str.value,
+            self.searchspace_type.value,
             genotype_str,  # type: ignore
             searchspace_config,
         )
         return model, genotype_str  # type: ignore
+
+    def _get_dataset(
+        self,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float,
+        *args: Any,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
+    ) -> AbstractData:
+        return get_dataset(
+            dataset=self.dataset,
+            domain=self.dataset_domain,
+            root=self.dataset_dir,
+            cutout=cutout,  # type: ignore
+            cutout_length=cutout_length,  # type: ignore
+            train_portion=train_portion,  # type: ignore
+        )
 
     # refactor the name to train
     def _train_discrete_model(
@@ -692,6 +613,7 @@ class Experiment:
         start_epoch: int = 0,
         load_saved_model: bool = False,
         load_best_model: bool = False,
+        exp_runtime_to_load: str | None = None,
         use_supernet_checkpoint: bool = False,
         use_expr_search_space: bool = False,
         genotype_str: str | None = None,
@@ -701,34 +623,20 @@ class Experiment:
         # different function
         assert sum([load_best_model, load_saved_model, (start_epoch > 0)]) <= 1
 
-        self.set_seed(self.seed)
+        self._set_seed(self.seed)
 
-        if load_saved_model or load_best_model or start_epoch > 0:
-            last_run = False
-            if not self.runtime:
-                last_run = True
-
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
-                seed=self.seed,
-                runtime=self.runtime,
-                use_supernet_checkpoint=use_supernet_checkpoint,
-                last_run=last_run,
-            )
-        else:
-            self.logger = Logger(
-                log_dir="logs",
-                exp_name=self.exp_name,
-                search_space=self.search_space_str.value,
-                dataset=str(self.dataset_str.value),
-                seed=self.seed,
-                runtime=None,
-                use_supernet_checkpoint=use_supernet_checkpoint,
-                last_run=False,
-            )
+        should_load_model = load_saved_model or load_best_model or start_epoch > 0
+        load_last_run = should_load_model and not exp_runtime_to_load
+        self.logger = Logger(
+            log_dir="logs",
+            exp_name=self.exp_name,
+            search_space=self.searchspace_type.value,
+            dataset=str(self.dataset.value),
+            seed=self.seed,
+            runtime=exp_runtime_to_load,
+            use_supernet_checkpoint=use_supernet_checkpoint,
+            last_run=load_last_run,
+        )
 
         # different options to train a discrete model:
         # A) Use the experiment's self.search_space of the experiment.
@@ -773,8 +681,7 @@ class Experiment:
         )
         trainer_arguments = Arguments(**train_config)  # type: ignore
 
-        data = self._get_dataset(self.dataset_str, self.domain)(
-            root=self.dataset_dir,
+        data = self._get_dataset(
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
@@ -817,15 +724,15 @@ class Experiment:
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
         )
-        if self.is_wandb_log:
+        if self.log_with_wandb:
             self._init_wandb(run_name, config=train_config)
 
         trainer.train(
             epochs=trainer_arguments.epochs,  # type: ignore
-            is_wandb_log=self.is_wandb_log,
+            log_with_wandb=self.log_with_wandb,
         )
 
-        trainer.test(is_wandb_log=self.is_wandb_log)
+        trainer.test(log_with_wandb=self.log_with_wandb)
 
         return trainer
 
@@ -845,8 +752,7 @@ class Experiment:
             criterion_str=trainer_arguments.criterion  # type: ignore
         )
 
-        data = self._get_dataset(self.dataset_str, self.domain)(
-            root=self.dataset_dir,
+        data = self._get_dataset(
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
@@ -901,7 +807,7 @@ class Experiment:
             checkpointing_freq=trainer_arguments.checkpointing_freq,  # type: ignore
             epochs=trainer_arguments.epochs,  # type: ignore
             debug_mode=self.debug_mode,
-            query_dataset=self.dataset_str.value,
+            query_dataset=self.dataset.value,
             benchmark_api=self.benchmark_api,
         )
 
@@ -914,7 +820,8 @@ class Experiment:
         start_epoch: int = 0,
         load_best_model: bool = False,
         load_saved_model: bool = False,
-        is_wandb_log: bool = False,
+        exp_runtime_to_load: str | None = None,
+        log_with_wandb: bool = False,
         run_name: str = "darts-pt",
         src_folder_path: str | None = None,
     ) -> PerturbationArchSelection:
@@ -924,7 +831,7 @@ class Experiment:
         if load_best_model or load_saved_model or start_epoch:
             # self.searchspace is not trained
             last_run = False
-            if not self.runtime:
+            if not exp_runtime_to_load:
                 last_run = True
 
             if model_source == "supernet":
@@ -940,10 +847,10 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
+                dataset=str(self.dataset.value),
+                search_space=self.searchspace_type.value,
                 seed=self.seed,
-                runtime=self.runtime,
+                runtime=exp_runtime_to_load,
                 use_supernet_checkpoint=True,
                 arch_selection=arch_selection,
                 last_run=last_run,
@@ -962,12 +869,12 @@ class Experiment:
         self.sampler_str = SamplerType(profile.sampler_type)
         self.perturbator_str = PerturbatorType(profile.perturb_type)
         self.is_partial_connection = profile.is_partial_connection
-        self.dropout = profile.dropout
+        self.dropout_p = profile.dropout
         self.edge_normalization = profile.is_partial_connection
         self.entangle_op_weights = profile.entangle_op_weights
 
-        self._enum_to_objects(
-            self.search_space_str,
+        self._init_components(
+            self.searchspace_type,
             self.sampler_str,
             self.perturbator_str,
             config=config,
@@ -980,7 +887,7 @@ class Experiment:
             load_saved_model=load_saved_model,
             load_best_model=load_best_model,
         )
-        search_space_handler = self.profile
+        search_space_handler = self.search_space_handler
         search_space_handler.adapt_search_space(trainer.model)
 
         # Load from supernet
@@ -993,8 +900,8 @@ class Experiment:
             self.logger = Logger(
                 log_dir="logs",
                 exp_name=self.exp_name,
-                dataset=str(self.dataset_str.value),
-                search_space=self.search_space_str.value,
+                dataset=str(self.dataset.value),
+                search_space=self.searchspace_type.value,
                 seed=self.seed,
                 use_supernet_checkpoint=True,
                 arch_selection=True,
@@ -1006,14 +913,14 @@ class Experiment:
 
         trainer._init_experiment_state()
 
-        if is_wandb_log:
+        if log_with_wandb:
             self._init_wandb(run_name, config)
 
         arch_selector = PerturbationArchSelection(
             trainer,
             config["pt_selection"].get("projection_criteria", "acc"),
             config["pt_selection"].get("projection_interval", 10),
-            is_wandb_log=is_wandb_log,
+            log_with_wandb=log_with_wandb,
         )
         arch_selector.select_architecture()
 
@@ -1108,13 +1015,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     IS_DEBUG_MODE = True
-    is_wandb_log = IS_DEBUG_MODE is False
+    log_with_wandb = IS_DEBUG_MODE is False
 
     searchspace = SearchSpaceType(args.searchspace)
     dataset = DatasetType(args.dataset)
     args.epochs = 3
 
     profile = GDASProfile(
+        searchspace=searchspace.value,
         epochs=args.epochs,
         is_partial_connection=args.is_partial_connector,
         perturbation=args.perturbator,
@@ -1132,10 +1040,9 @@ if __name__ == "__main__":
         search_space=searchspace,
         dataset=dataset,
         seed=args.seed,
-        is_wandb_log=is_wandb_log,
+        log_with_wandb=log_with_wandb,
         debug_mode=IS_DEBUG_MODE,
         exp_name=args.exp_name,
-        runtime=args.runtime,
     )
 
     # trainer = experiment.run_with_profile(
@@ -1145,14 +1052,17 @@ if __name__ == "__main__":
     #     load_best_model=args.load_best_model,
     # )
 
-    profile = DiscreteProfile()
+    discrete_profile = DiscreteProfile(searchspace.value)
+
+    exp_runtime_to_load = args.runtime if args.runtime != "" else None
     discret_trainer = experiment.train_discrete_model(
-        profile,
+        discrete_profile,
         start_epoch=args.start_epoch,
         load_saved_model=args.load_saved_model,
         load_best_model=args.load_best_model,
         use_supernet_checkpoint=args.use_supernet_checkpoint,
+        exp_runtime_to_load=exp_runtime_to_load,
     )
 
-    if is_wandb_log:
+    if log_with_wandb:
         wandb.finish()  # type: ignore

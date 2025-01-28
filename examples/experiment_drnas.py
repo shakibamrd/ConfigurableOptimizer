@@ -5,8 +5,9 @@ import json
 
 import wandb
 
-from confopt.profiles import DiscreteProfile, DRNASProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.profile import DiscreteProfile, DRNASProfile
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 dataset_size = {
     "cifar10": 10,
@@ -64,6 +65,7 @@ if __name__ == "__main__":
 
     # Sampler and Perturbator have different sample_frequency
     profile = DRNASProfile(
+        searchspace=searchspace,
         is_partial_connection=args.searchspace == "darts",
         epochs=args.search_epochs,
         sampler_sample_frequency="step",
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     if args.searchspace == "darts":
         profile.configure_partial_connector(k=4)
         searchspace_config.update({"C": 36, "layers": 20})
-    profile.set_searchspace_config(searchspace_config)
+    profile.configure_searchspace(**searchspace_config)
 
     train_config = {
         "train_portion": 0.5,
@@ -92,12 +94,12 @@ if __name__ == "__main__":
         "learning_rate_min": 0.001,
     }
     profile.configure_trainer(**train_config)
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
+    discrete_profile = DiscreteProfile(searchspace=searchspace, epochs=args.eval_epochs, train_portion=0.9)
     discrete_profile.configure_trainer(batch_size=64)
 
     discrete_config = discrete_profile.get_trainer_config()
     profile.configure_extra(
-        {
+        **{
             "discrete_trainer": discrete_config,
             "project_name": "BASELINES",
             "run_type": "DRNAS",
@@ -107,14 +109,14 @@ if __name__ == "__main__":
 
     print(json.dumps(config, indent=2, default=str))
 
-    IS_DEBUG_MODE = False
-    IS_WANDB_LOG = True
+    IS_DEBUG_MODE = True
+    IS_WANDB_LOG = False
     experiment = Experiment(
         search_space=searchspace,
         dataset=dataset,
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
-        is_wandb_log=IS_WANDB_LOG,
+        log_with_wandb=IS_WANDB_LOG,
         exp_name="DRNAS_BASELINE",
     )
 

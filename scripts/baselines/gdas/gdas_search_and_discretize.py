@@ -5,8 +5,9 @@ import json
 
 import wandb
 
-from confopt.profiles import DiscreteProfile, GDASProfile
-from confopt.train import DatasetType, Experiment, SearchSpaceType
+from confopt.profile import DiscreteProfile, GDASProfile
+from confopt.train import Experiment
+from confopt.enums import DatasetType, SearchSpaceType
 
 dataset_size = {
     "cifar10": 10,
@@ -57,6 +58,7 @@ def read_args() -> argparse.Namespace:
 
 def get_gdas_profile(args: argparse.Namespace) -> GDASProfile:
     profile = GDASProfile(
+        searchspace=args.search_space,
         epochs=args.search_epochs,
         sampler_sample_frequency="step",
         dropout=0.2,
@@ -65,7 +67,7 @@ def get_gdas_profile(args: argparse.Namespace) -> GDASProfile:
     searchspace_config = {
         "num_classes": dataset_size[args.dataset],  # type: ignore
     }
-    profile.set_searchspace_config(searchspace_config)
+    profile.configure_searchspace(**searchspace_config)
 
     train_config = {
         "train_portion": 0.5,
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
     profile = get_gdas_profile(args)
 
-    discrete_profile = DiscreteProfile(epochs=args.eval_epochs, train_portion=0.9)
+    discrete_profile = DiscreteProfile(searchspace=args.search_space, epochs=args.eval_epochs, train_portion=0.9)
     discrete_profile.configure_trainer(batch_size=64)
 
     if args.searchspace == "darts":
@@ -103,7 +105,7 @@ if __name__ == "__main__":
 
     discrete_config = discrete_profile.get_trainer_config()
     profile.configure_extra(
-        {
+        **{
             "discrete_trainer": discrete_config,
             "project_name": "BASELINES",
             "run_type": "GDAS",
@@ -121,7 +123,7 @@ if __name__ == "__main__":
         dataset=dataset,
         seed=seed,
         debug_mode=IS_DEBUG_MODE,
-        is_wandb_log=IS_WANDB_LOG,
+        log_with_wandb=IS_WANDB_LOG,
         exp_name="GDAS_BASELINE",
     )
 

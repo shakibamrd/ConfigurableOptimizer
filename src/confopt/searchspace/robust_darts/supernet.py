@@ -104,7 +104,7 @@ class RobustDARTSSearchSpace(SearchSpace):
             self.model.alphas_reduce,
         ]
 
-    def prune(self, num_keep: int) -> None:
+    def prune(self, prune_fraction: float) -> None:
         # self.model.prune(sparsity, wider)  # type: ignore
         raise NotImplementedError("Prune has not been implemented for Robust DARTS")
 

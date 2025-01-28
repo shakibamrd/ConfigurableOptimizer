@@ -150,7 +150,7 @@ class NASBench201SearchSpace(
         self,
         selected_edge: int,
         selected_op: int | None,
-        cell_type: Literal["normal", "reduce"],
+        cell_type: Literal["normal", "reduce"] = "normal",
     ) -> None:
         assert cell_type == "normal"
         assert selected_op is not None

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import numpy as np
 import torch
 import torch.nn as nn  # noqa: PLR0402
 
-from confopt.oneshot.base_component import OneShotComponent
 from confopt.utils import AverageMeter, reset_gm_score_attributes
+
+if TYPE_CHECKING:
+    from confopt.oneshot.base import OneShotComponent
 
 
 class ModelWrapper(nn.Module, ABC):
@@ -343,7 +345,7 @@ class PerturbationArchSelectionSupport(ModelWrapper):
         self,
         selected_node: int,  # noqa: ARG002
         selected_edges: list[int],  # noqa: ARG002
-        cell_type: str | None = None,  # noqa: ARG002
+        cell_type: Any | None = None,  # noqa: ARG002
     ) -> None:
         """Mark an operation on a given edge (of the cell type) in the candidate flags
         and projected weights to be already projected.

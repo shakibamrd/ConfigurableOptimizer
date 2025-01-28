@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Literal
+from typing import Any, Literal
 import warnings
 
 import torch
 
+from confopt.enums import SamplerType, SearchSpaceType
+
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 # TODO Change this to real data
-ADVERSERIAL_DATA = (
+ADVERSARIAL_DATA = (
     torch.randn(2, 3, 32, 32).to(DEVICE),
     torch.randint(0, 9, (2,)).to(DEVICE),
 )
-INIT_CHANNEL_NUM = 16
 
 
 class BaseProfile:
     def __init__(
         self,
-        config_type: str,
-        searchspace_str: str,
+        sampler_type: str | SamplerType,
+        searchspace: str | SearchSpaceType,
         epochs: int = 50,
         *,
         sampler_sample_frequency: str = "step",
@@ -46,14 +46,23 @@ class BaseProfile:
         pt_select_architecture: bool = False,
         searchspace_domain: str | None = None,
     ) -> None:
-        assert searchspace_str in [
-            "nb201",
-            "darts",
-            "nb1shot1",
-            "tnb101",
-        ], f"Invalid searchspace {searchspace_str}!"
-        self.searchspace_str = searchspace_str
-        if searchspace_str == "taskonomy":
+        self.searchspace_type = (
+            SearchSpaceType(searchspace)
+            if isinstance(searchspace, str)
+            else searchspace
+        )
+        self.sampler_type = (
+            SamplerType(sampler_type) if isinstance(sampler_type, str) else sampler_type
+        )
+
+        assert isinstance(
+            self.searchspace_type, SearchSpaceType
+        ), f"Illegal value {self.searchspace_type} for searchspace_type"
+        assert isinstance(
+            self.sampler_type, SamplerType
+        ), f"Illegal value {self.sampler_type} for sampler_type"
+
+        if self.searchspace_type == SearchSpaceType.TNB101:
             assert searchspace_domain in [
                 "class_object",
                 "class_scene",
@@ -63,7 +72,6 @@ class BaseProfile:
                 searchspace_domain is None
             ), "searchspace_domain is not required for this searchspace"
         self.searchspace_domain = searchspace_domain
-        self.config_type = config_type
         self.epochs = epochs
         self.sampler_sample_frequency = (
             sampler_sample_frequency  # TODO-ICLR: Remove this
@@ -86,8 +94,6 @@ class BaseProfile:
         self._set_oles_configs(oles, calc_gm_score)
         self._set_pruner_configs(prune_epochs, prune_fractions)
         self._set_pt_select_configs(pt_select_architecture)
-        PROFILE_TYPE = "BASE"
-        self.sampler_type = str.lower(PROFILE_TYPE)
         self.is_arch_attention_enabled = is_arch_attention_enabled
         self._set_regularization(is_regularization_enabled)
 
@@ -214,7 +220,7 @@ class BaseProfile:
                 "toggle_probability": self.lora_toggle_probability,
             },
             "sampler_type": self.sampler_type,
-            "searchspace_str": self.searchspace_str,
+            "searchspace": self.searchspace_type.value,
             "searchspace_domain": self.searchspace_domain,
             "weight_type": weight_type,
             "oles": self.oles_config,
@@ -233,16 +239,14 @@ class BaseProfile:
             config.update(self.extra_config)
         return config
 
-    @abstractmethod
     def _initialize_sampler_config(self) -> None:
         self.sampler_config = None
 
-    @abstractmethod
     def _initialize_perturbation_config(self) -> None:
         if self.perturb_type == "adverserial":
             perturb_config = {
                 "epsilon": 0.3,
-                "data": ADVERSERIAL_DATA,
+                "data": ADVERSARIAL_DATA,
                 "loss_criterion": torch.nn.CrossEntropyLoss(),
                 "steps": 20,
                 "random_start": True,
@@ -258,27 +262,24 @@ class BaseProfile:
 
         self.perturb_config = perturb_config
 
-    @abstractmethod
     def _initialize_partial_connector_config(self) -> None:
         if self.is_partial_connection:
             partial_connector_config = {"k": 4, "num_warm_epoch": 15}
-            self.set_searchspace_config({"k": 4})
+            self.configure_searchspace(**partial_connector_config)
         else:
             partial_connector_config = None
         self.partial_connector_config = partial_connector_config
 
-    @abstractmethod
     def _initialize_trainer_config(self) -> None:
-        if self.searchspace_str == "nb201":
+        if self.searchspace_type == SearchSpaceType.NB201:
             self._initialize_trainer_config_nb201()
-        elif self.searchspace_str == "darts":
+        elif self.searchspace_type == SearchSpaceType.DARTS:
             self._initialize_trainer_config_darts()
-        elif self.searchspace_str == "nb1shot1":
+        elif self.searchspace_type == SearchSpaceType.NB1SHOT1:
             self._initialize_trainer_config_1shot1()
-        elif self.searchspace_str == "tnb101":
+        elif self.searchspace_type == SearchSpaceType.TNB101:
             self._initialize_trainer_config_tnb101()
 
-    @abstractmethod
     def _initialize_dropout_config(self) -> None:
         dropout_config = {
             "p": self.dropout if self.dropout is not None else 0.0,
@@ -306,7 +307,7 @@ class BaseProfile:
             assert (
                 config_key in self.sampler_config  # type: ignore
             ), f"{config_key} not a valid configuration for the sampler of type \
-                {self.config_type}"
+                {self.sampler_type}"
             self.sampler_config[config_key] = kwargs[config_key]  # type: ignore
 
     def configure_perturbator(self, **kwargs) -> None:  # type: ignore
@@ -333,7 +334,7 @@ class BaseProfile:
             ]
 
         if kwargs.get("k"):
-            self.set_searchspace_config({"k": kwargs["k"]})
+            self.configure_searchspace(k=kwargs["k"])
 
     def configure_trainer(self, **kwargs) -> None:  # type: ignore
         for config_key in kwargs:
@@ -384,36 +385,32 @@ class BaseProfile:
             )
             self.pt_select_configs[config_key] = kwargs[config_key]
 
-    @abstractmethod
-    def set_searchspace_config(self, config: dict) -> None:
+    def configure_searchspace(self, **config: Any) -> None:
         if not hasattr(self, "searchspace_config"):
             self.searchspace_config = config
         else:
             self.searchspace_config.update(config)
 
-    @abstractmethod
-    def configure_extra(self, config: dict) -> None:
+    def configure_extra(self, **config) -> None:  # type: ignore
         self.extra_config = config
 
-    def get_name_wandb_run(self) -> str:
-        name_wandb_run = []
-        name_wandb_run.append(f"ss_{self.searchspace_str}")
+    def get_run_description(self) -> str:
+        run_configs = []
+        run_configs.append(f"ss_{self.searchspace_type}")
         if self.entangle_op_weights:
-            name_wandb_run.append("type_we")
+            run_configs.append("type_we")
         else:
-            name_wandb_run.append("type_ws")
-        name_wandb_run.append(f"opt_{self.sampler_type}")
+            run_configs.append("type_ws")
+        run_configs.append(f"opt_{self.sampler_type}")
         if self.lora_warm_epochs > 0:
-            name_wandb_run.append(f"lorarank_{self.lora_config.get('r')}")
-            name_wandb_run.append(f"lorawarmup_{self.lora_warm_epochs}")
-        name_wandb_run.append(f"epochs_{self.trainer_config.get('epochs')}")
-        name_wandb_run.append(f"seed_{self.seed}")
+            run_configs.append(f"lorarank_{self.lora_config.get('r')}")
+            run_configs.append(f"lorawarmup_{self.lora_warm_epochs}")
+        run_configs.append(f"epochs_{self.trainer_config.get('epochs')}")
+        run_configs.append(f"seed_{self.seed}")
         if self.oles_config.get("oles"):
-            name_wandb_run.append("with_oles")
-        name_wandb_run_str = "-".join(name_wandb_run)
-        return name_wandb_run_str
+            run_configs.append("with_oles")
+        return "-".join(run_configs)
 
-    @abstractmethod
     def _initialize_trainer_config_nb201(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -445,7 +442,6 @@ class BaseProfile:
 
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_darts(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -478,7 +474,6 @@ class BaseProfile:
 
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_1shot1(self) -> None:
         trainer_config = {
             "lr": 0.025,
@@ -495,7 +490,6 @@ class BaseProfile:
         }
         self.trainer_config = trainer_config
 
-    @abstractmethod
     def _initialize_trainer_config_tnb101(self) -> None:
         trainer_config = {
             "lr": 0.025,

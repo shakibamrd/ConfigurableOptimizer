@@ -234,6 +234,7 @@ exclude = [
   "node_modules",
   "venv",
   "docs",
+  "src/confopt/train/__init__.py",
 ]
 
 # Exclude a variety of commonly ignored directories.

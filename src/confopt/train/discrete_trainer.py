@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import namedtuple
 import time
 
 from fvcore.common.checkpoint import Checkpointer
@@ -15,11 +14,9 @@ from torch.utils.data import DataLoader
 
 from confopt.dataset import AbstractData
 from confopt.searchspace import SearchSpace
-from confopt.train import DEBUG_STEPS, ConfigurableTrainer
+from confopt.train import DEBUG_STEPS, ConfigurableTrainer, TrainingMetrics
 from confopt.utils import AverageMeter, Logger, calc_accuracy, unwrap_model
 import confopt.utils.distributed as dist_utils
-
-TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
 
 class DiscreteTrainer(ConfigurableTrainer):
@@ -87,7 +84,7 @@ class DiscreteTrainer(ConfigurableTrainer):
 
         return None
 
-    def _train_epoch(
+    def _train_epoch(  # type: ignore
         self,
         network: SearchSpace | DistributedDataParallel,
         train_loader: DataLoader,
@@ -96,7 +93,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         rank: int,
         epoch: int,
         total_epochs: int,
-        is_wandb_log: bool,
+        log_with_wandb: bool,
     ) -> None:
         start_time = time.time()
         train_time, epoch_time = AverageMeter(), AverageMeter()
@@ -162,7 +159,7 @@ class DiscreteTrainer(ConfigurableTrainer):
                 iteration=epoch, checkpointables=checkpointables
             )
 
-            if is_wandb_log:
+            if log_with_wandb:
                 self.logger.push_wandb_logs()
 
             if (
@@ -191,7 +188,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         if self.scheduler is not None:
             self.scheduler.step()
 
-    def train(self, epochs: int, is_wandb_log: bool = True) -> None:
+    def train(self, epochs: int, log_with_wandb: bool = True) -> None:  # type: ignore
         self.epochs = epochs
 
         self._init_experiment_state()
@@ -230,7 +227,7 @@ class DiscreteTrainer(ConfigurableTrainer):
                 rank=rank,
                 epoch=epoch,
                 total_epochs=epochs,
-                is_wandb_log=is_wandb_log,
+                log_with_wandb=log_with_wandb,
             )
 
     def _train(
@@ -300,7 +297,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         base_metrics = TrainingMetrics(base_losses.avg, base_top1.avg, base_top5.avg)
         return base_metrics
 
-    def test(self, is_wandb_log: bool = True) -> TrainingMetrics:
+    def test(self, log_with_wandb: bool = True) -> TrainingMetrics:
         test_losses, test_top1, test_top5 = (
             AverageMeter(),
             AverageMeter(),
@@ -355,7 +352,7 @@ class DiscreteTrainer(ConfigurableTrainer):
 
         if dist_utils.get_rank() == 0:
             self.logger.add_wandb_log_metrics("discrete/test", test_metrics)
-            if is_wandb_log:
+            if log_with_wandb:
                 self.logger.push_wandb_logs()
 
             self.logger.log_metrics("[Discrete] Test", test_metrics, epoch_str="---")

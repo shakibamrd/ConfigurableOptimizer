@@ -1,4 +1,4 @@
-from .profile_config import BaseProfile
+from .base import BaseProfile
 from .profiles import (
     DARTSProfile,
     DiscreteProfile,

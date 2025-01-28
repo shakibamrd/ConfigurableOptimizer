@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from confopt.oneshot.base_component import OneShotComponent
-from confopt.searchspace import SearchSpace
+from typing import TYPE_CHECKING
+
+from confopt.oneshot.base import OneShotComponent
+
+if TYPE_CHECKING:
+    from confopt.searchspace.common.base_search import SearchSpace
 
 
 class Pruner(OneShotComponent):
@@ -26,5 +30,5 @@ class Pruner(OneShotComponent):
         if self.use_prune and self._epoch in self.prune_epochs:
             # apply the pruning mask
             self.searchspace.prune(
-                prune_fraction=self.prune_epoch_to_fraction.get(self._epoch)
+                prune_fraction=self.prune_epoch_to_fraction.get(self._epoch, 0.0)
             )
