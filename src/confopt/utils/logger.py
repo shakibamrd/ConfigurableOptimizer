@@ -209,23 +209,26 @@ class Logger:
 
     def load_genotype(
         self,
-        start_epoch: int = 0,
-        load_saved_model: bool = False,
-        load_best_model: bool = False,
+        model_to_load: str | int | None = None,
         use_supernet_checkpoint: bool = False,
     ) -> str:
+        assert not (
+            not use_supernet_checkpoint and model_to_load is None
+        ), "model_to_load must be provided when using discretized network."
         if not use_supernet_checkpoint:
             file_path = self.path(mode="genotypes")
-        elif load_best_model:
+        elif model_to_load == "best":
             file_path = self.path(mode="best_genotype")
-        elif start_epoch:
+        elif type(model_to_load) == int:
             file_path = self.path("genotypes")
-            file_path = "{}/{}_{:07d}.txt".format(file_path, "genotype", start_epoch)
-        elif load_saved_model:
+            file_path = "{}/{}_{:07d}.txt".format(file_path, "genotype", model_to_load)
+        elif model_to_load == "last":
             file_path = self.path("genotypes")
             last_file_path = "{}/{}".format(file_path, "last_genotype.txt")
             with open(last_file_path) as f:
                 file_path = f"{file_path}/{f.read().strip()}"
+        else:
+            raise ValueError("Should specify model_to_load value")
 
         with open(file_path) as f:
             genotype = f.read().strip()
