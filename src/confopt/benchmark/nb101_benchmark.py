@@ -84,7 +84,8 @@ class NB101Benchmark(BenchmarkBase):
 
         assert file_hash == expected_hash[self.benchmark_type], (
             "SHA256 hash of the file does not match the expected hash."
-            + "Please download the file again."
+            + f" Expected: {expected_hash[self.benchmark_type]}"
+            + f" Got: {file_hash}. Please download the file again."
         )
 
         return True
