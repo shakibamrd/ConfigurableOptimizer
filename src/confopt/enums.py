@@ -32,6 +32,7 @@ class DatasetType(Enum):
     IMGNET16 = "imgnet16"
     IMGNET16_120 = "imgnet16_120"
     TASKONOMY = "taskonomy"
+    USPS = "usps"
 
 
 class CriterionType(Enum):

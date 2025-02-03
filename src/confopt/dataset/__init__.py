@@ -10,6 +10,7 @@ from .data import (
     ImageNet16120Data,
     TaskonomyClassObjectData,
     TaskonomyClassSceneData,
+    USPSData,
 )
 
 
@@ -41,6 +42,8 @@ def get_dataset(
     elif dataset == DatasetType.TASKONOMY:
         assert domain is not None, "Domain should be provided for Taskonomy dataset"
         dataset_cls = get_taskonomy_dataset(domain)
+    elif dataset == DatasetType.USPS:
+        dataset_cls = USPSData
     else:
         raise ValueError("Invalid dataset")
 
