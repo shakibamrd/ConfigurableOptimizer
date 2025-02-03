@@ -3,7 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import os
 from typing import Any, Callable, Tuple, Union
+import zipfile
 
+import cv2
+import gdown
 import numpy as np
 from skimage import io
 import torch
@@ -548,3 +551,134 @@ class TaskonomyClassSceneData(TaskonomyData):
             target_dim=target_dim,
             data_split_dir=os.path.join(root, dataset_dir, data_split_dir),
         )
+
+
+class USPSDataset(Dataset):
+    def __init__(
+        self,
+        root: str = "datasets",
+        train: bool = True,
+        transform: Callable | None = None,
+    ) -> None:
+        super().__init__()
+        self.train = train
+        self.root = root
+        self.dataset_dir = self.root + "/USPSdata"
+        self.images, self.labels = self.read_dataset()
+        self.transform = transform
+
+    def read_dataset(self) -> tuple[list[np.ndarray], list[np.ndarray]]:  # noqa: C901,
+        if not os.path.exists(self.dataset_dir):
+            print(f"Downloading dataset at {self.dataset_dir}")
+            file_id = "1o5cytbJClCUrfaJGgFnfzSYyLtRXoMue"
+            output_zip_path = self.root + "/USPSdata.zip"
+            gdown.download(
+                f"https://drive.google.com/uc?id={file_id}",
+                output=output_zip_path,
+            )
+
+            print("Download complete!")
+
+            os.makedirs(self.dataset_dir, exist_ok=True)
+            print("Extracting the files...")
+            with zipfile.ZipFile(output_zip_path, "r") as zip_ref:
+                zip_ref.extractall(self.dataset_dir)
+            print(f"Extraction complete! Files saved to {self.dataset_dir}")
+
+            try:
+                os.remove(output_zip_path)
+                print(f"{output_zip_path} has been deleted successfully.")
+            except FileNotFoundError:
+                print(f"Error: {output_zip_path} not found.")
+            except PermissionError:
+                print(f"Error: You don't have permission to delete {output_zip_path}.")
+
+        def resize_and_scale(
+            img: cv2.typing.MatLike, size: tuple[int, int], scale: int
+        ) -> np.ndarray:
+            img = cv2.resize(img, size)
+            return 1 - np.array(img, "float32") / scale
+
+        images = []
+        labels = []
+        img_size = (28, 28)
+
+        if self.train:
+            data_dir = self.dataset_dir + "/Numerals/"
+            img_list = os.listdir(data_dir)
+
+            for i in range(10):
+                label_data = data_dir + str(i) + "/"
+                img_list = os.listdir(label_data)
+                for name in img_list:
+                    if ".png" in name:
+                        img = cv2.imread(label_data + name)
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        resized_img = resize_and_scale(img, img_size, 255)
+                        images.append(resized_img)
+                        labels.append(i)
+        else:
+            data_dir = self.dataset_dir + "/Test/"
+            img_list = os.listdir(data_dir)
+
+            for file_name in img_list:
+                if ".png" in file_name:
+                    file_count = int(file_name.split("_")[-1].split(".")[0])
+                    label = int(10 - file_count / 150)
+                    assert (
+                        label >= 0
+                    ), f"Got Invalid label {label} from file {file_name}"
+                    assert (
+                        label < 10
+                    ), f"Got Invalid label {label} from file {file_name}"
+                    img = cv2.imread(data_dir + file_name)
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    resized_img = resize_and_scale(img, img_size, 255)
+                    images.append(resized_img)
+                    labels.append(label)
+
+        return images, labels
+
+    def __len__(self) -> int:
+        return len(self.labels)
+
+    def __getitem__(self, idx: int) -> Any:
+        image = self.images[idx]
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, torch.tensor(label, dtype=torch.long)
+
+
+class USPSData(CIFARData):
+    def __init__(
+        self,
+        root: str,
+        cutout: int = -1,  # noqa: ARG002
+        cutout_length: int = 0,  # noqa: ARG002
+        train_portion: float = 1,
+    ):
+        super().__init__(root, cutout=-1, cutout_length=0, train_portion=train_portion)
+
+    def get_transforms(self) -> tuple[Compose | None, Compose | None]:
+        train_transform = test_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        )
+        return train_transform, test_transform
+
+    def load_datasets(
+        self, root: str, train_transform: Compose, test_transform: Compose
+    ) -> tuple[Dataset, Dataset]:
+        print("Loading datasets...")
+        train_data = USPSDataset(root, train=True, transform=train_transform)
+        test_data = USPSDataset(root, train=False, transform=test_transform)
+        print("Datasets Loaded")
+
+        assert len(train_data) == 19999
+        assert len(test_data) == 1500
+
+        return train_data, test_data
