@@ -110,7 +110,7 @@ class NB101Benchmark(BenchmarkBase):
 
         if (self.benchmark_type == "full") and (epochs not in [4, 12, 36, 108]):
             raise ValueError(
-                "Invalid epochs: {epochs}. Only the following epochs are "
+                f"Invalid epochs: {epochs}. Only the following epochs are "
                 + "available in the full benchmark: [4, 12, 36, 108]."
             )
 
