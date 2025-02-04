@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from confopt.searchspace.darts.core.genotypes import Genotype as NB301Genotype
-from confopt.searchspace.nb1_shot_1.core.search_spaces.genotypes import (
+from confopt.searchspace.nb1shot1.core.search_spaces.genotypes import (
     NASBench1Shot1ConfoptGenotype,
 )
 from confopt.searchspace.nb201.core.genotypes import Structure as NB201Genotype

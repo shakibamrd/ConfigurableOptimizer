@@ -300,7 +300,7 @@ class DiscreteTrainer(ConfigurableTrainer):
             local_rank, rank, world_size = (
                 dist_utils.get_local_rank(),
                 dist_utils.get_rank(),
-                dist_utils.get_rank(),
+                dist_utils.get_world_size(),
             )
             dist_utils.print_on_master_only(rank == 0)
             print(
