@@ -45,6 +45,7 @@ class BaseProfile:
         regularization_config: dict | None = None,
         pt_select_architecture: bool = False,
         searchspace_domain: str | None = None,
+        use_auxiliary_skip_connection: bool = False,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -105,6 +106,8 @@ class BaseProfile:
 
         if perturbator_config is not None:
             self.configure_perturbator(**perturbator_config)
+
+        self.use_auxiliary_skip_connection = use_auxiliary_skip_connection
 
     def _set_pt_select_configs(
         self,
@@ -227,6 +230,7 @@ class BaseProfile:
             "pt_selection": self.pt_select_configs,
             "is_arch_attention_enabled": self.is_arch_attention_enabled,
             "regularization": self.regularization_config,
+            "use_auxiliary_skip_connection": self.use_auxiliary_skip_connection,
         }
 
         if hasattr(self, "pruner_config"):

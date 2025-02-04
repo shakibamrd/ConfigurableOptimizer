@@ -34,6 +34,7 @@ class SearchSpaceHandler:
         lora_toggler: LoRAToggler | None = None,
         is_arch_attention_enabled: bool = False,
         regularizer: Regularizer | None = None,
+        use_auxiliary_skip_connection: bool = False,
     ) -> None:
         self.sampler = sampler
         self.edge_normalization = edge_normalization
@@ -51,6 +52,7 @@ class SearchSpaceHandler:
             self.is_argmax_sampler = True
 
         self.is_arch_attention_enabled = is_arch_attention_enabled
+        self.use_auxiliary_skip_connection = use_auxiliary_skip_connection
 
     def adapt_search_space(self, search_space: SearchSpace) -> None:
         if hasattr(search_space.model, "edge_normalization"):
@@ -109,6 +111,7 @@ class SearchSpaceHandler:
             dropout=self.dropout,
             weight_entangler=self.weight_entangler,
             is_argmax_sampler=self.is_argmax_sampler,
+            use_aux_skip=self.use_auxiliary_skip_connection,
         )
         return op_block
 
