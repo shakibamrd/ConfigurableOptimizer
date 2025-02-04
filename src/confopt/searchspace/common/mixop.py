@@ -35,6 +35,8 @@ class OperationChoices(nn.Module):
         for op, alpha in zip(self.ops, alphas):
             states.append(op(x) * alpha)
 
+        return states
+
     def change_op_channel_size(
         self,
         k: float | None = None,
@@ -141,8 +143,7 @@ class OperationBlock(nn.Module):
                 states.append(op(x) * alpha)
 
         if self.use_aux_skip:
-            self.aux_skip(x) + sum(states)
-            return None
+            return self.aux_skip(x) + sum(states)
 
         return sum(states)
 
