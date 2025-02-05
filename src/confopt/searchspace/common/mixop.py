@@ -18,12 +18,33 @@ class OperationChoices(nn.Module):
         ops: list[nn.Module],
         is_reduction_cell: bool = False,
         device: torch.device = DEVICE,
+        use_aux_skip: bool = False,
     ) -> None:
         super().__init__()
         self.ops = ops
         self.is_reduction_cell = is_reduction_cell
         self.device = device
         self.flops: list[float] | None = None
+        self.use_aux_skip = use_aux_skip
+        self._init_aux_skip_connection()
+
+    def _init_aux_skip_connection(self) -> None:
+        stride = 1
+        C = None
+        affine = True
+        if self.is_reduction_cell:
+            for op in self.ops:
+                if type(op).__name__ == "FactorizedReduce":
+                    C = op.C_in
+                    stride = 2
+
+        self.aux_skip = AuxiliarySkipConnection(
+            stride=stride,
+            C_in=C,
+            C_out=C,
+            affine=affine,
+            device=self.device,
+        )
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
         assert len(alphas) == len(
@@ -35,7 +56,10 @@ class OperationChoices(nn.Module):
         for op, alpha in zip(self.ops, alphas):
             states.append(op(x) * alpha)
 
-        return states
+        if self.use_aux_skip:
+            return self.aux_skip(x) + sum(states)
+
+        return sum(states)
 
     def change_op_channel_size(
         self,
@@ -106,8 +130,7 @@ class OperationBlock(nn.Module):
         self.is_argmax_sampler = is_argmax_sampler
         self.flops: list[float] | None = None
         self.use_aux_skip = use_aux_skip
-        if self.use_aux_skip:
-            self._init_aux_skip_connection()
+        self._init_aux_skip_connection()
 
     def _init_aux_skip_connection(self) -> None:
         stride = 1
@@ -115,18 +138,24 @@ class OperationBlock(nn.Module):
         affine = True
         if self.is_reduction_cell:
             for op in self.ops:
-                if hasattr(op, "C_in"):
+                if type(op).__name__ == "FactorizedReduce":
                     C = op.C_in
                     stride = 2
 
         self.aux_skip = AuxiliarySkipConnection(
-            stride=stride, C_in=C, C_out=C, affine=affine
+            stride=stride,
+            C_in=C,
+            C_out=C,
+            affine=affine,
+            device=self.device,
         )
 
     def forward_method(
         self, x: torch.Tensor, ops: list[nn.Module], alphas: list[torch.Tensor]
     ) -> torch.Tensor:
         if self.weight_entangler is not None:
+            if self.use_aux_skip:
+                return self.aux_skip(x) + self.weight_entangler.forward(x, ops, alphas)
             return self.weight_entangler.forward(x, ops, alphas)
 
         states = []
@@ -227,6 +256,7 @@ class AuxiliarySkipConnection(nn.Module):
         C_in: int | None = None,
         C_out: int | None = None,
         affine: bool = True,
+        device: torch.device = DEVICE,
     ) -> None:
         """Auxilary Skip Connection.
 
@@ -235,6 +265,7 @@ class AuxiliarySkipConnection(nn.Module):
             C_in (int): Number of input channels.
             C_out (int): Number of output channels.
             affine (bool): Whether to apply affine transformations in BatchNorm.
+            device (torch.device): torch device to use
         """
         super().__init__()
         assert stride in [1, 2], "Stride can only be 1 or 2"
@@ -243,7 +274,7 @@ class AuxiliarySkipConnection(nn.Module):
         if self.stride == 2:
             self.C_in = C_in
             self.C_out = C_out
-            self.relu = nn.ReLU(inplace=False)
+            self.relu = nn.ReLU(inplace=False).to(device)
             self.conv_1 = nn.Conv2d(
                 C_in,  # type: ignore
                 C_out // 2,  # type: ignore
@@ -251,7 +282,7 @@ class AuxiliarySkipConnection(nn.Module):
                 stride=2,
                 padding=0,
                 bias=False,
-            )
+            ).to(device)
             self.conv_2 = nn.Conv2d(
                 C_in,  # type: ignore
                 C_out - C_out // 2,  # type: ignore
@@ -259,8 +290,8 @@ class AuxiliarySkipConnection(nn.Module):
                 stride=2,
                 padding=0,
                 bias=False,
-            )
-            self.bn = nn.BatchNorm2d(C_out, affine=affine)
+            ).to(device)
+            self.bn = nn.BatchNorm2d(C_out, affine=affine).to(device)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the Auxilary Skip Connection.
