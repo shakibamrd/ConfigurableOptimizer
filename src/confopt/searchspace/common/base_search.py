@@ -168,6 +168,120 @@ class GradientMatchingScoreSupport(ModelWrapper):
                 module.running_sim.reset()
 
 
+class LayerAlignmentRegTermSupport(ModelWrapper):
+    def __init__(self, model: nn.Module):
+        super().__init__(model)
+        self.lambda_epsilon_base = 0.001
+        self.lambda_epsilon = 0
+        self.corr_type = "corr"  # TODO_LAMBDA_DARTS: Make configurable
+        self.lambda_ = 0.125
+
+    def get_arch_grads(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
+        # TODO_LAMBDA_DARTS: Make this an API in the model?
+        grads_normal = [
+            w.data.clone().detach().reshape(-1)
+            for w in self.model.weights_grad["normal"]
+        ]
+        grads_reduce = [
+            w.data.clone().detach().reshape(-1)
+            for w in self.model.weights_grad["reduce"]
+        ]
+        return grads_normal, grads_reduce
+
+    def get_perturbations(self) -> list[torch.Tensor]:
+        grads_normal, grads_reduce = self.get_arch_grads()
+        alpha_normal = self.model.alphas_normal
+
+        def get_perturbation_for_cell(
+            layer_gradients: list[torch.Tensor],
+        ) -> list[torch.Tensor]:
+            with torch.no_grad():
+                weight = 1 / ((len(layer_gradients) * (len(layer_gradients) - 1)) / 2)
+                if self.corr_type == "corr":
+                    u = [g / g.norm(p=2.0) for g in layer_gradients]
+                    sum_u = sum(u)
+                    identity_matrix = torch.eye(sum_u.shape[0]).cuda()
+                    P = [
+                        (1 / g.norm(p=2.0)) * (identity_matrix - torch.ger(u_l, u_l))
+                        for g, u_l in zip(layer_gradients, u)
+                    ]
+                    perturbations = [
+                        weight * (P_l @ sum_u).reshape(alpha_normal.shape) for P_l in P
+                    ]
+                elif self.corr_type == "signcorr":
+                    perturbations = []
+                    for i in range(len(layer_gradients)):
+                        _dir: torch.Tensor = 0
+                        for j in range(len(layer_gradients)):
+                            if i == j:
+                                continue
+                            g, g_ = layer_gradients[i], layer_gradients[j]
+                            dot, abs_dot = torch.dot(g, g_), torch.dot(
+                                torch.abs(g), torch.abs(g_)
+                            )
+                            _dir += (
+                                (
+                                    torch.ones_like(g_)
+                                    - (dot / abs_dot) * torch.sign(g) * torch.sign(g_)
+                                )
+                                * g_
+                                / abs_dot
+                            )
+                        perturbations.append(weight * _dir.reshape(alpha_normal.shape))
+            return perturbations
+
+        pert_normal = get_perturbation_for_cell(grads_normal)
+        pert_reduce = get_perturbation_for_cell(grads_reduce)
+        # pert_reduce = [torch.zeros_like(self.alphas_reduce) for _ in grads_reduce]
+        self.lambda_epsilon = (
+            self.lambda_epsilon_base
+            / torch.cat(pert_normal + pert_reduce, dim=0).norm(p=2.0).item()
+        )
+
+        idx_normal = 0
+        idx_reduce = 0
+        pert = []
+        for cell in self.model.cells:
+            if cell.reduction:
+                pert.append(pert_reduce[idx_reduce] * self.lambda_epsilon)
+                idx_reduce += 1
+            else:
+                pert.append(pert_normal[idx_normal] * self.lambda_epsilon)
+                idx_normal += 1
+        return pert
+
+    def add_lambda_regularization(
+        self, data: torch.Tensor, target: torch.Tensor
+    ) -> None:
+        pert = self.get_perturbations()
+        criterion = self.model._criterion
+
+        loss_fn = criterion()
+        # Calculate forward and backward gradients to compute finite difference
+        self.model.set_lambda_perturbations(pert)
+        forward_grads = torch.autograd.grad(
+            loss_fn(self.model(data)[1], target),
+            self.model_weight_parameters(),
+            allow_unused=True,
+        )
+        self.model.set_lambda_perturbations([-p for p in pert])
+        backward_grads = torch.autograd.grad(
+            loss_fn(self.model(data)[1], target),
+            self.model_weight_parameters(),
+            allow_unused=True,
+        )
+
+        reg_grad = [
+            (f - b).div_(2 * self.lambda_epsilon)
+            if (f is not None and b is not None)
+            else 0.0
+            for f, b in zip(forward_grads, backward_grads)
+        ]
+        for param, grad in zip(self.model_weight_parameters(), reg_grad):
+            if param.grad is not None:
+                param.grad.data.add_(self.lambda_ * grad)
+
+
 class LayerAlignmentScoreSupport(ModelWrapper):
     def __init__(self, model: nn.Module):
         super().__init__(model)

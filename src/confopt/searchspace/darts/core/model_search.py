@@ -363,7 +363,7 @@ class Network(nn.Module):
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=len(self.primitives), num_heads=1
         )
-
+        self.lambda_perturbations = None
         # mask for pruning
         self._initialize_parameters()
 
@@ -466,7 +466,12 @@ class Network(nn.Module):
                 weights = weights_normal.clone()
                 self.save_weight_grads(weights, cell_type="normal")
 
+            if self.lambda_perturbations is not None:
+                weights = weights - self.lambda_perturbations[_i]
+
             s0, s1 = s1, cell(s0, s1, weights)
+
+        self.lambda_perturbations = None
 
         out = self.global_pooling(s1)
         logits = self.classifier(out.view(out.size(0), -1))
@@ -979,6 +984,9 @@ class Network(nn.Module):
                 total_cell_flops = 1
             flops += torch.log(total_cell_flops)
         return flops / len(self.cells)
+
+    def set_lambda_perturbations(self, lambda_perturbations: torch.Tensor) -> None:
+        self.lambda_perturbations = lambda_perturbations
 
 
 def preserve_grads(m: nn.Module) -> None:
