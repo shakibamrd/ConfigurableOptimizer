@@ -117,7 +117,7 @@ class OperationBlock(nn.Module):
         weight_entangler: WeightEntangler | None = None,
         device: torch.device = DEVICE,
         is_argmax_sampler: bool = False,
-        use_aux_skip: bool = False,
+        aux_skip: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.device = device
@@ -129,33 +129,17 @@ class OperationBlock(nn.Module):
         self.weight_entangler = weight_entangler
         self.is_argmax_sampler = is_argmax_sampler
         self.flops: list[float] | None = None
-        self.use_aux_skip = use_aux_skip
-        self._init_aux_skip_connection()
-
-    def _init_aux_skip_connection(self) -> None:
-        stride = 1
-        C = None
-        affine = True
-        if self.is_reduction_cell:
-            for op in self.ops:
-                if type(op).__name__ == "FactorizedReduce":
-                    C = op.C_in
-                    stride = 2
-
-        self.aux_skip = AuxiliarySkipConnection(
-            stride=stride,
-            C_in=C,
-            C_out=C,
-            affine=affine,
-            device=self.device,
-        )
+        self.use_aux_skip = aux_skip is not None
+        self.aux_skip = aux_skip
 
     def forward_method(
         self, x: torch.Tensor, ops: list[nn.Module], alphas: list[torch.Tensor]
     ) -> torch.Tensor:
         if self.weight_entangler is not None:
             if self.use_aux_skip:
-                return self.aux_skip(x) + self.weight_entangler.forward(x, ops, alphas)
+                return self.aux_skip(x) + self.weight_entangler.forward(  # type: ignore
+                    x, ops, alphas
+                )
             return self.weight_entangler.forward(x, ops, alphas)
 
         states = []
@@ -172,7 +156,7 @@ class OperationBlock(nn.Module):
                 states.append(op(x) * alpha)
 
         if self.use_aux_skip:
-            return self.aux_skip(x) + sum(states)
+            return self.aux_skip(x) + sum(states)  # type: ignore
 
         return sum(states)
 
@@ -189,7 +173,7 @@ class OperationBlock(nn.Module):
 
         if self.partial_connector:
             if self.use_aux_skip:
-                return self.aux_skip(x) + self.partial_connector(
+                return self.aux_skip(x) + self.partial_connector(  # type: ignore
                     x, alphas, self.ops, self.forward_method
                 )
 

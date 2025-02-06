@@ -61,7 +61,7 @@ class SearchSpaceHandler:
         for name, module in search_space.named_modules(remove_duplicate=False):
             if isinstance(module, OperationChoices):
                 new_module = self._initialize_operation_block(
-                    module.ops, module.is_reduction_cell
+                    module.ops, module.aux_skip, module.is_reduction_cell
                 )
                 parent_name, attribute_name = self.get_parent_and_attribute(name)
                 setattr(
@@ -102,7 +102,10 @@ class SearchSpaceHandler:
         search_space.set_sample_function(self.default_sample_function)
 
     def _initialize_operation_block(
-        self, ops: torch.nn.Module, is_reduction_cell: bool = False
+        self,
+        ops: torch.nn.Module,
+        aux_skip: torch.nn.Module | None,
+        is_reduction_cell: bool = False,
     ) -> OperationBlock:
         op_block = OperationBlock(
             ops,
@@ -111,7 +114,7 @@ class SearchSpaceHandler:
             dropout=self.dropout,
             weight_entangler=self.weight_entangler,
             is_argmax_sampler=self.is_argmax_sampler,
-            use_aux_skip=self.use_auxiliary_skip_connection,
+            aux_skip=aux_skip,
         )
         return op_block
 
