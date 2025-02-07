@@ -1,6 +1,6 @@
 import unittest
 
-from confopt.profile import (
+from confopt.sampler_profile import (
     BaseProfile,
     DARTSProfile,
     DRNASProfile,

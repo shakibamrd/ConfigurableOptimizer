@@ -5,7 +5,7 @@ import argparse
 from snas_search import get_snas_profile
 import wandb
 
-from confopt.profile import DiscreteProfile
+from confopt.sampler_profile import DiscreteProfile
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 from confopt.utils import validate_model_to_load_value
 

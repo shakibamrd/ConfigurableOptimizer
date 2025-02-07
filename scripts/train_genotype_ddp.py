@@ -1,4 +1,4 @@
-from confopt.profile.profiles import DiscreteProfile
+from confopt.sampler_profile.profiles import DiscreteProfile
 from confopt.train import Experiment
 from confopt.train.experiment import DatasetType, SearchSpaceType
 

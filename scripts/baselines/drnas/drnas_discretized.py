@@ -5,7 +5,7 @@ import argparse
 from drnas_search_and_discrete import get_drnas_profile
 import wandb
 
-from confopt.profile import DiscreteProfile
+from confopt.sampler_profile import DiscreteProfile
 from confopt.train import DatasetType, Experiment, SearchSpaceType
 from confopt.utils import validate_model_to_load_value
 

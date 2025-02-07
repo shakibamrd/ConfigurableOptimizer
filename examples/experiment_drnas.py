@@ -5,7 +5,7 @@ import json
 
 import wandb
 
-from confopt.profile import DiscreteProfile, DRNASProfile
+from confopt.sampler_profile import DiscreteProfile, DRNASProfile
 from confopt.train import Experiment
 from confopt.enums import DatasetType, SearchSpaceType
 

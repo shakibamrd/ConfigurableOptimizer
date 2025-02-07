@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from confopt.profile import GDASProfile
+from confopt.sampler_profile import GDASProfile
 from confopt.train import Experiment
 from confopt.enums import SearchSpaceType, DatasetType
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from confopt.profile import DARTSProfile, DRNASProfile, GDASProfile, ReinMaxProfile
+from confopt.sampler_profile import DARTSProfile, DRNASProfile, GDASProfile, ReinMaxProfile
 from confopt.train import Experiment
 from confopt.enums import DatasetType, SearchSpaceType
 
