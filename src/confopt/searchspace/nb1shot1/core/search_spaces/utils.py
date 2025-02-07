@@ -149,15 +149,15 @@ def upscale_to_nasbench_format(adjacency_matrix: np.ndarray) -> np.ndarray:
 
 @typing.no_type_check
 def parse_log(path: str) -> tuple:
-    f = open(os.path.join(path, "log.txt"))  # noqa: SIM115
-    # Read in the relevant information
-    train_accuracies = []
-    valid_accuracies = []
-    for line in f:
-        if "train_acc" in line:
-            train_accuracies.append(line)
-        elif "valid_acc" in line:
-            valid_accuracies.append(line)
+    with open(os.path.join(path, "log.txt")) as f:
+        # Read in the relevant information
+        train_accuracies = []
+        valid_accuracies = []
+        for line in f:
+            if "train_acc" in line:
+                train_accuracies.append(line)
+            elif "valid_acc" in line:
+                valid_accuracies.append(line)
 
     valid_error = [
         [

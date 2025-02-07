@@ -538,10 +538,10 @@ class SepConv(ConvolutionalWEModule):
         self.op[6].activate_lora(r)
 
     def deactivate_lora(self) -> None:
-        self.op[1].activate_lora()
-        self.op[2].activate_lora()
-        self.op[5].activate_lora()
-        self.op[6].activate_lora()
+        self.op[1].deactivate_lora()
+        self.op[2].deactivate_lora()
+        self.op[5].deactivate_lora()
+        self.op[6].deactivate_lora()
 
     def toggle_lora(self) -> None:
         self.op[1].toggle_lora()

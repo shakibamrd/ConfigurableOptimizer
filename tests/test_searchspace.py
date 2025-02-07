@@ -21,7 +21,7 @@ from confopt.searchspace.darts.core.operations import (
     SepConv,
     Zero,
 )
-from confopt.searchspace.nb1_shot_1.core.model_search import (
+from confopt.searchspace.nb1shot1.core.model_search import (
     Cell as NasBench1Shot1SearchCell,
 )
 from confopt.searchspace.nb201.core import NAS201SearchCell

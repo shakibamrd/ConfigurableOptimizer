@@ -64,9 +64,9 @@ class Structure:
         return genotypes, True
 
     def node(self, index: int) -> tuple:
-        assert index > 0, f"invalid index={index} < {len(self)}"
+        assert index > 0, f"invalid index={index}"
 
-        assert index <= len(self), f"invalid index={index} < {len(self)}"
+        assert index <= len(self), f"invalid index={index} > {len(self)}"
         return self.nodes[index]
 
     def tostr(self) -> str:

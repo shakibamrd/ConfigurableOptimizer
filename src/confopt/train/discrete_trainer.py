@@ -33,10 +33,7 @@ class DiscreteTrainer(ConfigurableTrainer):
         print_freq: int = 2,
         drop_path_prob: float = 0.1,
         aux_weight: float = 0.0,
-        load_saved_model: bool = False,
-        load_best_model: bool = False,
-        start_epoch: int = 0,
-        # use_supernet_checkpoint: bool = False,
+        model_to_load: str | int | None = None,
         checkpointing_freq: int = 20,
         epochs: int = 100,
         debug_mode: bool = False,
@@ -52,9 +49,7 @@ class DiscreteTrainer(ConfigurableTrainer):
             batch_size=batch_size,
             print_freq=print_freq,
             drop_path_prob=drop_path_prob,
-            load_saved_model=load_saved_model,
-            load_best_model=load_best_model,
-            start_epoch=start_epoch,
+            model_to_load=model_to_load,
             checkpointing_freq=checkpointing_freq,
             epochs=epochs,
             debug_mode=debug_mode,
@@ -162,14 +157,11 @@ class DiscreteTrainer(ConfigurableTrainer):
             if log_with_wandb:
                 self.logger.push_wandb_logs()
 
-            if (
-                val_loader is not None
-                and valid_metrics.acc_top1 > self.valid_accs_top1["best"]
-            ):
-                self.valid_accs_top1["best"] = valid_metrics.acc_top1
+            if base_metrics.acc_top1 > self.search_accs_top1["best"]:
+                self.search_accs_top1["best"] = base_metrics.acc_top1
                 self.logger.log(
                     f"<<<--->>> The {epoch_str}-th epoch : found the highest "
-                    + f"validation accuracy : {valid_metrics.acc_top1:.2f}%."
+                    + f"validation accuracy : {base_metrics.acc_top1:.2f}%."
                 )
 
                 self.best_model_checkpointer.save(
@@ -218,7 +210,7 @@ class DiscreteTrainer(ConfigurableTrainer):
             use_distributed_sampler=self.use_ddp,
         )
 
-        for epoch in range(self.start_epoch, epochs):
+        for epoch in range(self.start_epoch + 1, epochs + 1):
             self._train_epoch(
                 network=network,
                 train_loader=train_loader,
@@ -308,7 +300,7 @@ class DiscreteTrainer(ConfigurableTrainer):
             local_rank, rank, world_size = (
                 dist_utils.get_local_rank(),
                 dist_utils.get_rank(),
-                dist_utils.get_rank(),
+                dist_utils.get_world_size(),
             )
             dist_utils.print_on_master_only(rank == 0)
             print(
