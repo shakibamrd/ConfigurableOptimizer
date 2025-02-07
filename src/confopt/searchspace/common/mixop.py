@@ -18,12 +18,33 @@ class OperationChoices(nn.Module):
         ops: list[nn.Module],
         is_reduction_cell: bool = False,
         device: torch.device = DEVICE,
+        use_aux_skip: bool = False,
     ) -> None:
         super().__init__()
         self.ops = ops
         self.is_reduction_cell = is_reduction_cell
         self.device = device
         self.flops: list[float] | None = None
+        self.use_aux_skip = use_aux_skip
+        self._init_aux_skip_connection()
+
+    def _init_aux_skip_connection(self) -> None:
+        stride = 1
+        C = None
+        affine = True
+        if self.is_reduction_cell:
+            for op in self.ops:
+                if type(op).__name__ == "FactorizedReduce":
+                    C = op.C_in
+                    stride = 2
+
+        self.aux_skip = AuxiliarySkipConnection(
+            stride=stride,
+            C_in=C,
+            C_out=C,
+            affine=affine,
+            device=self.device,
+        )
 
     def forward(self, x: torch.Tensor, alphas: list[torch.Tensor]) -> torch.Tensor:
         assert len(alphas) == len(
@@ -35,7 +56,10 @@ class OperationChoices(nn.Module):
         for op, alpha in zip(self.ops, alphas):
             states.append(op(x) * alpha)
 
-        return sum(states)  # type: ignore
+        if self.use_aux_skip:
+            return self.aux_skip(x) + sum(states)
+
+        return sum(states)
 
     def change_op_channel_size(
         self,
@@ -93,6 +117,7 @@ class OperationBlock(nn.Module):
         weight_entangler: WeightEntangler | None = None,
         device: torch.device = DEVICE,
         is_argmax_sampler: bool = False,
+        aux_skip: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.device = device
@@ -104,11 +129,17 @@ class OperationBlock(nn.Module):
         self.weight_entangler = weight_entangler
         self.is_argmax_sampler = is_argmax_sampler
         self.flops: list[float] | None = None
+        self.use_aux_skip = aux_skip is not None
+        self.aux_skip = aux_skip
 
     def forward_method(
         self, x: torch.Tensor, ops: list[nn.Module], alphas: list[torch.Tensor]
     ) -> torch.Tensor:
         if self.weight_entangler is not None:
+            if self.use_aux_skip:
+                return self.aux_skip(x) + self.weight_entangler.forward(  # type: ignore
+                    x, ops, alphas
+                )
             return self.weight_entangler.forward(x, ops, alphas)
 
         states = []
@@ -124,6 +155,9 @@ class OperationBlock(nn.Module):
             for op, alpha in zip(ops, alphas):
                 states.append(op(x) * alpha)
 
+        if self.use_aux_skip:
+            return self.aux_skip(x) + sum(states)  # type: ignore
+
         return sum(states)
 
     def forward(
@@ -138,6 +172,11 @@ class OperationBlock(nn.Module):
             alphas = self.dropout.apply_mask(alphas)
 
         if self.partial_connector:
+            if self.use_aux_skip:
+                return self.aux_skip(x) + self.partial_connector(  # type: ignore
+                    x, alphas, self.ops, self.forward_method
+                )
+
             return self.partial_connector(x, alphas, self.ops, self.forward_method)
 
         return self.forward_method(x, self.ops, alphas)
@@ -192,3 +231,65 @@ class OperationBlock(nn.Module):
             + " flops for this OperationBlock"
         )
         return sum([alpha * op_flop for alpha, op_flop in zip(alphas, self.flops)])
+
+
+class AuxiliarySkipConnection(nn.Module):
+    def __init__(
+        self,
+        stride: int,
+        C_in: int | None = None,
+        C_out: int | None = None,
+        affine: bool = True,
+        device: torch.device = DEVICE,
+    ) -> None:
+        """Auxilary Skip Connection.
+
+        Args:
+            stride (int): stride to apply
+            C_in (int): Number of input channels.
+            C_out (int): Number of output channels.
+            affine (bool): Whether to apply affine transformations in BatchNorm.
+            device (torch.device): torch device to use
+        """
+        super().__init__()
+        assert stride in [1, 2], "Stride can only be 1 or 2"
+        self.stride = stride
+
+        if self.stride == 2:
+            self.C_in = C_in
+            self.C_out = C_out
+            self.relu = nn.ReLU(inplace=False).to(device)
+            self.conv_1 = nn.Conv2d(
+                C_in,  # type: ignore
+                C_out // 2,  # type: ignore
+                kernel_size=1,
+                stride=2,
+                padding=0,
+                bias=False,
+            ).to(device)
+            self.conv_2 = nn.Conv2d(
+                C_in,  # type: ignore
+                C_out - C_out // 2,  # type: ignore
+                kernel_size=1,
+                stride=2,
+                padding=0,
+                bias=False,
+            ).to(device)
+            self.bn = nn.BatchNorm2d(C_out, affine=affine).to(device)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the Auxilary Skip Connection.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after Skip Connection
+        """
+        if self.stride == 1:
+            return x
+
+        x = self.relu(x)
+        out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:])], dim=1)
+        out = self.bn(out)
+        return out

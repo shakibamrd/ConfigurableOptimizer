@@ -34,6 +34,7 @@ class SearchSpaceHandler:
         lora_toggler: LoRAToggler | None = None,
         is_arch_attention_enabled: bool = False,
         regularizer: Regularizer | None = None,
+        use_auxiliary_skip_connection: bool = False,
     ) -> None:
         self.sampler = sampler
         self.edge_normalization = edge_normalization
@@ -51,6 +52,7 @@ class SearchSpaceHandler:
             self.is_argmax_sampler = True
 
         self.is_arch_attention_enabled = is_arch_attention_enabled
+        self.use_auxiliary_skip_connection = use_auxiliary_skip_connection
 
     def adapt_search_space(self, search_space: SearchSpace) -> None:
         if hasattr(search_space.model, "edge_normalization"):
@@ -59,7 +61,7 @@ class SearchSpaceHandler:
         for name, module in search_space.named_modules(remove_duplicate=False):
             if isinstance(module, OperationChoices):
                 new_module = self._initialize_operation_block(
-                    module.ops, module.is_reduction_cell
+                    module.ops, module.aux_skip, module.is_reduction_cell
                 )
                 parent_name, attribute_name = self.get_parent_and_attribute(name)
                 setattr(
@@ -100,7 +102,10 @@ class SearchSpaceHandler:
         search_space.set_sample_function(self.default_sample_function)
 
     def _initialize_operation_block(
-        self, ops: torch.nn.Module, is_reduction_cell: bool = False
+        self,
+        ops: torch.nn.Module,
+        aux_skip: torch.nn.Module | None,
+        is_reduction_cell: bool = False,
     ) -> OperationBlock:
         op_block = OperationBlock(
             ops,
@@ -109,6 +114,7 @@ class SearchSpaceHandler:
             dropout=self.dropout,
             weight_entangler=self.weight_entangler,
             is_argmax_sampler=self.is_argmax_sampler,
+            aux_skip=aux_skip,
         )
         return op_block
 
