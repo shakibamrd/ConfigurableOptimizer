@@ -19,7 +19,7 @@ from confopt.searchspace import SearchSpace
 from confopt.searchspace.common.base_search import (
     GradientMatchingScoreSupport,
     GradientStatsSupport,
-    LayerAlignmentRegTermSupport,
+    LambdaDARTSSupport,
     LayerAlignmentScoreSupport,
     OperationStatisticsSupport,
 )
@@ -458,7 +458,7 @@ class ConfigurableTrainer:
             if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
                 unwrapped_network.update_layer_alignment_scores()
 
-            if isinstance(unwrapped_network, LayerAlignmentRegTermSupport):
+            if isinstance(unwrapped_network, LambdaDARTSSupport):
                 unwrapped_network.add_lambda_regularization(base_inputs, base_targets)
 
             torch.nn.utils.clip_grad_norm_(

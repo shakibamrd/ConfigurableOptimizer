@@ -382,7 +382,9 @@ class NB201SearchModel(nn.Module):
 
         return out, logits
 
-    def get_arch_grads(self, only_first_and_last: bool = False) -> list[torch.Tensor]:
+    def get_arch_grads(
+        self, only_first_and_last: bool = False
+    ) -> tuple[list[torch.Tensor], list[torch.Tensor] | None]:
         grads = []
         if only_first_and_last:
             grads.append(self.weights_grad[0].reshape(-1))
@@ -391,12 +393,12 @@ class NB201SearchModel(nn.Module):
             for alphas in self.weights_grad:
                 grads.append(alphas.reshape(-1))
 
-        return grads
+        return grads, None
 
     def get_mean_layer_alignment_score(
         self, only_first_and_last: bool = False
     ) -> float:
-        grads = self.get_arch_grads(only_first_and_last)
+        grads, _ = self.get_arch_grads(only_first_and_last)
         mean_score = calc_layer_alignment_score(grads)
 
         if math.isnan(mean_score):
