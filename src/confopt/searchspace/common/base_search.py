@@ -184,14 +184,21 @@ class LambdaDARTSSupport(ModelWrapper):
         self._assert_model_has_implementation()
         self.lambda_reg = LambdaReg()
 
+    def get_cells(self, cell_type: str | None = None) -> list[torch.nn.Module] | None:
+        return self.model.get_cells(cell_type)
+
     def _assert_model_has_implementation(self) -> None:
         base_error = "LambdaDARTSSupport implementation missing"
         assert hasattr(
             self.model, "get_arch_grads"
-        ), f"{base_error}: def get_arch_grads not found in {type(self.model)}"
+        ), f"{base_error}: get_arch_grads method not found in {type(self.model)}"
         assert callable(
             self.model.get_arch_grads
-        ), "'get_arch_grads' should be a function"
+        ), "'get_arch_grads' should be a method"
+        assert hasattr(
+            self.model, "get_cells"
+        ), f"{base_error}: get_cells method not found in {type(self.model)}"
+        assert callable(self.model.get_arch_grads), "'get_cells' should be a method"
 
     def set_lambda_darts_params(self, lambda_reg: LambdaReg) -> None:
         self.lambda_reg = lambda_reg
@@ -204,7 +211,7 @@ class LambdaDARTSSupport(ModelWrapper):
 
     def get_perturbations(self) -> list[torch.Tensor]:
         grads_normal, grads_reduce = self.model.get_arch_grads()
-        alpha_normal = self.model.alphas_normal
+        alpha_normal = self.arch_parameters[0]
 
         def get_perturbation_for_cell(
             layer_gradients: list[torch.Tensor],
@@ -262,13 +269,17 @@ class LambdaDARTSSupport(ModelWrapper):
         idx_normal = 0
         idx_reduce = 0
         pert = []
-        for cell in self.model.cells:
-            if cell.reduction and pert_reduce is not None:
-                pert.append(pert_reduce[idx_reduce] * self.lambda_reg.epsilon)
-                idx_reduce += 1
-            else:
-                pert.append(pert_normal[idx_normal] * self.lambda_reg.epsilon)
-                idx_normal += 1
+
+        cells = self.get_cells()
+
+        if cells is not None:
+            for cell in cells:
+                if pert_reduce is not None and cell.reduction:
+                    pert.append(pert_reduce[idx_reduce] * self.lambda_reg.epsilon)
+                    idx_reduce += 1
+                else:
+                    pert.append(pert_normal[idx_normal] * self.lambda_reg.epsilon)
+                    idx_normal += 1
 
         return pert
 

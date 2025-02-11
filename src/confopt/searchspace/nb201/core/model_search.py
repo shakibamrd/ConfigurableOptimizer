@@ -211,6 +211,14 @@ class NB201SearchModel(nn.Module):
                 nn.functional.softmax(self.beta_parameters, dim=-1).cpu()
             )
 
+    def get_cells(self, cell_type: str | None) -> torch.nn.Module | None:
+        assert (
+            cell_type == "normal" or cell_type is None
+        ), f"Illegal cell type: {cell_type}"
+        cells = [cell for cell in self.cells if isinstance(cell, SearchCell)]
+
+        return cells
+
     def get_message(self) -> str:
         """Gets a message describing the model and its cells.
 

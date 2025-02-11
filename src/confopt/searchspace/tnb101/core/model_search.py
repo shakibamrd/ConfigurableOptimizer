@@ -412,6 +412,14 @@ class TNB101SearchModel(nn.Module):
 
         return grads, None
 
+    def get_cells(self, cell_type: str | None) -> torch.nn.Module | None:
+        assert (
+            cell_type == "normal" or cell_type is None
+        ), f"Illegal cell type: {cell_type}"
+        cells = [cell for cell in self.cells if isinstance(cell, TNB101SearchCell)]
+
+        return cells
+
     def get_mean_layer_alignment_score(
         self, only_first_and_last: bool = False
     ) -> float:

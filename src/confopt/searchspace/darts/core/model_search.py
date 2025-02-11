@@ -367,6 +367,21 @@ class Network(nn.Module):
         # mask for pruning
         self._initialize_parameters()
 
+    def get_cells(self, cell_type: str | None) -> torch.nn.Module | None:
+        assert cell_type in [
+            "normal",
+            "reduce",
+            None,
+        ], f"Illegal cell type: {cell_type}"
+        if cell_type == "normal":
+            cells = [cell for cell in self.cells if not cell.is_reduction_cell]
+        elif cell_type == "reduce":
+            cells = [cell for cell in self.cells if cell.is_reduction_cell]
+        else:
+            cells = self.cells
+
+        return cells
+
     def new(self) -> Network:
         """Get a new object with same arch and beta parameters.
 
