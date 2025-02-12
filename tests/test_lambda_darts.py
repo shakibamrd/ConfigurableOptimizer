@@ -28,26 +28,48 @@ class TestLambda(unittest.TestCase):
 
         return model
 
-    def test_get_arch_grads_darts(self) -> None:
+    def test_shapes_darts(self) -> None:
         search_space = DARTSSearchSpace().to(DEVICE)
         search_space = self._forward_and_backward_pass(search_space)
         self._test_shapes(search_space, (6, 2), (14, 8))
-        self._test_perturbations_disabled(search_space)
-        self._test_perturbations_enabled(search_space)
 
-    def test_get_arch_grads_nb201(self) -> None:
+    def test_shapes_nb201(self) -> None:
         search_space = NASBench201SearchSpace().to(DEVICE)
         search_space = self._forward_and_backward_pass(search_space)
         self._test_shapes(search_space, (15, 0), (6, 5))
-        self._test_perturbations_disabled(search_space)
 
-    def test_get_arch_grads_tnb101(self) -> None:
+    def test_shapes_tnb101(self) -> None:
         search_space = TransNASBench101SearchSpace().to(DEVICE)
         search_space = self._forward_and_backward_pass(search_space)
         self._test_shapes(search_space, (10, 0), (6, 4))
+
+    def test_perturbations_disabled_darts(self) -> None:
+        search_space = DARTSSearchSpace().to(DEVICE)
         self._test_perturbations_disabled(search_space)
 
-    def _test_shapes(self, search_space: SearchSpace, n_cells: tuple, grads_shape: tuple) -> None:
+    def test_perturbations_disabled_nb201(self) -> None:
+        search_space = NASBench201SearchSpace().to(DEVICE)
+        self._test_perturbations_disabled(search_space)
+
+    def test_perturbations_disabled_tnb101(self) -> None:
+        search_space = TransNASBench101SearchSpace().to(DEVICE)
+        self._test_perturbations_disabled(search_space)
+
+    def test_perturbations_enabled_darts(self) -> None:
+        search_space = DARTSSearchSpace().to(DEVICE)
+        self._test_perturbations_enabled(search_space)
+
+    def test_perturbations_enabled_nb201(self) -> None:
+        search_space = NASBench201SearchSpace().to(DEVICE)
+        self._test_perturbations_enabled(search_space)
+
+    def test_perturbations_enabled_tnb101(self) -> None:
+        search_space = TransNASBench101SearchSpace().to(DEVICE)
+        self._test_perturbations_enabled(search_space)
+
+    def _test_shapes(
+        self, search_space: SearchSpace, n_cells: tuple, grads_shape: tuple
+    ) -> None:
         grads_normal, grads_reduce = search_space.model.get_arch_grads()
         has_reduce = n_cells[1] > 0
 
@@ -69,9 +91,19 @@ class TestLambda(unittest.TestCase):
         for p in perts:
             assert p.shape == grads_shape
 
+    def _get_grads(self, model: SearchSpace) -> list[torch.Tensor]:
+        grads = []
+        for p in model.model_weight_parameters():
+            if p.grad is not None:
+                grads.append(p.grad.clone())
+
+        return grads
+
     def _test_perturbations_disabled(self, model: SearchSpace) -> None:
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
         y = torch.randint(10, (2,)).to(DEVICE)
+
+        model.disable_lambda_darts()
 
         criterion = torch.nn.CrossEntropyLoss()
         _, preds = model(x)
@@ -79,16 +111,12 @@ class TestLambda(unittest.TestCase):
         loss = criterion(preds, y)
         loss.backward()
 
-        old_grads = []
-        for p in model.model_weight_parameters():
-            if p.grad is not None:
-                old_grads.append(p.grad.clone())
+        old_grads = self._get_grads(model)
+        model.add_lambda_regularization(x, y, criterion)
+        new_grads = self._get_grads(model)
 
-        model.add_lambda_regularization(x, y)
-
-        for new_p, old_grad in zip(model.model_weight_parameters(), old_grads):
-            if new_p.grad is not None:
-                assert (new_p.grad == old_grad).all()
+        for new_grad, old_grad in zip(new_grads, old_grads):
+            assert (new_grad == old_grad).all()
 
     def _test_perturbations_enabled(self, model: SearchSpace) -> None:
         x = torch.randn(2, 3, 32, 32).to(DEVICE)
@@ -100,17 +128,11 @@ class TestLambda(unittest.TestCase):
         loss = criterion(preds, y)
         loss.backward()
 
-        old_grads = []
-        for p in model.model_weight_parameters():
-            if p.grad is not None:
-                old_grads.append(p.grad.clone())
-
         model.lambda_reg.enabled = True
-        model.add_lambda_regularization(x, y)
 
-        for new_p, old_grad in zip(model.model_weight_parameters(), old_grads):
-            if new_p.grad is not None:
-                assert (new_p.grad != old_grad).any()
+        old_grads = self._get_grads(model)
+        model.add_lambda_regularization(x, y, criterion)
+        new_grads = self._get_grads(model)
 
 
 if __name__ == "__main__":
