@@ -422,6 +422,9 @@ class Experiment:
             is_arch_attention_enabled=config.get("is_arch_attention_enabled", False),
             regularizer=self.regularizer,
             lambda_regularizer=self.lambda_regularizer,
+            use_auxiliary_skip_connection=config.get(
+                "use_auxiliary_skip_connection", False
+            ),
         )
 
     def _get_criterion(self, criterion_str: str) -> torch.nn.Module:
