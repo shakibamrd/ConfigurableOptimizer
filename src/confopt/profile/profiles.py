@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import asdict
 from typing import Any
 
 from confopt.enums import SamplerType, SearchSpaceType
+from confopt.searchspace.common import LambdaReg
 from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 from confopt.utils import get_num_classes
 
@@ -17,6 +19,7 @@ class DARTSProfile(BaseProfile, ABC):
         self,
         searchspace: str | SearchSpaceType,
         epochs: int,
+        use_lambda_regularizer: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -25,6 +28,30 @@ class DARTSProfile(BaseProfile, ABC):
             epochs,
             **kwargs,
         )
+        self._set_lambda_regularizer(use_lambda_regularizer)
+
+    def _set_lambda_regularizer(self, use_lambda_regularizer: bool = False) -> None:
+        self.use_lambda_regularizer = use_lambda_regularizer
+        self.lambda_regularizer_config = (
+            asdict(LambdaReg()) if use_lambda_regularizer else None
+        )
+
+    def get_config(self) -> dict:
+        config = super().get_config()
+        config["lambda_regularizer"] = self.lambda_regularizer_config
+
+        return config
+
+    def configure_lambda_regularizer(self, **kwargs: Any) -> None:
+        assert self.use_lambda_regularizer is True
+        assert self.lambda_regularizer_config is not None
+
+        for config_key in kwargs:
+            assert config_key in self.lambda_regularizer_config, (
+                f"{config_key} not a valid configuration for the"
+                + "lambda regularization config"
+            )
+            self.lambda_regularizer_config[config_key] = kwargs[config_key]
 
     def _initialize_sampler_config(self) -> None:
         darts_config = {

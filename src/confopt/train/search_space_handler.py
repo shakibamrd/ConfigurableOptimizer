@@ -93,8 +93,10 @@ class SearchSpaceHandler:
         ):
             search_space.set_arch_attention(True)
 
-        if isinstance(self.lambda_regularizer, LambdaReg) and isinstance(
-            search_space, LambdaDARTSSupport
+        if (
+            isinstance(search_space, LambdaDARTSSupport)
+            and isinstance(self.lambda_regularizer, LambdaReg)
+            and self.lambda_regularizer.enabled
         ):
             search_space.enable_lambda_darts()
             search_space.set_lambda_darts_params(self.lambda_regularizer)

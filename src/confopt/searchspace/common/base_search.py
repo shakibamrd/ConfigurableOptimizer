@@ -175,7 +175,7 @@ class LambdaReg:
     epsilon: float = 0.0
     corr_type: str = "corr"
     strength: float = 0.125
-    enabled: bool = False
+    enabled: bool = True
 
 
 class LambdaDARTSSupport(ModelWrapper):
