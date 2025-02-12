@@ -60,7 +60,6 @@ class TNB101SearchModel(nn.Module):
         self.n_modules = 5
         self.blocks_per_module = [2] * self.n_modules
 
-        # initialize other arguments for intializing a new model
         self.affine = affine
         self.track_running_stats = track_running_stats
         self.dataset = dataset
@@ -93,15 +92,7 @@ class TNB101SearchModel(nn.Module):
                 self.cells.append(cell)
                 C_in = C_out
         self.num_edge = len(self.cells[0].edges)
-
-        if dataset == "jigsaw":
-            self.num_classes = 1000
-        elif dataset == "class_object":
-            self.num_classes = 100
-        elif dataset == "class_scene":
-            self.num_classes = 63
-        else:
-            self.num_classes = num_classes
+        self.num_classes = self.get_num_classes_from_dataset(num_classes, dataset)
 
         self.stem = self._get_stem_for_task(dataset)
         self.decoder = self._get_decoder_for_task(dataset, C_out)
@@ -133,7 +124,18 @@ class TNB101SearchModel(nn.Module):
         self.num_ops = len(self.op_names)
         self.num_nodes = self.max_nodes - 1
 
+        self.lambda_perturbations = None
         self._initialize_projection_params()
+
+    def get_num_classes_from_dataset(self, num_classes: int, dataset: str) -> int:
+        if dataset == "jigsaw":
+            num_classes = 1000
+        elif dataset == "class_object":
+            num_classes = 100
+        elif dataset == "class_scene":
+            num_classes = 63
+
+        return num_classes
 
     def arch_parameters(self) -> nn.Parameter:
         return self._arch_parameters
@@ -179,9 +181,13 @@ class TNB101SearchModel(nn.Module):
 
         feature = self.stem(inputs)
 
-        for cell in self.cells:
+        for _i, cell in enumerate(self.cells):
             weights = alphas.clone()
             self.save_weight_grads(weights)
+
+            if self.lambda_perturbations is not None:
+                weights = weights - self.lambda_perturbations[_i]
+
             feature = cell(feature, weights)
 
         out = self.decoder(feature)
@@ -477,6 +483,9 @@ class TNB101SearchModel(nn.Module):
         self.removed_projected_weights = weights
 
     ### End of PerturbationArchSelection methods ###
+
+    def set_lambda_perturbations(self, lambda_perturbations: torch.Tensor) -> None:
+        self.lambda_perturbations = lambda_perturbations
 
 
 class TNB101SearchCell(nn.Module):

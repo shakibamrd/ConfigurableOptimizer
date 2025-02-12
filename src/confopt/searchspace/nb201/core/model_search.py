@@ -151,6 +151,7 @@ class NB201SearchModel(nn.Module):
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=len(self.op_names), num_heads=1
         )
+        self.lambda_perturbations = None
 
     def get_weights(self) -> list[nn.Parameter]:
         """Get a list of learnable parameters in the model. (does not include alpha or
@@ -339,13 +340,21 @@ class NB201SearchModel(nn.Module):
         self.sampled_weights = [weights]
 
         feature = self.stem(inputs)
-        for _i, cell in enumerate(self.cells):
+        _i = 0
+        for cell in self.cells:
             if isinstance(cell, SearchCell):
                 alphas = weights.clone()
                 self.save_weight_grads(alphas)
+
+                if self.lambda_perturbations is not None:
+                    weights = weights - self.lambda_perturbations[_i]
+
                 feature = cell(feature, alphas)
+                _i += 1
             else:
                 feature = cell(feature)
+
+        self.lambda_perturbations = None
 
         out = self.lastact(feature)
         out = self.global_pooling(out)
@@ -512,6 +521,9 @@ class NB201SearchModel(nn.Module):
                     total_cell_flops = 1
                 flops += torch.log(total_cell_flops)
         return flops / len(self.cells)
+
+    def set_lambda_perturbations(self, lambda_perturbations: torch.Tensor) -> None:
+        self.lambda_perturbations = lambda_perturbations
 
 
 def preserve_grads(m: nn.Module) -> None:

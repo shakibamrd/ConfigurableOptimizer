@@ -189,16 +189,18 @@ class LambdaDARTSSupport(ModelWrapper):
 
     def _assert_model_has_implementation(self) -> None:
         base_error = "LambdaDARTSSupport implementation missing"
-        assert hasattr(
-            self.model, "get_arch_grads"
-        ), f"{base_error}: get_arch_grads method not found in {type(self.model)}"
-        assert callable(
-            self.model.get_arch_grads
-        ), "'get_arch_grads' should be a method"
-        assert hasattr(
-            self.model, "get_cells"
-        ), f"{base_error}: get_cells method not found in {type(self.model)}"
-        assert callable(self.model.get_arch_grads), "'get_cells' should be a method"
+
+        def assert_is_function(fn_name: str) -> None:
+            assert hasattr(
+                self.model, fn_name
+            ), f"{base_error}: {fn_name} method not found in {type(self.model)}"
+            assert callable(
+                self.model.get_arch_grads
+            ), f"'{fn_name}' should be a method"
+
+        assert_is_function("get_arch_grads")
+        assert_is_function("get_cells")
+        assert_is_function("set_lambda_perturbations")
 
     def set_lambda_darts_params(self, lambda_reg: LambdaReg) -> None:
         self.lambda_reg = lambda_reg
@@ -284,15 +286,14 @@ class LambdaDARTSSupport(ModelWrapper):
         return pert
 
     def add_lambda_regularization(
-        self, data: torch.Tensor, target: torch.Tensor
+        self, data: torch.Tensor, target: torch.Tensor, criterion: nn.modules.loss._Loss
     ) -> None:
         if not self.lambda_reg.enabled:
             return
 
         pert = self.get_perturbations()
-        criterion = self.model._criterion
 
-        loss_fn = criterion()
+        loss_fn = criterion
         # Calculate forward and backward gradients to compute finite difference
         self.model.set_lambda_perturbations(pert)
         forward_grads = torch.autograd.grad(
