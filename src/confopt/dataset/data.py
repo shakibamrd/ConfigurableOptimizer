@@ -8,6 +8,7 @@ import zipfile
 import cv2
 import gdown
 import numpy as np
+from PIL import Image
 from skimage import io
 import torch
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, Sampler
@@ -601,7 +602,6 @@ class USPSDataset(Dataset):
 
         images = []
         labels = []
-        img_size = (28, 28)
 
         if self.train:
             data_dir = self.dataset_dir + "/Numerals/"
@@ -614,8 +614,8 @@ class USPSDataset(Dataset):
                     if ".png" in name:
                         img = cv2.imread(label_data + name)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                        resized_img = resize_and_scale(img, img_size, 255)
-                        images.append(resized_img)
+                        # resized_img = resize_and_scale(img, img_size, 255)
+                        images.append(img)
                         labels.append(i)
         else:
             data_dir = self.dataset_dir + "/Test/"
@@ -633,8 +633,8 @@ class USPSDataset(Dataset):
                     ), f"Got Invalid label {label} from file {file_name}"
                     img = cv2.imread(data_dir + file_name)
                     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    resized_img = resize_and_scale(img, img_size, 255)
-                    images.append(resized_img)
+                    # resized_img = resize_and_scale(img, img_size, 255)
+                    images.append(img)
                     labels.append(label)
 
         return images, labels
@@ -663,9 +663,14 @@ class USPSData(CIFARData):
         super().__init__(root, cutout=-1, cutout_length=0, train_portion=train_portion)
 
     def get_transforms(self) -> tuple[Compose | None, Compose | None]:
+        to_rgb = transforms.Lambda(lambda x: x.repeat(3, 1, 1))
         train_transform = test_transform = transforms.Compose(
             [
+                transforms.Lambda(lambda x: Image.fromarray(x)),
+                transforms.Resize((28, 28)),
                 transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,)),
+                to_rgb,
             ]
         )
         return train_transform, test_transform
