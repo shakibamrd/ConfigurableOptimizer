@@ -459,7 +459,9 @@ class ConfigurableTrainer:
                 unwrapped_network.update_layer_alignment_scores()
 
             if isinstance(unwrapped_network, LambdaDARTSSupport):
-                unwrapped_network.add_lambda_regularization(base_inputs, base_targets)
+                unwrapped_network.add_lambda_regularization(
+                    base_inputs, base_targets, criterion
+                )
 
             torch.nn.utils.clip_grad_norm_(
                 unwrapped_network.model_weight_parameters(), 5

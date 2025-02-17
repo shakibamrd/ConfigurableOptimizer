@@ -223,7 +223,7 @@ class LambdaDARTSSupport(ModelWrapper):
                 if self.lambda_reg.corr_type == "corr":
                     u = [g / g.norm(p=2.0) for g in layer_gradients]
                     sum_u = sum(u)
-                    identity_matrix = torch.eye(sum_u.shape[0]).cuda()
+                    identity_matrix = torch.eye(sum_u.shape[0], device=sum_u.device)
                     P = [
                         (1 / g.norm(p=2.0)) * (identity_matrix - torch.ger(u_l, u_l))
                         for g, u_l in zip(layer_gradients, u)
