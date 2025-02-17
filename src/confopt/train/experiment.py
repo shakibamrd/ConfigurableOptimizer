@@ -400,7 +400,9 @@ class Experiment:
         )
 
     def _set_lambda_regularizer(self, config: dict) -> None:
-        self.lambda_regularizer = None if len(config) == 0 else LambdaReg(**config)
+        self.lambda_regularizer = (
+            None if (len(config) == 0 or config is None) else LambdaReg(**config)
+        )
 
     def _set_profile(self, config: dict) -> None:
         assert self.sampler is not None
