@@ -61,7 +61,7 @@ def read_args() -> argparse.Namespace:
         "--arch_lr",
         default=3e-4,
         help="arch learning rate for the experiment",
-        type=int,
+        type=float,
     )
 
     args = parser.parse_args()
