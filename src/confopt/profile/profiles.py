@@ -19,7 +19,6 @@ class DARTSProfile(BaseProfile, ABC):
         self,
         searchspace: str | SearchSpaceType,
         epochs: int,
-        use_lambda_regularizer: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -28,13 +27,30 @@ class DARTSProfile(BaseProfile, ABC):
             epochs,
             **kwargs,
         )
-        self._set_lambda_regularizer(use_lambda_regularizer)
 
-    def _set_lambda_regularizer(self, use_lambda_regularizer: bool = False) -> None:
-        self.use_lambda_regularizer = use_lambda_regularizer
-        self.lambda_regularizer_config = (
-            asdict(LambdaReg()) if use_lambda_regularizer else None
+    def _initialize_sampler_config(self) -> None:
+        darts_config = {
+            "sample_frequency": self.sampler_sample_frequency,
+            "arch_combine_fn": self.sampler_arch_combine_fn,
+        }
+        self.sampler_config = darts_config  # type: ignore
+
+
+class LambdaDARTSProfile(DARTSProfile):
+    SAMPLER_TYPE = SamplerType.LAMBDADARTS
+
+    def __init__(
+        self,
+        searchspace: str | SearchSpaceType,
+        epochs: int,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            searchspace,
+            epochs,
+            **kwargs,
         )
+        self.lambda_regularizer_config = asdict(LambdaReg())
 
     def get_config(self) -> dict:
         config = super().get_config()
@@ -43,22 +59,12 @@ class DARTSProfile(BaseProfile, ABC):
         return config
 
     def configure_lambda_regularizer(self, **kwargs: Any) -> None:
-        assert self.use_lambda_regularizer is True
-        assert self.lambda_regularizer_config is not None
-
         for config_key in kwargs:
             assert config_key in self.lambda_regularizer_config, (
                 f"{config_key} not a valid configuration for the"
                 + "lambda regularization config"
             )
             self.lambda_regularizer_config[config_key] = kwargs[config_key]
-
-    def _initialize_sampler_config(self) -> None:
-        darts_config = {
-            "sample_frequency": self.sampler_sample_frequency,
-            "arch_combine_fn": self.sampler_arch_combine_fn,
-        }
-        self.sampler_config = darts_config  # type: ignore
 
 
 class GDASProfile(BaseProfile, ABC):

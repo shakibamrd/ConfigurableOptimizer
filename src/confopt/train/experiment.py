@@ -311,7 +311,7 @@ class Experiment:
     ) -> None:
         arch_params = self.search_space.arch_parameters
         self.sampler: BaseSampler | None = None
-        if sampler == SamplerType.DARTS:
+        if sampler in (SamplerType.DARTS, SamplerType.LAMBDADARTS):
             self.sampler = DARTSSampler(**config, arch_parameters=arch_params)
         elif sampler == SamplerType.DRNAS:
             self.sampler = DRNASSampler(**config, arch_parameters=arch_params)
