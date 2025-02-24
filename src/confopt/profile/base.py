@@ -46,6 +46,7 @@ class BaseProfile:
         pt_select_architecture: bool = False,
         searchspace_domain: str | None = None,
         use_auxiliary_skip_connection: bool = False,
+        searchspace_subspace: str | None = None,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -72,6 +73,17 @@ class BaseProfile:
             assert (
                 searchspace_domain is None
             ), "searchspace_domain is not required for this searchspace"
+        if searchspace == "nb1shot1" or searchspace == SearchSpaceType.NB1SHOT1:
+            assert searchspace_subspace in [
+                "S1",
+                "S2",
+                "S3",
+            ], "searchspace subspace must be S1, S2 or S3"
+        else:
+            assert (
+                searchspace_subspace is None
+            ), "searchspace_subspace is not required for this searchspace"
+
         self.searchspace_domain = searchspace_domain
         self.epochs = epochs
         self.sampler_sample_frequency = (
@@ -108,6 +120,10 @@ class BaseProfile:
             self.configure_perturbator(**perturbator_config)
 
         self.use_auxiliary_skip_connection = use_auxiliary_skip_connection
+        if searchspace_subspace is not None:
+            # TODO: why can't I directly have the dict as an argument?
+            searchspace_subspace_dict = {"search_space": searchspace_subspace}
+            self.configure_searchspace(**searchspace_subspace_dict)
 
     def _set_pt_select_configs(
         self,
@@ -487,10 +503,25 @@ class BaseProfile:
             "optim": "sgd",
             "arch_optim": "adam",
             "use_data_parallel": False,
-            "checkpointing_freq": 1,
             "seed": self.seed,
             "cutout": -1,
             "cutout_length": 16,
+            "train_portion": 0.5,
+            "optim_config": {
+                "momentum": 0.9,
+                "nesterov": False,
+                "weight_decay": 3e-4,
+            },
+            "arch_optim_config": {
+                "weight_decay": 1e-3,
+                "betas": (0.5, 0.999),
+            },
+            "scheduler": "cosine_annealing_lr",
+            "learning_rate_min": 0.001,
+            "criterion": "cross_entropy",
+            "batch_size": 64,
+            "checkpointing_freq": 3,
+            "drop_path_prob": 0.2,
         }
         self.trainer_config = trainer_config
 
