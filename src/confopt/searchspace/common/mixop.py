@@ -34,9 +34,15 @@ class OperationChoices(nn.Module):
         affine = True
         if self.is_reduction_cell:
             for op in self.ops:
-                if type(op).__name__ == "FactorizedReduce":
-                    C = op.C_in
-                    stride = 2
+                # targeting the SepConv Block
+                if hasattr(op, "stride"):
+                    stride = op.stride
+                    if hasattr(op, "op"):
+                        for in_op in op.op:
+                            if hasattr(in_op, "in_channels"):
+                                C = in_op.in_channels
+                                break
+                        break
 
         self.aux_skip = AuxiliarySkipConnection(
             stride=stride,
