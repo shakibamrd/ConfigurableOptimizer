@@ -468,6 +468,10 @@ class Experiment:
         self, early_stopper: str | None, config: dict | None
     ) -> None:
         if early_stopper is not None:
+            assert config is not None, (
+                "The configurations for SkipConnectionEarlyStopper is empty. "
+                + "Use profile.configure_early_stopper() to fix it."
+            )
             if early_stopper == "skip_connection":
                 self.early_stopper = SkipConnectionEarlyStopper(**config)
             else:

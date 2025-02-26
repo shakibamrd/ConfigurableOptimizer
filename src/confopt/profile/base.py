@@ -130,6 +130,8 @@ class BaseProfile:
 
         if early_stopper_config is not None:
             self.configure_early_stopper(**early_stopper_config)
+        else:
+            self.early_stopper_config: dict | None = None
 
     def _set_pt_select_configs(
         self,
@@ -423,7 +425,7 @@ class BaseProfile:
         self.extra_config = config
 
     def configure_early_stopper(self, **config: Any) -> None:
-        if not hasattr(self, "early_stopper_config"):
+        if self.early_stopper_config is None:
             self.early_stopper_config = config
         else:
             self.early_stopper_config.update(config)
