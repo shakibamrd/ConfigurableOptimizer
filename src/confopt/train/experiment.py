@@ -34,6 +34,7 @@ from confopt.oneshot import (
     RegularizationTerm,
     Regularizer,
     SDARTSPerturbator,
+    SkipConnectionEarlyStopper,
     WeightEntangler,
 )
 from confopt.oneshot.archsampler import (
@@ -258,6 +259,9 @@ class Experiment:
         self._set_weight_entangler()
         self._set_regularizer(config.get("regularization", {}))
         self._set_profile(config)
+        self._set_early_stopper(
+            config["early_stopper"], config.get("early_stopper_config", {})
+        )
 
     def _set_search_space(
         self,
@@ -459,6 +463,21 @@ class Experiment:
                 eta_min=eta_min,
             )
         return None
+
+    def _set_early_stopper(
+        self, early_stopper: str | None, config: dict | None
+    ) -> None:
+        if early_stopper is not None:
+            assert config is not None, (
+                "The configurations for the EarlyStopper is empty. "
+                + "Use profile.configure_early_stopper() to fix it."
+            )
+            if early_stopper == "skip_connection":
+                self.early_stopper = SkipConnectionEarlyStopper(**config)
+            else:
+                raise ValueError(f"Earlyt stopping method {early_stopper} not known!")
+        else:
+            self.early_stopper = None
 
     def train_discrete_model(
         self,
@@ -771,6 +790,7 @@ class Experiment:
             debug_mode=self.debug_mode,
             query_dataset=self.dataset.value,
             benchmark_api=self.benchmark_api,
+            early_stopper=self.early_stopper,
         )
 
         return trainer

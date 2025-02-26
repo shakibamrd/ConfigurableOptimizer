@@ -47,6 +47,8 @@ class BaseProfile:
         searchspace_domain: str | None = None,
         use_auxiliary_skip_connection: bool = False,
         searchspace_subspace: str | None = None,
+        early_stopper: str | None = None,
+        early_stopper_config: dict | None = None,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -92,6 +94,7 @@ class BaseProfile:
         self.lora_warm_epochs = lora_warm_epochs
         self.seed = seed
         self.sampler_arch_combine_fn = sampler_arch_combine_fn
+        self.early_stopper = early_stopper
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self._set_partial_connector(is_partial_connection)
@@ -124,6 +127,11 @@ class BaseProfile:
             # TODO: why can't I directly have the dict as an argument?
             searchspace_subspace_dict = {"search_space": searchspace_subspace}
             self.configure_searchspace(**searchspace_subspace_dict)
+
+        if early_stopper_config is not None:
+            self.configure_early_stopper(**early_stopper_config)
+        else:
+            self.early_stopper_config: dict | None = None
 
     def _set_pt_select_configs(
         self,
@@ -247,6 +255,8 @@ class BaseProfile:
             "is_arch_attention_enabled": self.is_arch_attention_enabled,
             "regularization": self.regularization_config,
             "use_auxiliary_skip_connection": self.use_auxiliary_skip_connection,
+            "early_stopper": self.early_stopper,
+            "early_stopper_config": self.early_stopper_config,
         }
 
         if hasattr(self, "pruner_config"):
@@ -413,6 +423,12 @@ class BaseProfile:
 
     def configure_extra(self, **config) -> None:  # type: ignore
         self.extra_config = config
+
+    def configure_early_stopper(self, **config: Any) -> None:
+        if self.early_stopper_config is None:
+            self.early_stopper_config = config
+        else:
+            self.early_stopper_config.update(config)
 
     def get_run_description(self) -> str:
         run_configs = []

@@ -15,6 +15,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 
 from confopt.dataset import AbstractData
+from confopt.oneshot.early_stopper import EarlyStopper
 from confopt.searchspace import SearchSpace
 from confopt.searchspace.common.base_search import (
     GradientMatchingScoreSupport,
@@ -60,6 +61,7 @@ class ConfigurableTrainer:
         debug_mode: bool = False,
         query_dataset: str = "cifar10",
         benchmark_api: Any | None = None,
+        early_stopper: EarlyStopper | None = None,
     ) -> None:
         self.model = model
         self.model_optimizer = model_optimizer
@@ -79,6 +81,7 @@ class ConfigurableTrainer:
         self.debug_mode = debug_mode
         self.query_dataset = query_dataset
         self.benchmark_api = benchmark_api
+        self.early_stopper = early_stopper
 
     def _init_experiment_state(
         self,
@@ -354,6 +357,15 @@ class ConfigurableTrainer:
 
             if isinstance(unwrapped_network, LayerAlignmentScoreSupport):
                 unwrapped_network.reset_layer_alignment_scores()
+
+            # Early stop if required
+            if self.early_stopper is not None and self.early_stopper.check_stop(
+                epoch, unwrapped_network, base_metrics, valid_metrics
+            ):
+                self.logger.log(
+                    "Early Stopping condition met. Terminating supernet training."
+                )
+                break
 
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
