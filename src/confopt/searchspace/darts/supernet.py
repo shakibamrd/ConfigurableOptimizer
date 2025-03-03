@@ -160,7 +160,24 @@ class DARTSSearchSpace(
 
     def get_num_skip_ops(self) -> dict[str, int]:
         alphas_normal, alphas_reduce = self.model.arch_parameters()
-        count_skip = lambda alphas: sum(alphas[:, 1:].argmax(dim=1) == 2)
+
+        try:
+            index_of_skip = self.model.primitives.index("skip_connect")
+        except ValueError:
+            return {"skip_connections/normal": -1, "skip_connections/reduce": -1}
+
+        try:
+            index_of_none = self.model.primitives.index("none")
+        except ValueError:
+            index_of_none = -1
+
+        def count_skip(alphas: torch.Tensor) -> int:
+            if index_of_none == -1:
+                return (alphas.argmax(dim=1) == index_of_skip).sum().item()
+
+            tmp_alphas = alphas.clone()
+            tmp_alphas[:, index_of_none] = float("-inf")
+            return (tmp_alphas.argmax(dim=1) == index_of_skip).sum().item()
 
         stats = {
             "skip_connections/normal": count_skip(alphas_normal),

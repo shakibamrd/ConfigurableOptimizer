@@ -22,7 +22,6 @@ from confopt.utils import (
 from confopt.utils.normalize_params import normalize_params
 
 from .genotypes import (
-    BABY_PRIMITIVES,
     PRIMITIVES,
     DARTSGenotype,
     get_skip_connection_index,
@@ -270,7 +269,7 @@ class Network(nn.Module):
         stem_multiplier: int = 3,
         edge_normalization: bool = False,
         discretized: bool = False,
-        is_baby_darts: bool = False,
+        primitives: list[str] = PRIMITIVES,
         k: int = 1,
     ) -> None:
         """Implementation of DARTS search space's network model.
@@ -286,7 +285,7 @@ class Network(nn.Module):
             edge_normalization (bool): Whether to use edge normalization. Defaults to False.
             discretized (bool): Whether supernet is discretized to only have one operation on
             each edge or not.
-            is_baby_darts (bool): Controls which primitive list to use
+            primitives (list): The list of primitives to use for generating cell.
             k (int): how much of the channel width should be used in the forward pass. Defaults to 1 which mean the whole channel width.
 
         Attributes:
@@ -322,12 +321,7 @@ class Network(nn.Module):
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
             nn.BatchNorm2d(C_curr),
         )
-
-        self.is_baby_darts = is_baby_darts
-        if is_baby_darts:
-            self.primitives = BABY_PRIMITIVES
-        else:
-            self.primitives = PRIMITIVES
+        self.primitives = primitives
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
