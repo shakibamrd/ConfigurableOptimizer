@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Literal
+from typing import Any, Literal
 
 import torch
 from torch import nn
@@ -269,3 +269,39 @@ class DARTSSearchSpace(
             self.model.get_projected_weights("reduce"),
         ]
         return projected_arch_params
+
+
+class DARTSSearchSpaceShallowWide(DARTSSearchSpace):
+    """DARTS search space with a shallow and wide architecture
+    Number of cells: 4
+    Inital Channels: 18
+    1057132 parameters
+    Normal cell -> Reduction cell -> Normal cell -> Reduction cell.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=18, layers=4)
+
+
+class DARTSSearchSpaceDeepNarrow(DARTSSearchSpace):
+    """DARTS search space with a shallow and wide architecture
+    Number of cells: 16
+    Inital Channels: 8
+    1080382 parameters
+    Reduction cells at the 5th and 11th position (index starting from 0).
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=8, layers=16)
+
+
+class DARTSSearchSpaceSingleCell(DARTSSearchSpace):
+    """DARTS search space with a single cell
+    Inital Channels: 26
+    1048968 parameters
+    Number of steps: 8
+    Number of edges in the cell: 44.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=26, layers=1, steps=8)
