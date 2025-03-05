@@ -6,6 +6,7 @@ from .data import (
     AbstractData,
     CIFAR10Data,
     CIFAR100Data,
+    FGVCAircraftDataset,
     ImageNet16Data,
     ImageNet16120Data,
     TaskonomyClassObjectData,
@@ -41,6 +42,8 @@ def get_dataset(
     elif dataset == DatasetType.TASKONOMY:
         assert domain is not None, "Domain should be provided for Taskonomy dataset"
         dataset_cls = get_taskonomy_dataset(domain)
+    elif dataset == DatasetType.AIRCRAFT:
+        dataset_cls = FGVCAircraftDataset
     else:
         raise ValueError("Invalid dataset")
 
@@ -56,6 +59,7 @@ __all__ = [
     "AbstractData",
     "CIFAR10Data",
     "CIFAR100Data",
+    "FGVCAircraftDataset",
     "ImageNet16Data",
     "ImageNet16120Data",
     "TaskonomyClassObjectData",

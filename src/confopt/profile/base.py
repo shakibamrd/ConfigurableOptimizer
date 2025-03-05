@@ -46,6 +46,9 @@ class BaseProfile:
         pt_select_architecture: bool = False,
         searchspace_domain: str | None = None,
         use_auxiliary_skip_connection: bool = False,
+        searchspace_subspace: str | None = None,
+        early_stopper: str | None = None,
+        early_stopper_config: dict | None = None,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -72,6 +75,17 @@ class BaseProfile:
             assert (
                 searchspace_domain is None
             ), "searchspace_domain is not required for this searchspace"
+        if searchspace == "nb1shot1" or searchspace == SearchSpaceType.NB1SHOT1:
+            assert searchspace_subspace in [
+                "S1",
+                "S2",
+                "S3",
+            ], "searchspace subspace must be S1, S2 or S3"
+        else:
+            assert (
+                searchspace_subspace is None
+            ), "searchspace_subspace is not required for this searchspace"
+
         self.searchspace_domain = searchspace_domain
         self.epochs = epochs
         self.sampler_sample_frequency = (
@@ -80,6 +94,7 @@ class BaseProfile:
         self.lora_warm_epochs = lora_warm_epochs
         self.seed = seed
         self.sampler_arch_combine_fn = sampler_arch_combine_fn
+        self.early_stopper = early_stopper
         self._initialize_trainer_config()
         self._initialize_sampler_config()
         self._set_partial_connector(is_partial_connection)
@@ -108,6 +123,15 @@ class BaseProfile:
             self.configure_perturbator(**perturbator_config)
 
         self.use_auxiliary_skip_connection = use_auxiliary_skip_connection
+        if searchspace_subspace is not None:
+            # TODO: why can't I directly have the dict as an argument?
+            searchspace_subspace_dict = {"search_space": searchspace_subspace}
+            self.configure_searchspace(**searchspace_subspace_dict)
+
+        if early_stopper_config is not None:
+            self.configure_early_stopper(**early_stopper_config)
+        else:
+            self.early_stopper_config: dict | None = None
 
     def _set_pt_select_configs(
         self,
@@ -231,6 +255,8 @@ class BaseProfile:
             "is_arch_attention_enabled": self.is_arch_attention_enabled,
             "regularization": self.regularization_config,
             "use_auxiliary_skip_connection": self.use_auxiliary_skip_connection,
+            "early_stopper": self.early_stopper,
+            "early_stopper_config": self.early_stopper_config,
         }
 
         if hasattr(self, "pruner_config"):
@@ -398,6 +424,12 @@ class BaseProfile:
     def configure_extra(self, **config) -> None:  # type: ignore
         self.extra_config = config
 
+    def configure_early_stopper(self, **config: Any) -> None:
+        if self.early_stopper_config is None:
+            self.early_stopper_config = config
+        else:
+            self.early_stopper_config.update(config)
+
     def get_run_description(self) -> str:
         run_configs = []
         run_configs.append(f"ss_{self.searchspace_type}")
@@ -487,10 +519,25 @@ class BaseProfile:
             "optim": "sgd",
             "arch_optim": "adam",
             "use_data_parallel": False,
-            "checkpointing_freq": 1,
             "seed": self.seed,
             "cutout": -1,
             "cutout_length": 16,
+            "train_portion": 0.5,
+            "optim_config": {
+                "momentum": 0.9,
+                "nesterov": False,
+                "weight_decay": 3e-4,
+            },
+            "arch_optim_config": {
+                "weight_decay": 1e-3,
+                "betas": (0.5, 0.999),
+            },
+            "scheduler": "cosine_annealing_lr",
+            "learning_rate_min": 0.001,
+            "criterion": "cross_entropy",
+            "batch_size": 64,
+            "checkpointing_freq": 3,
+            "drop_path_prob": 0.2,
         }
         self.trainer_config = trainer_config
 

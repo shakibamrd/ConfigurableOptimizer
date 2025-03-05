@@ -9,6 +9,7 @@ if __name__ == "__main__":
         searchspace=SearchSpaceType.DARTS, epochs=3,
     )
     profile.configure_searchspace(C=1)
+
     experiment = Experiment(
         search_space=SearchSpaceType.DARTS,
         dataset=DatasetType.CIFAR10,

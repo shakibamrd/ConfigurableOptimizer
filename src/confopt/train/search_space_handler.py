@@ -128,7 +128,7 @@ class SearchSpaceHandler:
             dropout=self.dropout,
             weight_entangler=self.weight_entangler,
             is_argmax_sampler=self.is_argmax_sampler,
-            aux_skip=aux_skip,
+            aux_skip=aux_skip if self.use_auxiliary_skip_connection else None,
         )
         return op_block
 

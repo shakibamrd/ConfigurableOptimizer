@@ -548,3 +548,94 @@ class TaskonomyClassSceneData(TaskonomyData):
             target_dim=target_dim,
             data_split_dir=os.path.join(root, dataset_dir, data_split_dir),
         )
+
+
+class CropBanner:
+    """Custom transform to crop a banner from the bottom of an image."""
+
+    def __init__(self, banner_height: int = 20) -> None:
+        self.banner_height = banner_height
+
+    def __call__(self, img: Any) -> Any:
+        width, height = img.size
+        # Crop out the banner at the bottom by reducing the height by banner_height
+        return img.crop((0, 0, width, height - self.banner_height))
+
+
+class FGVCAircraftDataset(AbstractData):
+    def __init__(
+        self,
+        root: str,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float = 1.0,
+        annotation_level: str = "manufacturer",
+    ):
+        super().__init__(root, train_portion)
+        self.cutout = cutout
+        self.cutout_length = cutout_length
+        self.annotation_level = annotation_level
+
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets(
+            self.root, train_transform, test_transform
+        )
+
+        if self.train_portion < 1:
+            num_train = len(train_data)  # type: ignore
+            indices = list(range(num_train))
+            split = int(np.floor(self.train_portion * num_train))
+            train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+                indices[:split]
+            )
+            val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+                indices[split:num_train]
+            )
+            return (
+                (train_data, train_sampler),
+                (train_data, val_sampler),
+                (test_data, None),
+            )
+
+        return (train_data, None), (None, None), (test_data, None)
+
+    def get_transforms(self) -> tuple[Compose, Compose]:
+        common_transforms = [
+            CropBanner(banner_height=20),
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+        ]
+
+        if self.cutout > 0:
+            train_transform = transforms.Compose(
+                [*common_transforms, CUTOUT(self.cutout_length)]
+            )
+        else:
+            train_transform = transforms.Compose(common_transforms)
+
+        test_transform = transforms.Compose(common_transforms)
+
+        return train_transform, test_transform
+
+    def load_datasets(
+        self, root: str, train_transform: Compose, test_transform: Compose
+    ) -> tuple[Dataset, Dataset]:
+        train_val_dataset = dset.FGVCAircraft(
+            root=root,
+            split="trainval",
+            annotation_level=self.annotation_level,
+            transform=train_transform,
+            download=True,
+        )
+        test_dataset = dset.FGVCAircraft(
+            root=root,
+            split="test",
+            annotation_level=self.annotation_level,
+            transform=test_transform,
+            download=True,
+        )
+
+        assert len(train_val_dataset) == 6667
+        assert len(test_dataset) == 3333
+        return train_val_dataset, test_dataset

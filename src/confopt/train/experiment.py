@@ -26,6 +26,7 @@ from confopt.enums import (
 from confopt.oneshot import (
     DrNASRegularizationTerm,
     Dropout,
+    EarlyStopper,
     FairDARTSRegularizationTerm,
     FLOPSRegularizationTerm,
     LoRAToggler,
@@ -34,6 +35,7 @@ from confopt.oneshot import (
     RegularizationTerm,
     Regularizer,
     SDARTSPerturbator,
+    SkipConnectionEarlyStopper,
     WeightEntangler,
 )
 from confopt.oneshot.archsampler import (
@@ -260,6 +262,9 @@ class Experiment:
         self._set_regularizer(config.get("regularization", {}))
         self._set_lambda_regularizer(config.get("lambda_regularizer", {}))
         self._set_profile(config)
+        self._set_early_stopper(
+            config["early_stopper"], config.get("early_stopper_config", {})
+        )
 
     def _set_search_space(
         self,
@@ -468,6 +473,21 @@ class Experiment:
             )
         return None
 
+    def _set_early_stopper(
+        self, early_stopper: str | None, config: dict | None
+    ) -> None:
+        self.early_stopper: None | EarlyStopper = None
+
+        if early_stopper is not None:
+            assert config is not None, (
+                "The configurations for the EarlyStopper is empty. "
+                + "Use profile.configure_early_stopper() to fix it."
+            )
+            if early_stopper == "skip_connection":
+                self.early_stopper = SkipConnectionEarlyStopper(**config)
+            else:
+                raise ValueError(f"Earlyt stopping method {early_stopper} not known!")
+
     def train_discrete_model(
         self,
         profile: DiscreteProfile,
@@ -501,9 +521,13 @@ class Experiment:
             discrete_model = NASBench201Model(**searchspace_config)
         elif search_space_str == SearchSpaceType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
-            if self.dataset.value in ("cifar10", "cifar100"):
+            if self.dataset in (
+                DatasetType.CIFAR10,
+                DatasetType.CIFAR100,
+                DatasetType.AIRCRAFT,
+            ):
                 discrete_model = DARTSModel(**searchspace_config)
-            elif self.dataset.value in ("imgnet16", "imgnet16_120"):
+            elif self.dataset in (DatasetType.IMGNET16, DatasetType.IMGNET16_120):
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")
@@ -779,6 +803,7 @@ class Experiment:
             debug_mode=self.debug_mode,
             query_dataset=self.dataset.value,
             benchmark_api=self.benchmark_api,
+            early_stopper=self.early_stopper,
         )
 
         return trainer
@@ -857,7 +882,11 @@ class Experiment:
         # Load from supernet
         if model_source == "supernet":
             trainer._init_experiment_state(
-                search_space_handler=search_space_handler, setup_new_run=False
+                search_space_handler=search_space_handler,
+                setup_new_run=False,
+                warm_epochs=config["trainer"].get(  # type: ignore
+                    "lora_warm_epochs", 0
+                ),
             )
 
             # reroute logger
