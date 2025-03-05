@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import namedtuple
 from typing import Iterable, Literal
 
 import torch
@@ -75,6 +76,9 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
+TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
+
+
 def calc_accuracy(
     output: torch.Tensor, target: torch.Tensor, topk: Iterable = (1,)
 ) -> list[torch.Tensor]:
@@ -126,6 +130,8 @@ def get_num_classes(dataset: str, domain: str | None = None) -> int:
             num_classes = 75
         elif "class_scene" in domain:
             num_classes = 47
+    elif dataset == "aircraft":
+        num_classes = 30
     else:
         raise ValueError("dataset is not defined.")
     return num_classes
@@ -165,6 +171,9 @@ def clear_grad_cosine(m: torch.nn.Module) -> None:
 
 
 def calc_layer_alignment_score(layer_gradients: list[torch.Tensor]) -> float:
+    if len(layer_gradients) < 2:
+        return float("nan")
+
     scale = len(layer_gradients) * (len(layer_gradients) - 1) / 2
     score = 0
     for i in range(len(layer_gradients)):
@@ -356,5 +365,6 @@ __all__ = [
     "get_pos_reductions_darts",
     "get_pos_new_cell_darts",
     "TransNASBenchAPI",
+    "TrainingMetrics",
     "validate_model_to_load_value",
 ]
