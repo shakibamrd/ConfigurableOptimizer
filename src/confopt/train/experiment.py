@@ -26,6 +26,7 @@ from confopt.enums import (
 from confopt.oneshot import (
     DrNASRegularizationTerm,
     Dropout,
+    EarlyStopper,
     FairDARTSRegularizationTerm,
     FLOPSRegularizationTerm,
     LoRAToggler,
@@ -467,6 +468,8 @@ class Experiment:
     def _set_early_stopper(
         self, early_stopper: str | None, config: dict | None
     ) -> None:
+        self.early_stopper: None | EarlyStopper = None
+
         if early_stopper is not None:
             assert config is not None, (
                 "The configurations for the EarlyStopper is empty. "
@@ -476,8 +479,6 @@ class Experiment:
                 self.early_stopper = SkipConnectionEarlyStopper(**config)
             else:
                 raise ValueError(f"Earlyt stopping method {early_stopper} not known!")
-        else:
-            self.early_stopper = None  # type: ignore
 
     def train_discrete_model(
         self,
