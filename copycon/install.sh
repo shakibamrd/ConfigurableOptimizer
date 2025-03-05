@@ -31,6 +31,9 @@ fi
 echo "Installing '$INSTALL_NAME' to '$INSTALL_DIR'..."
 cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$INSTALL_NAME"
 cp "$SCRIPT_DIR/copycon.cfg" "$INSTALL_DIR/copycon.cfg"
+cp "$SCRIPT_DIR/launch.py" "$INSTALL_DIR/launch.py"
+cp "$SCRIPT_DIR/run_exp.py" "$INSTALL_DIR/run_exp.py"
+
 chmod +x "$INSTALL_DIR/$INSTALL_NAME"
 
 echo "Installation complete. Please ensure '$INSTALL_DIR' is in your PATH."

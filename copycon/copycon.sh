@@ -42,27 +42,6 @@ if [[ "$DEST_DIR" != /* ]]; then
     DEST_DIR="$(pwd)/$DEST_DIR"
 fi
 
-# Define the target directory as a subdirectory 'confopt' in the destination directory.
-TARGET_DIR="${DEST_DIR}/confopt"
-
-# If the target directory already exists, ask for confirmation to overwrite it.
-if [ -d "$TARGET_DIR" ]; then
-    read -p "Directory '$DEST_DIR' already exists. Do you want to overwrite it? (y/n): " answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        rm -rfv "$TARGET_DIR"
-        rm -rfv "$DEST_DIR/info"
-		echo ""
-    else
-        echo "Operation cancelled."
-        exit 1
-    fi
-fi
-
-mkdir -p "$DEST_DIR"
-
-# Create the target directory.
-mkdir -p "$TARGET_DIR"
-
 # --- Ensure source_dir is a Git repository and has no local changes ---
 
 if [ ! -d "${source_dir}/.git" ]; then
@@ -83,6 +62,29 @@ if [ -n "$(git status --porcelain src/confopt)" ]; then
     echo "Error: There are uncommitted changes in src/confopt. Please commit or stash your changes before proceeding."
     exit 1
 fi
+
+# Define the target directory as a subdirectory 'confopt' in the destination directory.
+TARGET_DIR="${DEST_DIR}/confopt"
+
+# If the target directory already exists, ask for confirmation to overwrite it.
+if [ -d "$TARGET_DIR" ]; then
+    read -p "Directory '$DEST_DIR' already exists. Do you want to overwrite it? (y/n): " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        rm -rfv "$TARGET_DIR"
+        rm -rfv "$DEST_DIR/info"
+        rm -rfv "$DEST_DIR/launch.py"
+        rm -rfv "$DEST_DIR/run_exp.py"
+		echo ""
+    else
+        echo "Operation cancelled."
+        exit 1
+    fi
+fi
+
+mkdir -p "$DEST_DIR"
+
+# Create the target directory.
+mkdir -p "$TARGET_DIR"
 
 # --- Check for untracked files in src/confopt ---
 
@@ -113,3 +115,8 @@ git archive HEAD src/confopt | tar -x --strip-components=2 -C "$TARGET_DIR"
 
 echo "Tracked files from 'src/confopt' have been successfully copied to '$TARGET_DIR'."
 echo "Git info stored in '$DEST_DIR/info"
+
+cp ${SCRIPT_DIR}/launch.py ${DEST_DIR}/launch.py
+cp ${SCRIPT_DIR}/run_exp.py ${DEST_DIR}/run_exp.py
+
+echo "Copied launch.py and run_exp.py to $DEST_DIR"
