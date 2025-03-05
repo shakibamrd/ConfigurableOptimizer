@@ -74,8 +74,13 @@ fi
 cd "$source_dir" || { echo "Error: Unable to change directory to '$source_dir'."; exit 1; }
 
 # Check for uncommitted changes; git diff --quiet returns non-zero if there are differences.
-if ! git diff --quiet; then
+if ! git diff --quiet src/confopt; then
     echo "Error: Git working directory is not clean. Please commit or stash your changes before proceeding."
+    exit 1
+fi
+
+if [ -n "$(git status --porcelain src/confopt)" ]; then
+    echo "Error: There are uncommitted changes in src/confopt. Please commit or stash your changes before proceeding."
     exit 1
 fi
 
