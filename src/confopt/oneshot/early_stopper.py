@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from confopt.searchspace import SearchSpace
 from confopt.searchspace.common.base_search import OperationStatisticsSupport
-from confopt.utils import AverageMeter
+from confopt.utils import TrainingMetrics
 
 
 class EarlyStopper:
@@ -23,8 +23,8 @@ class EarlyStopper:
         self,
         epoch: int,
         model: SearchSpace,
-        search_metrics: list[AverageMeter],
-        valid_metrics: list[AverageMeter],
+        search_metrics: TrainingMetrics,
+        valid_metrics: TrainingMetrics,
     ) -> bool:
         (
             self.search_losses[epoch],

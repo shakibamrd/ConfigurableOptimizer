@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import namedtuple
 from typing import Iterable, Literal
 
 import torch
@@ -73,6 +74,9 @@ class AverageMeter:
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
+
+TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
 
 
 def calc_accuracy(
@@ -356,5 +360,6 @@ __all__ = [
     "get_pos_reductions_darts",
     "get_pos_new_cell_darts",
     "TransNASBenchAPI",
+    "TrainingMetrics",
     "validate_model_to_load_value",
 ]
