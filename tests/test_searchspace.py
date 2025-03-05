@@ -622,6 +622,101 @@ class TestDARTSSearchSpace(unittest.TestCase):
         search_space = DARTSSearchSpace()
         _test_gradient_stats_support(search_space, n_extra=30)
 
+    def test_skip_count(self) -> None:
+        # Case: Skip and None present in operations
+        primitives = [
+            "max_pool_3x3",
+            "none",
+            "avg_pool_3x3",
+            "skip_connect",
+            "sep_conv_5x5",
+        ]
+        skip_index = primitives.index("skip_connect")
+        none_index = primitives.index("none")
+        search_space = DARTSSearchSpace(primitives=primitives)
+
+        # Case: Skip connections have highest weight
+        normal_alphas = torch.zeros(14, 5)
+        reduce_alphas = torch.zeros(14, 5)
+        normal_alphas[:, skip_index] = 1
+        reduce_alphas[:, skip_index] = 1
+        search_space.set_arch_parameters([normal_alphas, reduce_alphas])
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == 14
+        assert skip_counts["skip_connections/reduce"] == 14
+
+        # Case: Skip connections have the lowest weight
+        normal_alphas = torch.zeros(14, 5)
+        reduce_alphas = torch.zeros(14, 5)
+        normal_alphas[:, none_index] = 1
+        normal_alphas[:, skip_index+1] = 0.9
+        reduce_alphas[:, none_index] = 1
+        reduce_alphas[:, skip_index+1] = 0.9
+        search_space.set_arch_parameters([normal_alphas, reduce_alphas])
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == 0
+        assert skip_counts["skip_connections/reduce"] == 0
+
+        # Case: Skip connections are the second highest weight after None
+        normal_alphas = torch.zeros(14, 5)
+        reduce_alphas = torch.zeros(14, 5)
+        normal_alphas[:, none_index] = 1
+        normal_alphas[:, skip_index] = 0.9
+        reduce_alphas[:, none_index] = 1
+        reduce_alphas[:, skip_index] = 0.9
+        search_space.set_arch_parameters([normal_alphas, reduce_alphas])
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == 14
+        assert skip_counts["skip_connections/reduce"] == 14
+
+        # Case: No None operation. Skip connections have the highest weights
+        primitives = [
+            "max_pool_3x3",
+            "avg_pool_3x3",
+            "skip_connect",
+            "sep_conv_5x5",
+        ]
+        skip_index = primitives.index("skip_connect")
+        search_space = DARTSSearchSpace(primitives=primitives)
+
+        normal_alphas = torch.zeros(14, 4)
+        reduce_alphas = torch.zeros(14, 4)
+        normal_alphas[:, skip_index] = 1
+        reduce_alphas[:, skip_index] = 1
+        search_space.set_arch_parameters([normal_alphas, reduce_alphas])
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == 14
+        assert skip_counts["skip_connections/reduce"] == 14
+
+        # Case: No None operation. Skip connections have the lowest weights
+        primitives = [
+            "max_pool_3x3",
+            "avg_pool_3x3",
+            "skip_connect",
+            "sep_conv_5x5",
+        ]
+        skip_index = primitives.index("skip_connect")
+        search_space = DARTSSearchSpace(primitives=primitives)
+
+        normal_alphas = torch.zeros(14, 4)
+        reduce_alphas = torch.zeros(14, 4)
+        normal_alphas[:, skip_index+1] = 1
+        reduce_alphas[:, skip_index+1] = 1
+        search_space.set_arch_parameters([normal_alphas, reduce_alphas])
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == 0
+        assert skip_counts["skip_connections/reduce"] == 0
+
+        # Case: No Skip connections or None operations in the set
+        primitives = [
+            "max_pool_3x3",
+            "avg_pool_3x3",
+            "sep_conv_5x5",
+        ]
+        search_space = DARTSSearchSpace(primitives=primitives)
+        skip_counts = search_space.get_num_skip_ops()
+        assert skip_counts["skip_connections/normal"] == -1
+        assert skip_counts["skip_connections/reduce"] == -1
 
 class TestNASBench1Shot1SearchSpace(unittest.TestCase):
     def test_arch_parameters_s1(self) -> None:
