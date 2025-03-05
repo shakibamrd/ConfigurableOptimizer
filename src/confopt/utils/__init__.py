@@ -165,6 +165,9 @@ def clear_grad_cosine(m: torch.nn.Module) -> None:
 
 
 def calc_layer_alignment_score(layer_gradients: list[torch.Tensor]) -> float:
+    if len(layer_gradients) < 2:
+        return float("nan")
+
     scale = len(layer_gradients) * (len(layer_gradients) - 1) / 2
     score = 0
     for i in range(len(layer_gradients)):
