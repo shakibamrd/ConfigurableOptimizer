@@ -126,6 +126,8 @@ def get_num_classes(dataset: str, domain: str | None = None) -> int:
             num_classes = 75
         elif "class_scene" in domain:
             num_classes = 47
+    elif dataset == "aircraft":
+        num_classes = 30
     else:
         raise ValueError("dataset is not defined.")
     return num_classes

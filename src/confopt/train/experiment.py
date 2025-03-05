@@ -477,7 +477,7 @@ class Experiment:
             else:
                 raise ValueError(f"Earlyt stopping method {early_stopper} not known!")
         else:
-            self.early_stopper = None
+            self.early_stopper = None  # type: ignore
 
     def train_discrete_model(
         self,
@@ -512,9 +512,13 @@ class Experiment:
             discrete_model = NASBench201Model(**searchspace_config)
         elif search_space_str == SearchSpaceType.DARTS.value:
             searchspace_config["genotype"] = eval(genotype_str)
-            if self.dataset.value in ("cifar10", "cifar100"):
+            if self.dataset in (
+                DatasetType.CIFAR10,
+                DatasetType.CIFAR100,
+                DatasetType.AIRCRAFT,
+            ):
                 discrete_model = DARTSModel(**searchspace_config)
-            elif self.dataset.value in ("imgnet16", "imgnet16_120"):
+            elif self.dataset in (DatasetType.IMGNET16, DatasetType.IMGNET16_120):
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")
