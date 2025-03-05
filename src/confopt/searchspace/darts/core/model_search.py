@@ -651,7 +651,11 @@ class Network(nn.Module):
         self, only_first_and_last: bool = False
     ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         def get_grads(alphas_grads_list: list[torch.Tensor]) -> list[torch.Tensor]:
+            if len(alphas_grads_list) < 2:
+                return []
+
             grads = []
+
             if only_first_and_last:
                 grads.append(alphas_grads_list[0].reshape(-1))
                 grads.append(alphas_grads_list[-1].reshape(-1))
