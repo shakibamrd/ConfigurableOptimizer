@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Literal
+from typing import Any, Literal
 
 import torch
 from torch import nn
@@ -160,7 +160,24 @@ class DARTSSearchSpace(
 
     def get_num_skip_ops(self) -> dict[str, int]:
         alphas_normal, alphas_reduce = self.model.arch_parameters()
-        count_skip = lambda alphas: sum(alphas[:, 1:].argmax(dim=1) == 2)
+
+        try:
+            index_of_skip = self.model.primitives.index("skip_connect")
+        except ValueError:
+            return {"skip_connections/normal": -1, "skip_connections/reduce": -1}
+
+        try:
+            index_of_none = self.model.primitives.index("none")
+        except ValueError:
+            index_of_none = -1
+
+        def count_skip(alphas: torch.Tensor) -> int:
+            if index_of_none == -1:
+                return (alphas.argmax(dim=1) == index_of_skip).sum().item()
+
+            tmp_alphas = alphas.clone()
+            tmp_alphas[:, index_of_none] = float("-inf")
+            return (tmp_alphas.argmax(dim=1) == index_of_skip).sum().item()
 
         stats = {
             "skip_connections/normal": count_skip(alphas_normal),
@@ -252,3 +269,39 @@ class DARTSSearchSpace(
             self.model.get_projected_weights("reduce"),
         ]
         return projected_arch_params
+
+
+class DARTSSearchSpaceShallowWide(DARTSSearchSpace):
+    """DARTS search space with a shallow and wide architecture
+    Number of cells: 4
+    Inital Channels: 18
+    1057132 parameters
+    Normal cell -> Reduction cell -> Normal cell -> Reduction cell.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=18, layers=4)
+
+
+class DARTSSearchSpaceDeepNarrow(DARTSSearchSpace):
+    """DARTS search space with a shallow and wide architecture
+    Number of cells: 16
+    Inital Channels: 8
+    1080382 parameters
+    Reduction cells at the 5th and 11th position (index starting from 0).
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=8, layers=16)
+
+
+class DARTSSearchSpaceSingleCell(DARTSSearchSpace):
+    """DARTS search space with a single cell
+    Inital Channels: 26
+    1048968 parameters
+    Number of steps: 8
+    Number of edges in the cell: 44.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs, C=26, layers=1, steps=8)

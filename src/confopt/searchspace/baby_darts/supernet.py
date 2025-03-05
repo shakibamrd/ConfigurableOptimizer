@@ -9,13 +9,20 @@ from confopt.searchspace.darts.core import DARTSSearchModel
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
+BABY_PRIMITIVES = [
+    "none",
+    "sep_conv_3x3",
+    "dil_conv_3x3",
+]
+
+
 class BabyDARTSSearchSpace(SearchSpace):
     def __init__(self, **kwargs):  # type: ignore
         assert "layers" not in kwargs, "Layers parameter is hard coded to 1"
         assert "steps" not in kwargs, "Steps parameter is hard coded to 1"
         assert "multiplier" not in kwargs, "multiplier parameter is hard coded to 1"
         model = DARTSSearchModel(
-            layers=1, steps=1, multiplier=1, is_baby_darts=True, **kwargs
+            layers=1, steps=1, multiplier=1, primitives=BABY_PRIMITIVES, **kwargs
         ).to(DEVICE)
         super().__init__(model)
 
