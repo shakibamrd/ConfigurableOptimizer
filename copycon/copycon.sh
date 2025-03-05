@@ -119,4 +119,10 @@ echo "Git info stored in '$DEST_DIR/info"
 cp ${SCRIPT_DIR}/launch.py ${DEST_DIR}/launch.py
 cp ${SCRIPT_DIR}/run_exp.py ${DEST_DIR}/run_exp.py
 
+# copy benchsuite.py to the destination directory, if it exists
+if [ -f $source_dir/benchsuite.py ]; then
+    echo "Found benchsuite.py in source directory. Copying it to '$DEST_DIR'."
+    cp $source_dir/benchsuite.py ${DEST_DIR}/benchsuite.py
+fi
+
 echo "Copied launch.py and run_exp.py to $DEST_DIR"
