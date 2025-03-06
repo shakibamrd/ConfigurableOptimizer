@@ -15,19 +15,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Launch experiment jobs with multiple seeds."
     )
-    parser.add_argument("experiment_name", help="The name of the experiment.")
-    parser.add_argument(
-        "num_seeds",
-        type=int,
-        help="The number of seeds to run (each seed will be a separate job array entry).",
-    )
+    parser.add_argument("--optimizer", required=True, type=str)
+    parser.add_argument("--subspace", required=True, type=str)
+    parser.add_argument("--ops", required=True, type=str)
+    parser.add_argument("--seeds", required=True, type=int,)
     args = parser.parse_args()
+
+    seeds = args.seeds
+    args_dict = vars(args)
+
+    experiment_name = f"{args.optimizer}-{args.subspace}-{args.ops}"
+
+    python_args = []
+    for seed in range(args.seeds):
+        args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
+        args += f" --seed {seed}"
+        python_args.append(args)
 
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
 
     # Create a unique jobname using the provided experiment name.
-    jobname = unify(f"darts-bench-suite-exps/{args.experiment_name}", method="coolname")
+    jobname = unify(f"darts-bench-suite-exps/{experiment_name}", method="coolname")
 
     slurm = SlurmWrapper(clusters=[cluster])
     jobinfo = JobCreationInfo(
@@ -36,7 +45,7 @@ if __name__ == "__main__":
         jobname=jobname,
         entrypoint="run_exp.py",
         # Generate python_args based on the number of seeds provided.
-        python_args=[str(i) for i in range(args.num_seeds)],
+        python_args=python_args,
         python_binary="python",
         n_cpus=8,
         max_runtime_minutes=60 * 24,
@@ -45,7 +54,7 @@ if __name__ == "__main__":
     )
     jobid = slurm.schedule_job(jobinfo)
 
-    slurm.wait_completion(jobname=jobname, max_seconds=600)
+    slurm.wait_completion(jobname=jobname, max_seconds=3)
     print(slurm.job_creation_metadata(jobname))
     print(slurm.status([jobname]))
 
