@@ -161,30 +161,21 @@ class DARTSSearchSpace(
         return self.model.get_mean_layer_alignment_score(only_first_and_last=True)
 
     def get_num_skip_ops(self) -> dict[str, int]:
-        alphas_normal, alphas_reduce = self.model.arch_parameters()
+        genotype = self.get_genotype()
+        count = lambda edges, op: sum(1 for edge in edges if edge[0] == op)
 
-        try:
-            index_of_skip = self.model.primitives.index("skip_connect")
-        except ValueError:
-            return {"skip_connections/normal": -1, "skip_connections/reduce": -1}
-
-        try:
-            index_of_none = self.model.primitives.index("none")
-        except ValueError:
-            index_of_none = -1
-
-        def count_skip(alphas: torch.Tensor) -> int:
-            if index_of_none == -1:
-                return (alphas.argmax(dim=1) == index_of_skip).sum().item()
-
-            tmp_alphas = alphas.clone()
-            tmp_alphas[:, index_of_none] = float("-inf")
-            return (tmp_alphas.argmax(dim=1) == index_of_skip).sum().item()
-
-        stats = {
-            "skip_connections/normal": count_skip(alphas_normal),
-            "skip_connections/reduce": count_skip(alphas_reduce),
+        stats_normal = {
+            f"op_counts/normal/{primitive}": count(genotype.normal, primitive)
+            for primitive in self.model.primitives
         }
+        stats_reduce = {
+            f"op_counts/reduce/{primitive}": count(genotype.reduce, primitive)
+            for primitive in self.model.primitives
+        }
+
+        stats = {}
+        stats.update(stats_normal)
+        stats.update(stats_reduce)
 
         return stats
 

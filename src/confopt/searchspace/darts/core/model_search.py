@@ -609,6 +609,11 @@ class Network(nn.Module):
             gene = []
             n = 2
             start = 0
+
+            none_idx = (
+                self.primitives.index("none") if "none" in self.primitives else -1
+            )
+
             for i in range(self._steps):
                 end = start + n
                 W = weights[start:end].copy()
@@ -617,15 +622,13 @@ class Network(nn.Module):
                     key=lambda x: -max(
                         W[x][k]
                         for k in range(len(W[x]))  # type: ignore
-                        if k != self.primitives.index("none")
+                        if k != none_idx
                     ),
                 )[:2]
                 for j in edges:
                     k_best = None
                     for k in range(len(W[j])):
-                        if k != self.primitives.index("none") and (
-                            k_best is None or W[j][k] > W[j][k_best]
-                        ):
+                        if k != none_idx and (k_best is None or W[j][k] > W[j][k_best]):
                             k_best = k
                     gene.append((self.primitives[k_best], j))  # type: ignore
                 start = end

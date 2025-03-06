@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from confopt.searchspace import SearchSpace
 from confopt.searchspace.common.base_search import OperationStatisticsSupport
-from confopt.utils import AverageMeter
+from confopt.utils import TrainingMetrics
 
 
 class EarlyStopper:
@@ -23,8 +23,8 @@ class EarlyStopper:
         self,
         epoch: int,
         model: SearchSpace,
-        search_metrics: list[AverageMeter],
-        valid_metrics: list[AverageMeter],
+        search_metrics: TrainingMetrics,
+        valid_metrics: TrainingMetrics,
     ) -> bool:
         (
             self.search_losses[epoch],
@@ -60,13 +60,11 @@ class SkipConnectionEarlyStopper(EarlyStopper):
         max_skip_normal: int,
         max_skip_reduce: int | None,
         min_epochs: int,
-        count_discrete: bool = True,
     ) -> None:
         super().__init__()
         self.max_skip_normal = max_skip_normal
         self.max_skip_reduce = max_skip_reduce
         self.min_epochs = min_epochs
-        self.count_discrete = count_discrete
 
     def is_stopping_condition_met(self, epoch: int, model: SearchSpace) -> bool:
         assert isinstance(
@@ -74,26 +72,26 @@ class SkipConnectionEarlyStopper(EarlyStopper):
         ), "SearchSpace has to implement OperationStatisticsSupport \
             to use SkipConnectionEarlyStopper"
 
-        if not self.count_discrete:
-            num_skip_ops = model.get_num_skip_ops()
+        num_skip_ops = model.get_num_skip_ops()
 
+        if (
+            "op_counts/normal/skip_connect" in num_skip_ops
+        ):  # Only for DARTS. TODO: Handle others later
+            n_skip_normal = num_skip_ops["op_counts/normal/skip_connect"]
+            n_skip_reduce = num_skip_ops.get("op_counts/reduce/skip_connect", 0)
+        else:
             n_skip_normal = num_skip_ops["skip_connections/normal"]
             n_skip_reduce = num_skip_ops.get("skip_connections/reduce", 0)
 
-            if epoch > self.min_epochs:
-                print("n_skip_normal", n_skip_normal)
-                print("n_skip_reduce", n_skip_reduce)
-                if n_skip_normal > self.max_skip_normal:
-                    return True
-                if (
-                    self.max_skip_reduce is not None
-                    and n_skip_reduce > self.max_skip_reduce
-                ):
-                    return True
+        if epoch > self.min_epochs:
+            print("n_skip_normal", n_skip_normal)
+            print("n_skip_reduce", n_skip_reduce)
+            if n_skip_normal > self.max_skip_normal:
+                return True
+            if (
+                self.max_skip_reduce is not None
+                and n_skip_reduce > self.max_skip_reduce
+            ):
+                return True
 
-            return False
-
-        # TODO: Handle the case in which we want to count the number of skips
-        # in the discretized architecture instead of the the number of
-        # skips in the supernet.
         return False

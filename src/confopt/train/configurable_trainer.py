@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import namedtuple
 import time
 from typing import Any, Literal
 
@@ -28,6 +27,7 @@ from confopt.utils import (
     AverageMeter,
     ExperimentCheckpointLoader,
     Logger,
+    TrainingMetrics,
     calc_accuracy,
     clear_grad_cosine,
     get_device,
@@ -35,9 +35,6 @@ from confopt.utils import (
 )
 
 from .search_space_handler import SearchSpaceHandler
-
-TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"])
-
 
 DEBUG_STEPS = 5
 
