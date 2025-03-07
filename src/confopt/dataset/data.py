@@ -603,7 +603,7 @@ class FGVCAircraftDataset(AbstractData):
     def get_transforms(self) -> tuple[Compose, Compose]:
         common_transforms = [
             CropBanner(banner_height=20),
-            transforms.Resize((128, 128)),
+            transforms.Resize((32, 32)),
             transforms.ToTensor(),
         ]
 
