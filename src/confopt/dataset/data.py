@@ -188,7 +188,8 @@ class CIFARData(AbstractData):
         )
 
         if self.train_portion < 1:
-            num_train = len(train_data)  # type: ignore
+            num_train = len(train_data) // 2  # type: ignore
+            print("WARNING: USING ONLY 50% OF THE CIFAR10 TRAINING DATA!")
             indices = list(range(num_train))
             split = int(np.floor(self.train_portion * num_train))
             train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
