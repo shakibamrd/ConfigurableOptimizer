@@ -8,8 +8,8 @@ from confopt.train import Experiment
 
 
 class BenchSuiteSpace(Enum):
-    SHALLOW_WIDE = "shallow_wide"
-    DEEP_NARROW = "deep_narrow"
+    WIDE = "wide"
+    DEEP = "deep"
     SINGLE_CELL = "single_cell"
 
     def __str__(self) -> str:
@@ -26,13 +26,13 @@ class BenchSuiteOpSet(Enum):
 
 
 search_space_configs = {
-    BenchSuiteSpace.SHALLOW_WIDE: {
+    BenchSuiteSpace.WIDE: {
         "C": 18,
         "layers": 4,
     },
-    BenchSuiteSpace.DEEP_NARROW: {
-        "C": 8,
-        "layers": 16,
+    BenchSuiteSpace.DEEP: {
+        "C": 9,
+        "layers": 12,
     },
     BenchSuiteSpace.SINGLE_CELL: {
         "C": 26,
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     configure_profile_with_search_space(
         profile,
-        space=BenchSuiteSpace.SHALLOW_WIDE,
+        space=BenchSuiteSpace.WIDE,
         opset=BenchSuiteOpSet.NO_SKIP,
     )
 
