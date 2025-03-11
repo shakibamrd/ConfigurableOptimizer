@@ -18,7 +18,8 @@ if __name__ == "__main__":
     parser.add_argument("--optimizer", required=True, type=str)
     parser.add_argument("--subspace", required=True, type=str)
     parser.add_argument("--ops", required=True, type=str)
-    parser.add_argument("--seeds", required=True, type=int,)
+    parser.add_argument("--dataset", required=True, type=str)
+    parser.add_argument("--seeds", required=True, type=str,)
     args = parser.parse_args()
 
     seeds = args.seeds
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     experiment_name = f"{args.optimizer}-{args.subspace}-{args.ops}"
 
     python_args = []
-    for seed in range(args.seeds):
+    for seed in range(args.seeds.split(",")):
         args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
         args += f" --seed {seed}"
         python_args.append(args)

@@ -21,7 +21,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--optimizer", type=str)
 parser.add_argument("--subspace", type=str)
 parser.add_argument("--ops", type=str)
+parser.add_argument("--dataset", type=str)
 parser.add_argument("--seed", type=int)
+parser.add_argument("--tag", default="", type=str)
 
 args = parser.parse_args()
 
@@ -29,7 +31,7 @@ if __name__ == "__main__":
     DEBUG_MODE = False
     WANDB_LOG = True
     SEARCHSPACE = SearchSpaceType.DARTS
-    DATASET = DatasetType.CIFAR10
+    DATASET = DatasetType(args.dataset)
     DATASET_DIR = "/path/to/datasets"  # UPDATE WITH YOUR DATASET DIR!!!
 
     subspace = BenchSuiteSpace(args.subspace)
@@ -45,6 +47,11 @@ if __name__ == "__main__":
         "darts": 50,
         "gdas": 250,
         "drnas": 50,
+    }
+
+    num_classes = {
+        DatasetType.CIFAR10: 10,
+        DatasetType.AIRCRAFT: 30,
     }
 
     epochs = epochs_profiles[args.optimizer]
@@ -68,8 +75,15 @@ if __name__ == "__main__":
         checkpointing_freq=10,
     )
 
+    profile.configure_searchspace(
+        num_classes=num_classes[DATASET],
+    )
+
     profile.configure_extra(
-        space=subspace, opset=opset, benchmark=f"{subspace}-{opset}"
+        space=subspace,
+        opset=opset,
+        benchmark=f"{subspace}-{opset}",
+        tag=args.tag,
     )
 
     experiment = Experiment(
