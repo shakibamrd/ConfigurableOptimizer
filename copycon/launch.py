@@ -28,7 +28,7 @@ if __name__ == "__main__":
     experiment_name = f"{args.optimizer}-{args.subspace}-{args.ops}"
 
     python_args = []
-    for seed in range(args.seeds.split(",")):
+    for seed in args.seeds.split(","):
         args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
         args += f" --seed {seed}"
         python_args.append(args)
