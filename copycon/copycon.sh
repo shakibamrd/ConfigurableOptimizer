@@ -99,6 +99,7 @@ fi
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 COMMIT=$(git rev-parse HEAD)
 MESSAGE=$(git log -1 --pretty=%B)
+DATE=$(git show -s --format=%cd --date=format:'%A, %B %d, %Y %H:%M:%S')
 # --- Copy only the tracked files from src/confopt to the destination/confopt folder ---
 
 # Create an archive of the tracked files under src/confopt and extract it into TARGET_DIR,
@@ -111,6 +112,7 @@ git archive HEAD src/confopt | tar -x --strip-components=2 -C "$TARGET_DIR"
     echo "Branch: $BRANCH"
     echo "Commit: $COMMIT"
     echo "Message: $MESSAGE"
+    echo "Date: $DATE"
 } > "$DEST_DIR/info"
 
 echo "Tracked files from 'src/confopt' have been successfully copied to '$TARGET_DIR'."
