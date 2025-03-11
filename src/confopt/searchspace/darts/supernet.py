@@ -262,7 +262,7 @@ class DARTSSearchSpace(
         return projected_arch_params
 
 
-class DARTSSearchSpaceShallowWide(DARTSSearchSpace):
+class DARTSSearchSpaceWide(DARTSSearchSpace):
     """DARTS search space with a shallow and wide architecture
     Number of cells: 4
     Inital Channels: 18
@@ -274,7 +274,7 @@ class DARTSSearchSpaceShallowWide(DARTSSearchSpace):
         super().__init__(*args, **kwargs, C=18, layers=4)
 
 
-class DARTSSearchSpaceDeepNarrow(DARTSSearchSpace):
+class DARTSSearchSpaceDeep(DARTSSearchSpace):
     """DARTS search space with a shallow and wide architecture
     Number of cells: 16
     Inital Channels: 8
