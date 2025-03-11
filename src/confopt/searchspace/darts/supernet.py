@@ -283,7 +283,7 @@ class DARTSSearchSpaceDeepNarrow(DARTSSearchSpace):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs, C=8, layers=16)
+        super().__init__(*args, **kwargs, C=7, layers=18)
 
 
 class DARTSSearchSpaceSingleCell(DARTSSearchSpace):

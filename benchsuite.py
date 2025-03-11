@@ -31,8 +31,8 @@ search_space_configs = {
         "layers": 4,
     },
     BenchSuiteSpace.DEEP: {
-        "C": 9,
-        "layers": 12,
+        "C": 7,
+        "layers": 18,
     },
     BenchSuiteSpace.SINGLE_CELL: {
         "C": 26,
