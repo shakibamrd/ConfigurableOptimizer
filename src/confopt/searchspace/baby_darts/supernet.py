@@ -21,9 +21,14 @@ class BabyDARTSSearchSpace(SearchSpace):
         assert "layers" not in kwargs, "Layers parameter is hard coded to 1"
         assert "steps" not in kwargs, "Steps parameter is hard coded to 1"
         assert "multiplier" not in kwargs, "multiplier parameter is hard coded to 1"
-        model = DARTSSearchModel(
-            layers=1, steps=1, multiplier=1, primitives=BABY_PRIMITIVES, **kwargs
-        ).to(DEVICE)
+        if "primitives" in kwargs:
+            model = DARTSSearchModel(layers=1, steps=1, multiplier=1, **kwargs).to(
+                DEVICE
+            )
+        else:
+            model = DARTSSearchModel(
+                layers=1, steps=1, multiplier=1, primitives=BABY_PRIMITIVES, **kwargs
+            ).to(DEVICE)
         super().__init__(model)
 
     @property
