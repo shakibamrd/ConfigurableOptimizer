@@ -1,5 +1,5 @@
-
 from __future__ import annotations
+import os
 import argparse
 
 from confopt.profile.profiles import DiscreteProfile
@@ -24,16 +24,23 @@ def parse_args() -> argparse.ArgumentParser:
         help="dataset to use",
     )
     parser.add_argument(
+        "--optimizer",
+        choices=["darts", "gdas", "drnas"],
+        default="drnas",
+        type=str,
+        help="Optimizer which was used to obtain this model",
+    )
+    parser.add_argument(
         "--subspace",
         choices=["wide", "deep", "single_cell"],
-        default="wide",
+        default="deep",
         type=str,
         help="benchsuit type to use",
     )
     parser.add_argument(
         "--opset",
         choices=["regular", "no_skip", "all_skip"],
-        default="regular",
+        default="no_skip",
         type=str,
         help="benchsuit operation set to use",
     )
@@ -50,9 +57,9 @@ def parse_args() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, default=0, help="random seed")
     parser.add_argument(
-        "--genotype_path",
+        "--genotypes_folder",
         type=str,
-        default="scripts/benchsuite_experiments/genotype.txt",
+        default="notebooks/genotypes/",
         help="path to the file of the genotype you want to run."
     )
     return parser
@@ -74,14 +81,20 @@ if __name__ == "__main__":
         space=BenchSuiteSpace(args.subspace),
         opset=BenchSuiteOpSet(args.opset),
     )
+
+    genotype_filename = f"{args.optimizer}-{args.subspace}-{args.opset}.txt"
+    genotype_filepath = os.path.join(args.genotypes_folder, genotype_filename)
+
+    print("Path to genotype file: ", genotype_filepath)
+
     experiment = Experiment(
         search_space=SearchSpaceType(args.searchspace),
         dataset=DatasetType(args.dataset),
         seed=args.seed,
         log_with_wandb=WANDB_LOG,
         debug_mode=DEBUG_MODE,
-        exp_name=f"{args.genotype_path.split('/')[-1].split('.')[0]}",
+        exp_name=f"{genotype_filepath.split('/')[-1].split('.')[0]}",
     )
-    
-    set_profile_genotype(discrete_profile, args.genotype_path)
+
+    set_profile_genotype(discrete_profile, genotype_filepath)
     experiment.train_discrete_model(discrete_profile)
