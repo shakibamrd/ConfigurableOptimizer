@@ -1,4 +1,4 @@
-from typing import Type, Union
+from __future__ import annotations
 
 from confopt.enums import DatasetType
 
@@ -9,12 +9,13 @@ from .data import (
     FGVCAircraftDataset,
     ImageNet16Data,
     ImageNet16120Data,
+    SyntheticData,
     TaskonomyClassObjectData,
     TaskonomyClassSceneData,
 )
 
 
-def get_taskonomy_dataset(domain: str) -> Type[AbstractData]:
+def get_taskonomy_dataset(domain: str) -> type[AbstractData]:
     if domain == "class_object":
         return TaskonomyClassObjectData
     elif domain == "class_scene":  # noqa: RET505
@@ -24,13 +25,14 @@ def get_taskonomy_dataset(domain: str) -> Type[AbstractData]:
 
 def get_dataset(
     dataset: DatasetType,
-    domain: Union[str, None],
+    domain: str | None,
     root: str,
     cutout: int,
     cutout_length: int,
     train_portion: float = 1.0,
+    dataset_kwargs: dict | None = None,
 ) -> AbstractData:
-    dataset_cls: Type[AbstractData] = CIFAR10Data
+    dataset_cls: type[AbstractData] = CIFAR10Data
     if dataset == DatasetType.CIFAR10:
         dataset_cls = CIFAR10Data
     elif dataset == DatasetType.CIFAR100:
@@ -44,14 +46,19 @@ def get_dataset(
         dataset_cls = get_taskonomy_dataset(domain)
     elif dataset == DatasetType.AIRCRAFT:
         dataset_cls = FGVCAircraftDataset
+    elif dataset == DatasetType.SYNTHETIC:
+        dataset_cls = SyntheticData
     else:
         raise ValueError("Invalid dataset")
 
+    if dataset_kwargs is None:
+        dataset_kwargs = {}
     return dataset_cls(
         root=root,
         cutout=cutout,
         cutout_length=cutout_length,
         train_portion=train_portion,
+        **dataset_kwargs,
     )
 
 
@@ -65,4 +72,5 @@ __all__ = [
     "TaskonomyClassObjectData",
     "TaskonomyClassSceneData",
     "get_dataset",
+    "SyntheticData",
 ]
