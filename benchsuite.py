@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 from confopt.enums import DatasetType, SearchSpaceType
-from confopt.profile import BaseProfile, DARTSProfile
+from confopt.profile import BaseProfile, DARTSProfile, DiscreteProfile
 from confopt.searchspace.darts.core.genotypes import PRIMITIVES
 from confopt.train import Experiment
 
@@ -63,6 +63,21 @@ def configure_profile_with_search_space(
 
     if opset == BenchSuiteOpSet.ALL_SKIP:
         profile.use_auxiliary_skip_connection = True
+
+def configure_discrete_profile_with_search_space(
+    profile: DiscreteProfile,
+    space: BenchSuiteSpace,
+    opset: BenchSuiteOpSet,
+) -> None:
+    search_space = search_space_configs[space]
+
+    if space == BenchSuiteSpace.SINGLE_CELL:
+        search_space.pop("steps", None)
+
+    if opset == BenchSuiteOpSet.ALL_SKIP:
+        searchspace_config = {"use_auxiliary_skip_connection": True}        
+        profile.configure_searchspace(**searchspace_config)
+
 
 
 if __name__ == "__main__":
