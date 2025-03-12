@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse
 
-from confopt.profile.profiles import DiscreteProfile, DARTSProfile
+from confopt.profile.profiles import DiscreteProfile
 from confopt.train import Experiment
 from benchsuite import ( # type: ignore
     configure_discrete_profile_with_search_space,  # type: ignore
@@ -11,8 +11,8 @@ from benchsuite import ( # type: ignore
 ) 
 from confopt.enums import SearchSpaceType, DatasetType
 
-WANDB_LOG = False
-DEBUG_MODE = True
+WANDB_LOG = True
+DEBUG_MODE = False
 
 def parse_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -24,14 +24,14 @@ def parse_args() -> argparse.ArgumentParser:
         help="dataset to use",
     )
     parser.add_argument(
-        "--benchsuit_space",
+        "--subspace",
         choices=["wide", "deep", "single_cell"],
         default="wide",
         type=str,
         help="benchsuit type to use",
     )
     parser.add_argument(
-        "--benchsuit_op_set",
+        "--opset",
         choices=["regular", "no_skip", "all_skip"],
         default="regular",
         type=str,
@@ -48,13 +48,6 @@ def parse_args() -> argparse.ArgumentParser:
         type=str,
         default="darts",
     )
-    parser.add_argument(
-        "--taskonomy_dataset_domain",
-        choices=["class_object", "class_scene"],
-        default="class_object",
-        type=str,
-        help="taskonomy dataset domain to use",
-    )
     parser.add_argument("--seed", type=int, default=0, help="random seed")
     parser.add_argument(
         "--genotype_path",
@@ -64,7 +57,7 @@ def parse_args() -> argparse.ArgumentParser:
     )
     return parser
 
-def set_profile_genotype(discrete_profile: DARTSProfile, path: str) -> None:
+def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
     with open(path, 'r') as file:
         genotype = file.read()
     discrete_profile.genotype = str(genotype)
@@ -78,8 +71,8 @@ if __name__ == "__main__":
     )
     configure_discrete_profile_with_search_space(
         profile=discrete_profile,
-        space=BenchSuiteSpace(args.benchsuit_space),
-        opset=BenchSuiteOpSet(args.benchsuit_op_set),
+        space=BenchSuiteSpace(args.subspace),
+        opset=BenchSuiteOpSet(args.opset),
     )
     experiment = Experiment(
         search_space=SearchSpaceType(args.searchspace),
@@ -87,8 +80,7 @@ if __name__ == "__main__":
         seed=args.seed,
         log_with_wandb=WANDB_LOG,
         debug_mode=DEBUG_MODE,
-        exp_name=f"darts-benchsuit-{args.benchsuit_space}-{args.benchsuit_op_set}-debug-run",
-
+        exp_name=f"{args.genotype_path.split('/')[-1].split('.')[0]}",
     )
     
     set_profile_genotype(discrete_profile, args.genotype_path)
