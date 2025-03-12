@@ -49,6 +49,7 @@ class BaseProfile:
         searchspace_subspace: str | None = None,
         early_stopper: str | None = None,
         early_stopper_config: dict | None = None,
+        synthetic_dataset_config: dict | None = None,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -132,6 +133,11 @@ class BaseProfile:
             self.configure_early_stopper(**early_stopper_config)
         else:
             self.early_stopper_config: dict | None = None
+
+        if synthetic_dataset_config is not None:
+            self.synthetic_dataset_config = synthetic_dataset_config
+        else:
+            self.synthetic_dataset_config = None  # type: ignore
 
     def _set_pt_select_configs(
         self,
@@ -257,6 +263,7 @@ class BaseProfile:
             "use_auxiliary_skip_connection": self.use_auxiliary_skip_connection,
             "early_stopper": self.early_stopper,
             "early_stopper_config": self.early_stopper_config,
+            "synthetic_dataset_config": self.synthetic_dataset_config,
         }
 
         if hasattr(self, "pruner_config"):
@@ -303,7 +310,10 @@ class BaseProfile:
     def _initialize_trainer_config(self) -> None:
         if self.searchspace_type == SearchSpaceType.NB201:
             self._initialize_trainer_config_nb201()
-        elif self.searchspace_type == SearchSpaceType.DARTS:
+        elif (
+            self.searchspace_type == SearchSpaceType.BABYDARTS
+            or self.searchspace_type == SearchSpaceType.DARTS
+        ):
             self._initialize_trainer_config_darts()
         elif self.searchspace_type == SearchSpaceType.NB1SHOT1:
             self._initialize_trainer_config_1shot1()
@@ -429,6 +439,12 @@ class BaseProfile:
             self.early_stopper_config = config
         else:
             self.early_stopper_config.update(config)
+
+    def configure_synthetic_dataset(self, **config: Any) -> None:
+        if self.synthetic_dataset_config is None:
+            self.synthetic_dataset_config = config
+        else:
+            self.synthetic_dataset_config.update(config)
 
     def get_run_description(self) -> str:
         run_configs = []
