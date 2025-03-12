@@ -333,8 +333,8 @@ class ConfigurableTrainer:
 
             # Save Genotype and log best model
             # genotype = str(self.model.get_genotype())
-            genotype = self.model.get_genotype().tostr()  # type: ignore
-            self.logger.save_genotype(genotype, epoch, self.checkpointing_freq)
+            # genotype = self.model.get_genotype().tostr()  # type: ignore
+            # self.logger.save_genotype(genotype, epoch, self.checkpointing_freq)
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
@@ -345,9 +345,9 @@ class ConfigurableTrainer:
                 self.best_model_checkpointer.save(
                     name="best_model", checkpointables=checkpointables
                 )
-                self.logger.save_genotype(
-                    genotype, epoch, self.checkpointing_freq, save_best_model=True
-                )
+                # self.logger.save_genotype(
+                #     genotype, epoch, self.checkpointing_freq, save_best_model=True
+                # )
 
             # Log Benchmark Results
             self.log_benchmark_result(network)
@@ -556,9 +556,11 @@ class ConfigurableTrainer:
                 arch_loss = criterion(logits, arch_targets)
 
                 # record
-                arch_prec1, arch_prec5 = calc_accuracy(
-                    logits.data, arch_targets.data, topk=(1, 5)
-                )
+                # arch_prec1, arch_prec5 = calc_accuracy(
+                #     logits.data, arch_targets.data, topk=(1, 5)
+                # )
+                arch_prec1 = calc_accuracy(logits.data, arch_targets.data, topk=(1,))[0]
+                arch_prec5 = torch.tensor(0)
 
                 arch_losses.update(arch_loss.item(), arch_inputs.size(0))
                 arch_top1.update(arch_prec1.item(), arch_inputs.size(0))
@@ -659,7 +661,9 @@ class ConfigurableTrainer:
         top1_meter: AverageMeter,
         top5_meter: AverageMeter,
     ) -> None:
-        base_prec1, base_prec5 = calc_accuracy(logits.data, targets.data, topk=(1, 5))
+        # base_prec1, base_prec5 = calc_accuracy(logits.data, targets.data, topk=(1,5))
+        base_prec1 = calc_accuracy(logits.data, targets.data, topk=(1,))[0]
+        base_prec5 = torch.tensor(0)
         loss_meter.update(loss.item(), inputs.size(0))
         top1_meter.update(base_prec1.item(), inputs.size(0))
         top5_meter.update(base_prec5.item(), inputs.size(0))
