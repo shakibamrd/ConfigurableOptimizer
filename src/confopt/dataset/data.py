@@ -188,7 +188,8 @@ class CIFARData(AbstractData):
         )
 
         if self.train_portion < 1:
-            num_train = len(train_data)  # type: ignore
+            num_train = len(train_data) // 2  # type: ignore
+            print("WARNING: USING ONLY 50% OF THE CIFAR10 TRAINING DATA!")
             indices = list(range(num_train))
             split = int(np.floor(self.train_portion * num_train))
             train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
@@ -603,7 +604,7 @@ class FGVCAircraftDataset(AbstractData):
     def get_transforms(self) -> tuple[Compose, Compose]:
         common_transforms = [
             CropBanner(banner_height=20),
-            transforms.Resize((128, 128)),
+            transforms.Resize((32, 32)),
             transforms.ToTensor(),
         ]
 
@@ -639,3 +640,206 @@ class FGVCAircraftDataset(AbstractData):
         assert len(train_val_dataset) == 6667
         assert len(test_dataset) == 3333
         return train_val_dataset, test_dataset
+
+
+class SyntheticDataset(Dataset):
+    def __init__(
+        self,
+        seed: int,
+        shape: tuple[int, int, int],
+        length: int,
+        transform: Callable | None = None,
+        signal_receptive_field: int = 5,
+        shortcut_receptive_field: int = 3,
+        shortcut_strength: float = 0,
+    ):
+        """Synthetic dataset generator for architecture search experiments.
+
+        Args:
+            seed: Base seed for reproducibility
+            shape: Image dimensions (H, W, C)
+            length: Number of samples to generate
+            transform: Torchvision transforms to apply
+            signal_receptive_field: Size of main signal pattern
+            shortcut_receptive_field: Size of shortcut pattern
+            shortcut_strength: Strength of shortcut correlation (0=random, 1=perfect)
+        """
+        self.seed = seed
+        self.shape = shape
+        self.length = length
+        self.transform = transform
+        self.signal_receptive_field = signal_receptive_field
+        self.shortcut_receptive_field = shortcut_receptive_field
+        assert 0 <= shortcut_strength <= 1
+        self.prob_shortcut_correct = 0.5 + 0.5 * shortcut_strength
+        self.padding = (
+            max(self.signal_receptive_field, self.shortcut_receptive_field) - 1
+        ) // 2
+
+    def get_random_position(
+        self, random: np.random.RandomState, padding: int
+    ) -> tuple[int, int]:
+        """Get random center position with padding."""
+        x = random.randint(padding, self.shape[0] - padding)
+        y = random.randint(padding, self.shape[1] - padding)
+        return x, y
+
+    def insert_pattern(
+        self, image: np.ndarray, center: tuple[int, int], size: int, direction: str
+    ) -> None:
+        assert size % 2 == 1, "Pattern size must be odd"
+        h = (size - 1) // 2
+        x, y = center
+
+        if direction == "/":  # Anti-diagonal
+            image[y + h, x - h] = 1
+            image[y - h, x + h] = 1
+        elif direction == "\\":  # Diagonal
+            image[y + h, x + h] = 1
+            image[y - h, x - h] = 1
+        elif direction == "-":  # Horizontal
+            image[y, x + h] = 1
+            image[y, x - h] = 1
+        elif direction == "|":  # Vertical
+            image[y + h, x] = 1
+            image[y - h, x] = 1
+        else:
+            raise ValueError(f"Invalid direction: {direction}")
+
+    def create_negative(self, random: np.random.RandomState) -> np.ndarray:
+        """Generate negative sample with anti-diagonal pattern.
+        0  0  1
+        0  0  0
+        1  0  0.
+        """
+        image = np.zeros(self.shape, dtype=np.float32)
+        center = self.get_random_position(random, self.padding)
+
+        # Main signal pattern
+        self.insert_pattern(image, center, self.signal_receptive_field, "/")
+
+        # Shortcut pattern
+        if random.random() < self.prob_shortcut_correct:
+            self.insert_pattern(image, center, self.shortcut_receptive_field, "-")
+        else:
+            self.insert_pattern(image, center, self.shortcut_receptive_field, "|")
+
+        return image
+
+    def create_positive(self, random: np.random.RandomState) -> np.ndarray:
+        """Generate positive sample with diagonal pattern.
+        1  0  0
+        0  0  0
+        0  0  1.
+        """
+        image = np.zeros(self.shape, dtype=np.float32)
+        center = self.get_random_position(random, self.padding)
+
+        # Main signal pattern
+        self.insert_pattern(image, center, self.signal_receptive_field, "\\")
+
+        # Shortcut pattern
+        if random.random() < self.prob_shortcut_correct:
+            self.insert_pattern(image, center, self.shortcut_receptive_field, "|")
+        else:
+            self.insert_pattern(image, center, self.shortcut_receptive_field, "-")
+
+        return image
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
+        random = np.random.RandomState((self.seed, idx))
+        if random.rand() < 0.5:
+            label = 0
+            image = self.create_negative(random)
+        else:
+            label = 1
+            image = self.create_positive(random)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+    def __len__(self) -> int:
+        return self.length
+
+
+class SyntheticData(AbstractData):
+    def __init__(
+        self,
+        root: str,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float = 1.0,
+        signal_receptive_field: int = 5,
+        shortcut_receptive_field: int = 3,
+        shortcut_strength: float = 0,
+    ):
+        super().__init__(root, train_portion)
+        self.cutout = cutout
+        self.cutout_length = cutout_length
+        self.signal_receptive_field = signal_receptive_field
+        self.shortcut_receptive_field = shortcut_receptive_field
+        self.shortcut_strength = shortcut_strength
+
+        if self.cutout > 0:
+            raise NotImplementedError("Cutout not supported for synthetic data")
+
+    def build_datasets(
+        self,
+    ) -> tuple[
+        tuple[Dataset, torch.utils.data.Sampler],
+        tuple[Dataset, torch.utils.data.Sampler],
+        tuple[Dataset, torch.utils.data.Sampler],
+    ]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets("", train_transform, test_transform)
+
+        if self.train_portion < 1.0:
+            num_train = len(train_data)
+            indices = list(range(num_train))
+            split = int(np.floor(self.train_portion * num_train))
+
+            return (
+                (train_data, torch.utils.data.SubsetRandomSampler(indices[:split])),
+                (train_data, torch.utils.data.SubsetRandomSampler(indices[split:])),
+                (test_data, None),
+            )
+
+        return ((train_data, None), (None, None), (test_data, None))
+
+    def get_transforms(self) -> tuple[Compose, Compose]:
+        """Get simple transforms for synthetic data."""
+        return (
+            transforms.Compose([transforms.ToTensor()]),
+            transforms.Compose([transforms.ToTensor()]),
+        )
+
+    def load_datasets(
+        self,
+        root: str,  # noqa: ARG002
+        train_transform: transforms.Compose,
+        test_transform: transforms.Compose,
+    ) -> tuple[Dataset, Dataset]:
+        """Initialize train/test datasets."""
+        common_args = {
+            "shape": (32, 32, 3),
+            "signal_receptive_field": self.signal_receptive_field,
+            "shortcut_receptive_field": self.shortcut_receptive_field,
+            "shortcut_strength": self.shortcut_strength,
+        }
+
+        return (
+            SyntheticDataset(
+                seed=1,
+                length=50000,
+                transform=train_transform,
+                **common_args,  # type: ignore
+            ),
+            SyntheticDataset(
+                seed=2,
+                length=10000,
+                transform=test_transform,
+                **common_args,  # type: ignore
+            ),
+        )
