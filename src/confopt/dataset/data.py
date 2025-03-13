@@ -334,7 +334,7 @@ class CIFAR10SupernetDataset(CIFAR10Data):
         )
 
 
-class CIFAR10DiscreteDataset(CIFAR10Data):
+class CIFAR10ModelDataset(CIFAR10Data):
     def build_datasets(self) -> tuple[DS, DS, DS]:
         train_transform, test_transform = self.get_transforms()
         train_data, test_data = self.load_datasets(
