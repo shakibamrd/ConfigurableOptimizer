@@ -18,36 +18,36 @@ def parse_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset",
-        choices=["cifar10", "cirfar100", "imagenet16", "imgnet16_120", "taskonomy", "aircraft"],
-        default="cifar10",
+        choices=["cifar10", "cifar10_model", "cifar100", "imagenet16", "imgnet16_120", "taskonomy", "aircraft"],
+        default="cifar10_model",
         type=str,
         help="dataset to use",
     )
     parser.add_argument(
         "--optimizer",
         choices=["darts", "gdas", "drnas"],
-        default="drnas",
+        default="darts",
         type=str,
         help="Optimizer which was used to obtain this model",
     )
     parser.add_argument(
         "--subspace",
         choices=["wide", "deep", "single_cell"],
-        default="deep",
+        default="wide",
         type=str,
-        help="benchsuit type to use",
+        help="benchsuite type to use",
     )
     parser.add_argument(
         "--opset",
         choices=["regular", "no_skip", "all_skip"],
         default="no_skip",
         type=str,
-        help="benchsuit operation set to use",
+        help="benchsuite operation set to use",
     )
     parser.add_argument(
         "--epochs",
         type=int,
-        default=2,
+        default=100,
         help="number of epochs to train",
     )
     parser.add_argument(
@@ -59,7 +59,7 @@ def parse_args() -> argparse.ArgumentParser:
     parser.add_argument(
         "--genotypes_folder",
         type=str,
-        default="notebooks/genotypes/",
+        default="genotypes",
         help="path to the file of the genotype you want to run."
     )
     return parser
@@ -97,4 +97,8 @@ if __name__ == "__main__":
     )
 
     set_profile_genotype(discrete_profile, genotype_filepath)
+
+    print("Training model with genotype: ", discrete_profile.genotype)
+    print("Training model with search space: ", discrete_profile.searchspace_config)
+
     experiment.train_discrete_model(discrete_profile)
