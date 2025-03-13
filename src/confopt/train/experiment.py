@@ -517,6 +517,8 @@ class Experiment:
             searchspace_config["genotype"] = eval(genotype_str)
             if self.dataset in (
                 DatasetType.CIFAR10,
+                DatasetType.CIFAR10_MODEL,
+                DatasetType.CIFAR10_SUPERNET,
                 DatasetType.CIFAR100,
                 DatasetType.AIRCRAFT,
             ):
