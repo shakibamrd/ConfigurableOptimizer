@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Any, Type, Union
 
 from confopt.enums import DatasetType
 
@@ -29,6 +29,7 @@ def get_dataset(
     cutout: int,
     cutout_length: int,
     train_portion: float = 1.0,
+    **kwargs: Any,
 ) -> AbstractData:
     dataset_cls: Type[AbstractData] = CIFAR10Data
     if dataset == DatasetType.CIFAR10:
@@ -52,6 +53,7 @@ def get_dataset(
         cutout=cutout,
         cutout_length=cutout_length,
         train_portion=train_portion,
+        **kwargs,
     )
 
 

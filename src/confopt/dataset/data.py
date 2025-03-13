@@ -154,11 +154,17 @@ class AbstractData(ABC):
 
 class CIFARData(AbstractData):
     def __init__(
-        self, root: str, cutout: int, cutout_length: int, train_portion: float = 1.0
+        self,
+        root: str,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float = 1.0,
+        is_supernet_portion: bool = True,
     ):
         super().__init__(root, train_portion)
         self.cutout = cutout
         self.cutout_length = cutout_length
+        self.is_supernet_portion = is_supernet_portion
 
     def get_transforms(self) -> tuple[Compose, Compose]:
         lists = [
@@ -187,23 +193,40 @@ class CIFARData(AbstractData):
             self.root, train_transform, test_transform
         )
 
-        if self.train_portion < 1:
-            num_train = len(train_data)  # type: ignore
-            indices = list(range(num_train))
-            split = int(np.floor(self.train_portion * num_train))
-            train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
-                indices[:split]
-            )
-            val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
-                indices[split:num_train]
-            )
-            return (
-                (train_data, train_sampler),
-                (train_data, val_sampler),
-                (test_data, None),
-            )
+        num_train = len(train_data) // 2  # type: ignore
+        print("Warning: Using only half of the CIFAR training data!")
 
-        return (train_data, None), (None, None), (test_data, None)
+        indices = list(range(num_train))
+
+        if self.is_supernet_portion:
+            # Supernet train splits the first half of the dataset
+            # into train and validation sets
+            split = int(np.floor(self.train_portion * num_train))
+            train_start_idx = 0
+            train_end_idx = split
+            val_start_idx = split
+            val_end_idx = num_train
+        else:
+            # When training the discrete models, we shall use the second half
+            # of the dataset as the training set to get an unbiased estimate.
+            # The first half is used as the validation set for the sake of
+            # of the code, but it is not consumed.
+            train_start_idx = num_train
+            train_end_idx = -1
+            val_start_idx = 0
+            val_end_idx = num_train
+
+        train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[train_start_idx:train_end_idx]
+        )
+        val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[val_start_idx:val_end_idx]
+        )
+        return (
+            (train_data, train_sampler),
+            (train_data, val_sampler),
+            (test_data, None),
+        )
 
 
 class ImageNetData(AbstractData):
@@ -259,9 +282,16 @@ class ImageNetData(AbstractData):
 
 class CIFAR10Data(CIFARData):
     def __init__(
-        self, root: str, cutout: int, cutout_length: int, train_portion: float = 1.0
+        self,
+        root: str,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float = 1.0,
+        is_supernet_portion: bool = True,
     ):
-        super().__init__(root, cutout, cutout_length, train_portion)
+        super().__init__(
+            root, cutout, cutout_length, train_portion, is_supernet_portion
+        )
         self.mean = [x / 255 for x in [125.3, 123.0, 113.9]]
         self.std = [x / 255 for x in [63.0, 62.1, 66.7]]
 
@@ -282,9 +312,16 @@ class CIFAR10Data(CIFARData):
 
 class CIFAR100Data(CIFARData):
     def __init__(
-        self, root: str, cutout: int, cutout_length: int, train_portion: float = 1.0
+        self,
+        root: str,
+        cutout: int,
+        cutout_length: int,
+        train_portion: float = 1.0,
+        is_supernet_portion: bool = True,
     ):
-        super().__init__(root, cutout, cutout_length, train_portion)
+        super().__init__(
+            root, cutout, cutout_length, train_portion, is_supernet_portion
+        )
         self.mean = [x / 255 for x in [125.3, 123.0, 113.9]]
         self.std = [x / 255 for x in [63.0, 62.1, 66.7]]
 

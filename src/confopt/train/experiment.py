@@ -596,8 +596,7 @@ class Experiment:
         cutout: int,
         cutout_length: int,
         train_portion: float,
-        *args: Any,  # noqa: ARG002
-        **kwargs: Any,  # noqa: ARG002
+        **kwargs: Any,
     ) -> AbstractData:
         return get_dataset(
             dataset=self.dataset,
@@ -606,6 +605,7 @@ class Experiment:
             cutout=cutout,  # type: ignore
             cutout_length=cutout_length,  # type: ignore
             train_portion=train_portion,  # type: ignore
+            **kwargs,
         )
 
     # refactor the name to train
@@ -679,6 +679,7 @@ class Experiment:
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
+            is_supernet_portion=False,
         )
 
         w_optimizer = self._get_optimizer(trainer_arguments.optim)(  # type: ignore
