@@ -334,22 +334,23 @@ class CIFAR10SupernetDataset(CIFAR10Data):
         )
 
 
-class CIFAR10DiscreteDataset(CIFAR10Data):
+class CIFAR10ModelDataset(CIFAR10Data):
     def build_datasets(self) -> tuple[DS, DS, DS]:
         train_transform, test_transform = self.get_transforms()
         train_data, test_data = self.load_datasets(
             self.root, train_transform, test_transform
         )
 
-        num_train = len(train_data) // 2  # type: ignore
+        n_samples = len(train_data)
         print("Warning: Using only half of the CIFAR training data!")
 
-        indices = list(range(num_train))
+        indices = list(range(n_samples))
 
-        train_start_idx = num_train
-        train_end_idx = -1
         val_start_idx = 0
-        val_end_idx = num_train
+        val_end_idx = n_samples // 2
+
+        train_start_idx = n_samples // 2
+        train_end_idx = -1
 
         train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
             indices[train_start_idx:train_end_idx]
