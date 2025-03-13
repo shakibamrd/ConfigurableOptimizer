@@ -28,10 +28,6 @@ class Regularizer(OneShotComponent):
     ) -> None:
         super().__init__()
 
-        assert (
-            sum([loss_weight, *reg_weights]) == 1.0
-        ), f"Sum of loss_weight ({loss_weight}) and reg_weights \
-        ({reg_weights}) must be 1.0"
         assert len(reg_weights) == len(
             reg_terms
         ), "Length of reg_weights must match reg_terms"
