@@ -24,6 +24,11 @@ parser.add_argument("--ops", type=str)
 parser.add_argument("--dataset", type=str)
 parser.add_argument("--seed", type=int)
 parser.add_argument("--tag", default="", type=str)
+parser.add_argument("--oles", action="store_true", default=False)
+parser.add_argument("--pcdarts", action="store_true", default=False)
+parser.add_argument("--fairdarts", action="store_true", default=False)
+parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
+parser.add_argument("--perturbator_sample_frequency", choices=["epoch", "step"], default="epoch", type=str)
 
 args = parser.parse_args()
 
@@ -54,11 +59,38 @@ if __name__ == "__main__":
         DatasetType.AIRCRAFT: 30,
     }
 
+    partial_connector_config = None
+    if args.pcdarts:
+        partial_connector_config = {
+            "k": 4,
+            "num_warm_epoch": 15,
+        }
+
+    regularization_config = None
+    if args.fairdarts:
+        fairdarts_weight = 10
+        regularization_config = {
+            "reg_weights": [fairdarts_weight],
+            "loss_weight": 1,
+            "active_reg_terms": ["fairdarts"],
+            "drnas_config": {"reg_scale": 1e-3},
+            "flops_config": {},
+            "fairdarts_config": {},
+        }
+
     epochs = epochs_profiles[args.optimizer]
     profile = profile_classes[args.optimizer](
         searchspace=SEARCHSPACE,
         epochs=epochs,
+        is_partial_connection=args.pcdarts,
+        perturbation=args.sdarts,
+        perturbator_sample_frequency=args.perturbator_sample_frequency,
+        partial_connector_config=partial_connector_config,
         seed=args.seed,
+        oles=args.oles,
+        calc_gm_score=args.oles,
+        is_regularization_enabled=args.fairdarts,
+        regularization_config=regularization_config,
     )
 
     configure_profile_with_search_space(
