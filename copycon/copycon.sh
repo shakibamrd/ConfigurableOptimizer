@@ -5,23 +5,23 @@ set -e
 
 # Determine the directory where this script is located.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/copycon.cfg"
+CONFIG_FILE="${SCRIPT_DIR}/config.cfg"
 
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "Error: Config file '$CONFIG_FILE' not found!"
     exit 1
 fi
 
-# Source the config file (it should define a variable named 'source_dir')
+# Source the config file (it should define a variable named 'source_dir_local')
 source "$CONFIG_FILE"
 
-if [ -z "$source_dir" ]; then
-    echo "Error: 'source_dir' is not defined in $CONFIG_FILE"
+if [ -z "$source_dir_local" ]; then
+    echo "Error: 'source_dir_local' is not defined in $CONFIG_FILE"
     exit 1
 fi
 
 # Ensure that the src/confopt folder exists within the source directory.
-SRC_FOLDER="${source_dir}/src/confopt"
+SRC_FOLDER="${source_dir_local}/src/confopt"
 if [ ! -d "$SRC_FOLDER" ]; then
     echo "Error: '$SRC_FOLDER' does not exist within the source directory."
     exit 1
@@ -42,15 +42,15 @@ if [[ "$DEST_DIR" != /* ]]; then
     DEST_DIR="$(pwd)/$DEST_DIR"
 fi
 
-# --- Ensure source_dir is a Git repository and has no local changes ---
+# --- Ensure source_dir_local is a Git repository and has no local changes ---
 
-if [ ! -d "${source_dir}/.git" ]; then
-    echo "Error: '$source_dir' is not a Git repository ('.git' folder not found)."
+if [ ! -d "${source_dir_local}/.git" ]; then
+    echo "Error: '$source_dir_local' is not a Git repository ('.git' folder not found)."
     exit 1
 fi
 
 # Change to the source directory.
-cd "$source_dir" || { echo "Error: Unable to change directory to '$source_dir'."; exit 1; }
+cd "$source_dir_local" || { echo "Error: Unable to change directory to '$source_dir_local'."; exit 1; }
 
 # Check for uncommitted changes; git diff --quiet returns non-zero if there are differences.
 if ! git diff --quiet src/confopt; then
@@ -58,8 +58,19 @@ if ! git diff --quiet src/confopt; then
     exit 1
 fi
 
+if ! git diff --quiet copycon/*.py copycon/*.sh; then
+    echo "Error: Git working directory copycon/ is not clean. Please commit or stash your changes before proceeding."
+    exit 1
+fi
+
 if [ -n "$(git status --porcelain src/confopt)" ]; then
     echo "Error: There are uncommitted changes in src/confopt. Please commit or stash your changes before proceeding."
+    exit 1
+fi
+
+
+if [ -n "$(git status --porcelain copycon/*.sh copycon/*.py)" ]; then
+    echo "Error: There are uncommitted changes in copycon/. Please commit or stash your changes before proceeding."
     exit 1
 fi
 
@@ -118,13 +129,14 @@ git archive HEAD src/confopt | tar -x --strip-components=2 -C "$TARGET_DIR"
 echo "Tracked files from 'src/confopt' have been successfully copied to '$TARGET_DIR'."
 echo "Git info stored in '$DEST_DIR/info"
 
-cp ${SCRIPT_DIR}/launch.py ${DEST_DIR}/launch.py
-cp ${SCRIPT_DIR}/run_exp.py ${DEST_DIR}/run_exp.py
+cp -v ${source_dir_local}/copycon/launch_supernet_search.py ${DEST_DIR}
+cp -v ${source_dir_local}/copycon/launch_model_train.py ${DEST_DIR}
+cp -v ${source_dir_local}/copycon/run_supernet_search.py ${DEST_DIR}
+cp -v ${source_dir_local}/scripts/benchsuite_experiments/run_model_train.py ${DEST_DIR}
+cp -v ${CONFIG_FILE} ${DEST_DIR}
 
 # copy benchsuite.py to the destination directory, if it exists
-if [ -f $source_dir/benchsuite.py ]; then
+if [ -f $source_dir_local/benchsuite.py ]; then
     echo "Found benchsuite.py in source directory. Copying it to '$DEST_DIR'."
-    cp $source_dir/benchsuite.py ${DEST_DIR}/benchsuite.py
+    cp $source_dir_local/benchsuite.py ${DEST_DIR}/benchsuite.py
 fi
-
-echo "Copied launch.py and run_exp.py to $DEST_DIR"

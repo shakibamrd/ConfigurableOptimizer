@@ -32,12 +32,28 @@ parser.add_argument("--perturbator_sample_frequency", choices=["epoch", "step"],
 
 args = parser.parse_args()
 
+
+def read_config(file_path: str) -> dict[str, str]:
+    config = {}
+    with open(file_path, "r") as file:
+        for line in file:
+            line = line.strip()
+            if line and not line.startswith("#"):  # Ignore empty lines and comments
+                key, value = line.split("=", 1)
+                config[key.strip()] = value.strip().strip('"')  # Remove surrounding quotes if any
+    return config
+
+
 if __name__ == "__main__":
     DEBUG_MODE = False
     WANDB_LOG = True
     SEARCHSPACE = SearchSpaceType.DARTS
     DATASET = DatasetType(args.dataset)
-    DATASET_DIR = "/path/to/datasets"  # UPDATE WITH YOUR DATASET DIR!!!
+
+    config = read_config('./config.cfg')
+    DATASET_DIR = config.get('dataset_dir_remote', 'none')
+
+    assert DATASET_DIR != 'none', "Please set the dataset_dir_remote in the config file"
 
     subspace = BenchSuiteSpace(args.subspace)
     opset = BenchSuiteOpSet(args.ops)

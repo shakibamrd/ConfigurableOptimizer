@@ -30,9 +30,7 @@ fi
 # Copy the script to the target directory and make it executable.
 echo "Installing '$INSTALL_NAME' to '$INSTALL_DIR'..."
 cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$INSTALL_NAME"
-cp "$SCRIPT_DIR/copycon.cfg" "$INSTALL_DIR/copycon.cfg"
-cp "$SCRIPT_DIR/launch.py" "$INSTALL_DIR/launch.py"
-cp "$SCRIPT_DIR/run_exp.py" "$INSTALL_DIR/run_exp.py"
+cp "$SCRIPT_DIR/config.cfg" "$INSTALL_DIR/config.cfg"
 
 chmod +x "$INSTALL_DIR/$INSTALL_NAME"
 

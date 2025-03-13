@@ -71,6 +71,10 @@ def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
 
 if __name__ == "__main__":
     args = parse_args().parse_args()
+
+    DATASET_DIR = os.getenv('dataset_dir_remote', 'none')
+    assert DATASET_DIR != 'none', "Please set the DATASET_DIR_REMOTE environment variable"
+
     discrete_profile = DiscreteProfile(
         searchspace="darts",
         epochs=args.epochs,
@@ -94,6 +98,7 @@ if __name__ == "__main__":
         log_with_wandb=WANDB_LOG,
         debug_mode=DEBUG_MODE,
         exp_name=f"{genotype_filepath.split('/')[-1].split('.')[0]}",
+        dataset_dir=DATASET_DIR,
     )
 
     set_profile_genotype(discrete_profile, genotype_filepath)
