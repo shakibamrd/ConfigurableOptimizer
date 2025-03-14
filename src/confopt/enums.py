@@ -44,6 +44,7 @@ class DatasetType(Enum):
     IMGNET16_120 = "imgnet16_120"
     TASKONOMY = "taskonomy"
     AIRCRAFT = "aircraft"
+    SYNTHETIC = "synthetic"
 
     def __str__(self) -> str:
         return self.value
