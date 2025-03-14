@@ -82,14 +82,26 @@ if __name__ == "__main__":
             "num_warm_epoch": 15,
         }
 
-    regularization_config = None
+    reg_weights = []
+    active_reg_terms = []
+
+    if args.optimizer == "drnas":
+        drnas_weight = 1
+        reg_weights.append(drnas_weight)
+        active_reg_terms.append("drnas")
+
     if args.fairdarts:
         fairdarts_weight = 10
+        reg_weights.append(fairdarts_weight)
+        active_reg_terms.append("fairdarts")
+
+    regularization_config = None
+    if active_reg_terms:
         regularization_config = {
-            "reg_weights": [fairdarts_weight],
+            "reg_weights": reg_weights,
             "loss_weight": 1,
-            "active_reg_terms": ["fairdarts"],
-            "drnas_config": {"reg_scale": 1e-3},
+            "active_reg_terms": active_reg_terms,
+            "drnas_config": {"reg_scale": 1e-3, "reg_type": "l2"},
             "flops_config": {},
             "fairdarts_config": {},
         }
