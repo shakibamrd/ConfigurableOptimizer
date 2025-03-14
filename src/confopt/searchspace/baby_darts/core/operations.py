@@ -25,8 +25,8 @@ OPS = {
     "max_pool_3x3": lambda C_in, C_out, stride, affine: Pooling(  # noqa: ARG005
         C_in, stride, "max", affine=affine
     ),
-    "skip_connect": lambda C_in, C_out, stride, affine: (
-        Identity() if stride == 1 else FactorizedReduce(C_in, C_out, affine=affine)
+    "skip_connect": lambda C_in, C_out, stride, affine: (  # noqa: ARG005
+        SyntheticConvolution(C_in, C_out, kernel_size=1, stride=stride, padding=0)
     ),
     "sep_conv_3x3": lambda C_in, C_out, stride, affine: SepConv(
         C_in, C_out, 3, stride, 1, affine=affine

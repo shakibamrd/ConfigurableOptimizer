@@ -9,8 +9,9 @@ from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-# none () and skip_connect does not work with the BabyDARTS
+# none does not work with the BabyDARTS
 BABY_PRIMITIVES = [
+    "skip_connect",
     "sep_conv_3x3",
     "dil_conv_3x3",
 ]
