@@ -86,6 +86,7 @@ if __name__ == "__main__":
 
     reg_weights = []
     active_reg_terms = []
+    arch_combine_fn = "default"
 
     if args.optimizer == "drnas":
         drnas_weight = 1
@@ -96,6 +97,7 @@ if __name__ == "__main__":
         fairdarts_weight = 10
         reg_weights.append(fairdarts_weight)
         active_reg_terms.append("fairdarts")
+        arch_combine_fn = "sigmoid"
 
     regularization_config = None
     if active_reg_terms:
@@ -121,6 +123,7 @@ if __name__ == "__main__":
         calc_gm_score=args.oles,
         is_regularization_enabled=args.fairdarts,
         regularization_config=regularization_config,
+        sampler_arch_combine_fn=arch_combine_fn,
     )
 
     configure_profile_with_search_space(
