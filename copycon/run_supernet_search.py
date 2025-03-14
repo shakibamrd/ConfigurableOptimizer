@@ -72,6 +72,8 @@ if __name__ == "__main__":
 
     num_classes = {
         DatasetType.CIFAR10: 10,
+        DatasetType.CIFAR10_MODEL: 10,
+        DatasetType.CIFAR10_SUPERNET: 10,
         DatasetType.AIRCRAFT: 30,
     }
 
