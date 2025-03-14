@@ -601,7 +601,6 @@ class Experiment:
         cutout: int,
         cutout_length: int,
         train_portion: float,
-        *args: Any,  # noqa: ARG002
         **kwargs: Any,
     ) -> AbstractData:
         return get_dataset(
@@ -752,19 +751,17 @@ class Experiment:
             criterion_str=trainer_arguments.criterion  # type: ignore
         )
 
-        if config.get("synthetic_dataset_config") is not None:
-            data = self._get_dataset(
-                cutout=trainer_arguments.cutout,  # type: ignore
-                cutout_length=trainer_arguments.cutout_length,  # type: ignore
-                train_portion=trainer_arguments.train_portion,  # type: ignore
-                **config.get("synthetic_dataset_config"),
-            )
-        else:
-            data = self._get_dataset(
-                cutout=trainer_arguments.cutout,  # type: ignore
-                cutout_length=trainer_arguments.cutout_length,  # type: ignore
-                train_portion=trainer_arguments.train_portion,  # type: ignore
-            )
+        dataset_kwargs = (
+            config.get("synthetic_dataset_config")
+            if config.get("synthetic_dataset_config") is not None
+            else {}
+        )
+        data = self._get_dataset(
+            cutout=trainer_arguments.cutout,  # type: ignore
+            cutout_length=trainer_arguments.cutout_length,  # type: ignore
+            train_portion=trainer_arguments.train_portion,  # type: ignore
+            **dataset_kwargs,
+        )
 
         model = self.search_space
 
