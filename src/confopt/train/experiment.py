@@ -220,6 +220,9 @@ class Experiment:
             oles_threshold=oles_threshold,
         )
 
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
+
         return trainer
 
     def _init_components(
@@ -492,9 +495,11 @@ class Experiment:
         searchspace_config = profile.get_searchspace_config(self.dataset.value)
         genotype_str = profile.get_genotype()
         run_name = profile.get_run_description()
+        extra_config = profile.get_extra_config()
 
         return self._train_discrete_model(
             searchspace_config=searchspace_config,
+            extra_config=extra_config,
             train_config=train_config,
             model_to_load=model_to_load,
             exp_runtime_to_load=exp_runtime_to_load,
@@ -614,6 +619,7 @@ class Experiment:
     def _train_discrete_model(
         self,
         searchspace_config: dict,
+        extra_config: dict,
         train_config: dict,
         model_to_load: str | int | None = None,
         exp_runtime_to_load: str | None = None,
@@ -665,6 +671,7 @@ class Experiment:
             self.logger.set_up_new_run()
 
         self.logger.save_genotype(genotype_str)
+        train_config["genotype"] = genotype_str
 
         if train_config.get("use_ddp", False) is True:
             assert torch.distributed.is_initialized(), "DDP is not initialized!"
@@ -719,7 +726,8 @@ class Experiment:
             debug_mode=self.debug_mode,
         )
         if self.log_with_wandb:
-            self._init_wandb(run_name, config=train_config)
+            config = train_config | {"extra_config": extra_config}
+            self._init_wandb(run_name, config=config)
 
         trainer.train(
             epochs=trainer_arguments.epochs,  # type: ignore
@@ -727,6 +735,9 @@ class Experiment:
         )
 
         trainer.test(log_with_wandb=self.log_with_wandb)
+
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
 
         return trainer
 

@@ -318,6 +318,12 @@ class DiscreteProfile:
         else:
             self.searchspace_config.update(config)
 
+    def configure_extra(self, **config: Any) -> None:
+        if not hasattr(self, "extra_config"):
+            self.extra_config = config
+        else:
+            self.extra_config.update(config)
+
     def get_searchspace_config(self, dataset_str: str) -> dict:
         if self.searchspace == SearchSpaceType.NB201:
             searchspace_config = {
@@ -344,9 +350,12 @@ class DiscreteProfile:
             searchspace_config.update(self.searchspace_config)
         return searchspace_config
 
+    def get_extra_config(self) -> dict:
+        return self.extra_config if hasattr(self, "extra_config") else {}
+
     def get_run_description(self) -> str:
         run_configs = []
-        run_configs.append(f"ss_{self.train_config.get('searchspace')}")
+        run_configs.append(f"train_model_{self.train_config.get('searchspace')}")
         run_configs.append(f"epochs_{self.train_config.get('epochs')}")
         run_configs.append(f"seed_{self.train_config.get('seed')}")
         return "-".join(run_configs)

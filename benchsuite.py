@@ -75,6 +75,10 @@ def configure_discrete_profile_with_search_space(
         search_space.pop("steps", None)
 
     profile.configure_searchspace(**search_space)
+    profile.configure_extra(
+        subspace=space,
+        opset=opset,
+    )
 
     if opset == BenchSuiteOpSet.ALL_SKIP:
         searchspace_config = {"use_auxiliary_skip_connection": True}
