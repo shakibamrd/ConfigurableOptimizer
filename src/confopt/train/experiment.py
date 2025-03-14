@@ -220,6 +220,9 @@ class Experiment:
             oles_threshold=oles_threshold,
         )
 
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
+
         return trainer
 
     def _init_components(
@@ -728,6 +731,9 @@ class Experiment:
         )
 
         trainer.test(log_with_wandb=self.log_with_wandb)
+
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
 
         return trainer
 
