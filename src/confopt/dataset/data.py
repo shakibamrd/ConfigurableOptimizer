@@ -304,6 +304,68 @@ class CIFAR100Data(CIFARData):
         return train_data, test_data
 
 
+class CIFAR10SupernetDataset(CIFAR10Data):
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets(
+            self.root, train_transform, test_transform
+        )
+
+        num_train = len(train_data) // 2  # type: ignore
+        print("Warning: Using only half of the CIFAR training data!")
+
+        indices = list(range(num_train))
+
+        split = int(np.floor(self.train_portion * num_train))
+        train_start_idx = 0
+        train_end_idx = split
+        val_start_idx = split
+        val_end_idx = num_train
+
+        train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[train_start_idx:train_end_idx]
+        )
+        val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[val_start_idx:val_end_idx]
+        )
+        return (
+            (train_data, train_sampler),
+            (train_data, val_sampler),
+            (test_data, None),
+        )
+
+
+class CIFAR10ModelDataset(CIFAR10Data):
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets(
+            self.root, train_transform, test_transform
+        )
+
+        n_samples = len(train_data)
+        print("Warning: Using only half of the CIFAR training data!")
+
+        indices = list(range(n_samples))
+
+        val_start_idx = 0
+        val_end_idx = n_samples // 2
+
+        train_start_idx = n_samples // 2
+        train_end_idx = -1
+
+        train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[train_start_idx:train_end_idx]
+        )
+        val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[val_start_idx:val_end_idx]
+        )
+        return (
+            (train_data, train_sampler),
+            (train_data, val_sampler),
+            (test_data, None),
+        )
+
+
 class ImageNet16Data(ImageNetData):
     def __init__(
         self, root: str, cutout: int, cutout_length: int, train_portion: float = 1.0

@@ -220,6 +220,9 @@ class Experiment:
             oles_threshold=oles_threshold,
         )
 
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
+
         return trainer
 
     def _init_components(
@@ -517,6 +520,8 @@ class Experiment:
             searchspace_config["genotype"] = eval(genotype_str)
             if self.dataset in (
                 DatasetType.CIFAR10,
+                DatasetType.CIFAR10_MODEL,
+                DatasetType.CIFAR10_SUPERNET,
                 DatasetType.CIFAR100,
                 DatasetType.AIRCRAFT,
             ):
@@ -664,6 +669,7 @@ class Experiment:
             self.logger.set_up_new_run()
 
         self.logger.save_genotype(genotype_str)
+        train_config["genotype"] = genotype_str
 
         if train_config.get("use_ddp", False) is True:
             assert torch.distributed.is_initialized(), "DDP is not initialized!"
@@ -726,6 +732,9 @@ class Experiment:
         )
 
         trainer.test(log_with_wandb=self.log_with_wandb)
+
+        if self.log_with_wandb:
+            wandb.finish()  # type: ignore
 
         return trainer
 

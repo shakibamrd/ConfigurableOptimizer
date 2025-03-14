@@ -5,6 +5,8 @@ from confopt.enums import DatasetType
 from .data import (
     AbstractData,
     CIFAR10Data,
+    CIFAR10ModelDataset,
+    CIFAR10SupernetDataset,
     CIFAR100Data,
     FGVCAircraftDataset,
     ImageNet16Data,
@@ -35,6 +37,10 @@ def get_dataset(
     dataset_cls: type[AbstractData] = CIFAR10Data
     if dataset == DatasetType.CIFAR10:
         dataset_cls = CIFAR10Data
+    elif dataset == DatasetType.CIFAR10_SUPERNET:
+        dataset_cls = CIFAR10SupernetDataset
+    elif dataset == DatasetType.CIFAR10_MODEL:
+        dataset_cls = CIFAR10ModelDataset
     elif dataset == DatasetType.CIFAR100:
         dataset_cls = CIFAR100Data
     elif dataset == DatasetType.IMGNET16:

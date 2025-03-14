@@ -335,7 +335,7 @@ class BaseProfile:
             "reg_weights": [0.0],
             "loss_weight": 1.0,
             "active_reg_terms": [],
-            "drnas_config": {"reg_scale": 1e-3},
+            "drnas_config": {"reg_scale": 1e-3, "reg_type": "l2"},
             "flops_config": {},
             "fairdarts_config": {},
         }

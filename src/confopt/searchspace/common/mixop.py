@@ -31,7 +31,7 @@ class OperationChoices(nn.Module):
     def _init_aux_skip_connection(self) -> None:
         stride = 1
         C = None
-        affine = True
+        affine = False
         if self.is_reduction_cell:
             for op in self.ops:
                 # targeting the SepConv Block
