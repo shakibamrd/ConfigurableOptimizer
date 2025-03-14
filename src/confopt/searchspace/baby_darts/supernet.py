@@ -3,14 +3,14 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+from confopt.searchspace.baby_darts.core import BabyDARTSSearchModel
 from confopt.searchspace.common.base_search import SearchSpace
-from confopt.searchspace.darts.core import DARTSSearchModel
+from confopt.searchspace.darts.core.genotypes import DARTSGenotype
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-
+# none () and skip_connect does not work with the BabyDARTS
 BABY_PRIMITIVES = [
-    "none",
     "sep_conv_3x3",
     "dil_conv_3x3",
 ]
@@ -21,14 +21,15 @@ class BabyDARTSSearchSpace(SearchSpace):
         assert "layers" not in kwargs, "Layers parameter is hard coded to 1"
         assert "steps" not in kwargs, "Steps parameter is hard coded to 1"
         assert "multiplier" not in kwargs, "multiplier parameter is hard coded to 1"
-        if "primitives" in kwargs:
-            model = DARTSSearchModel(layers=1, steps=1, multiplier=1, **kwargs).to(
-                DEVICE
-            )
-        else:
-            model = DARTSSearchModel(
-                layers=1, steps=1, multiplier=1, primitives=BABY_PRIMITIVES, **kwargs
-            ).to(DEVICE)
+
+        primitives = (
+            BABY_PRIMITIVES if "primitives" not in kwargs else kwargs["primitives"]
+        )
+        kwargs.pop("primitives", None)
+
+        model = BabyDARTSSearchModel(
+            layers=1, steps=1, multiplier=1, primitives=primitives, **kwargs
+        ).to(DEVICE)
         super().__init__(model)
 
     @property
@@ -53,3 +54,6 @@ class BabyDARTSSearchSpace(SearchSpace):
 
     def discretize(self) -> nn.Module:
         return self.model._discretize()  # type: ignore
+
+    def get_genotype(self) -> DARTSGenotype:
+        return self.model.genotype()
