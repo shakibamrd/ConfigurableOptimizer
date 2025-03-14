@@ -495,9 +495,11 @@ class Experiment:
         searchspace_config = profile.get_searchspace_config(self.dataset.value)
         genotype_str = profile.get_genotype()
         run_name = profile.get_run_description()
+        extra_config = profile.get_extra_config()
 
         return self._train_discrete_model(
             searchspace_config=searchspace_config,
+            extra_config=extra_config,
             train_config=train_config,
             model_to_load=model_to_load,
             exp_runtime_to_load=exp_runtime_to_load,
@@ -617,6 +619,7 @@ class Experiment:
     def _train_discrete_model(
         self,
         searchspace_config: dict,
+        extra_config: dict,
         train_config: dict,
         model_to_load: str | int | None = None,
         exp_runtime_to_load: str | None = None,
@@ -723,7 +726,8 @@ class Experiment:
             debug_mode=self.debug_mode,
         )
         if self.log_with_wandb:
-            self._init_wandb(run_name, config=train_config)
+            config = train_config | {"extra_config": extra_config}
+            self._init_wandb(run_name, config=config)
 
         trainer.train(
             epochs=trainer_arguments.epochs,  # type: ignore
