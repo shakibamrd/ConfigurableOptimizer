@@ -665,6 +665,7 @@ class Experiment:
             self.logger.set_up_new_run()
 
         self.logger.save_genotype(genotype_str)
+        train_config["genotype"] = genotype_str
 
         if train_config.get("use_ddp", False) is True:
             assert torch.distributed.is_initialized(), "DDP is not initialized!"

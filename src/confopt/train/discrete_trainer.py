@@ -69,7 +69,6 @@ class DiscreteTrainer(ConfigurableTrainer):
             [metrics.loss, metrics.acc_top1, metrics.acc_top5]
         ).cuda()
 
-        print(f"ALL: reducing tensor from rank {rank}")
         dist.reduce(metrics_tensor, dst=0, op=dist.ReduceOp.SUM)
 
         if rank == 0:
