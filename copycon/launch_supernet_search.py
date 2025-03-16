@@ -51,7 +51,7 @@ if __name__ == "__main__":
     # Create a unique jobname using the provided experiment name.
     jobname = unify(f"darts-bench-suite-exps/{experiment_name}", method="coolname")
 
-    config = read_config('config.cfg')
+    config = read_config('./config.cfg')
     conda_env = config.get('conda_env_name', 'confopt')
 
     slurm = SlurmWrapper(clusters=[cluster])

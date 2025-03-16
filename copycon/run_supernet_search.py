@@ -50,7 +50,7 @@ if __name__ == "__main__":
     SEARCHSPACE = SearchSpaceType.DARTS
     DATASET = DatasetType(args.dataset)
 
-    config = read_config('./config.cfg')
+    config = read_config('./exp/config.cfg')
     DATASET_DIR = config.get('dataset_dir_remote', 'none')
 
     assert DATASET_DIR != 'none', "Please set the dataset_dir_remote in the config file"
