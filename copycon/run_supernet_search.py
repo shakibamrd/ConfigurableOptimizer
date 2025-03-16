@@ -26,7 +26,7 @@ parser.add_argument("--seed", type=int)
 parser.add_argument("--tag", default="", type=str)
 parser.add_argument("--oles", action="store_true", default=False)
 parser.add_argument("--pcdarts", action="store_true", default=False)
-parser.add_argument("--fairdarts", action="store_true", default=False)
+parser.add_argument("--fairdarts", action="store_true", default=True)
 parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
 parser.add_argument("--perturbator_sample_frequency", choices=["epoch", "step"], default="epoch", type=str)
 
