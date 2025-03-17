@@ -239,11 +239,11 @@ class Logger:
         genotype: str,
         epoch: int = 0,
         checkpointing_freq: int = 1,
-        save_best_model: bool = False,
+        is_best_model: bool = False,
     ) -> None:
         if epoch % checkpointing_freq != 0:
             return
-        if save_best_model:
+        if is_best_model:
             file_path = Path(self.path(mode="best_genotype"))
             last_file_path = Path(self.path(mode=None)) / "last_genotype.txt"
             last_file_info = "best_genotype.txt"
