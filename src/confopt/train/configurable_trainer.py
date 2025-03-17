@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from io import BytesIO
 import time
 from typing import Any, Literal
 
 from fvcore.common.checkpoint import Checkpointer, PeriodicCheckpointer
+from matplotlib import pyplot as plt
+from PIL import Image
 import torch
 from torch import nn
 from torch.nn import DataParallel
@@ -12,6 +15,7 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+import wandb
 
 from confopt.dataset import AbstractData
 from confopt.oneshot.early_stopper import EarlyStopper
@@ -336,9 +340,9 @@ class ConfigurableTrainer:
             )
 
             # Save Genotype and log best model
-            # genotype = str(self.model.get_genotype())
+            genotype = str(self.model.get_genotype())
             # genotype = self.model.get_genotype().tostr()  # type: ignore
-            # self.logger.save_genotype(genotype, epoch, self.checkpointing_freq)
+            self.logger.save_genotype(genotype, epoch, self.checkpointing_freq)
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
@@ -349,9 +353,9 @@ class ConfigurableTrainer:
                 self.best_model_checkpointer.save(
                     name="best_model", checkpointables=checkpointables
                 )
-                # self.logger.save_genotype(
-                #     genotype, epoch, self.checkpointing_freq, save_best_model=True
-                # )
+                self.logger.save_genotype(
+                    genotype, epoch, self.checkpointing_freq, save_best_model=True
+                )
 
             # Log Benchmark Results
             self.log_benchmark_result(network)
@@ -387,6 +391,11 @@ class ConfigurableTrainer:
             # measure elapsed time
             epoch_time.update(time.time() - start_time)
             start_time = time.time()
+
+        if log_with_wandb and hasattr(self.data, "get_sample_image"):
+            self.plot_activation_maps(
+                model=network, sample_example=self.data.get_sample_image().unsqueeze(0)
+            )
 
     def _train_epoch(  # noqa: C901
         self,
@@ -811,6 +820,53 @@ class ConfigurableTrainer:
             and search_space_handler.sampler.sample_frequency == "epoch"
         ):
             search_space_handler.reset_sample_function(model)
+
+    def plot_activation_maps(
+        self, model: SearchSpace | DataParallel, sample_example: torch
+    ) -> None:
+        # ACTIVATE THE FORWARD HOOKS
+        for module in model.modules():
+            if hasattr(module, "activations"):
+                module.activate_hooks()
+        # DO A FORWARD PASS WITH THE MODEL
+        model.eval()
+        with torch.no_grad():
+            model(sample_example.to(self.device))
+
+        wandb.log(  # type: ignore
+            {
+                "input_image": wandb.Image(  # type: ignore
+                    sample_example.squeeze(0).permute(1, 2, 0).numpy(),
+                    caption="Input Image",
+                )
+            }
+        )
+
+        for name, module in model.named_modules():
+            if hasattr(module, "activations"):
+                feature_map = module.activations["output"].squeeze(0).cpu().numpy()
+                plt.figure(figsize=(12, 8))
+                # fixed for C = 16
+                for i in range(16):
+                    plt.subplot(4, 4, i + 1)
+                    plt.imshow(feature_map[i], cmap="viridis")
+                    plt.axis("off")
+                    plt.title(f"Channel {i+1}")
+                plt.suptitle("Activation Maps")
+                plt.tight_layout()
+
+                buf = BytesIO()
+                plt.savefig(buf, format="png", bbox_inches="tight")
+                buf.seek(0)
+                img = Image.open(buf)
+
+                wandb.log(  # type: ignore
+                    {
+                        f"activation_maps/{name}": wandb.Image(  # type: ignore
+                            img, caption="Activation Maps for Sample Image"
+                        ),
+                    }
+                )
 
     def get_arch_values_as_dict(self, model: SearchSpace | DataParallel) -> dict:
         if isinstance(model, DataParallel):
