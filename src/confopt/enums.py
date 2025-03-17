@@ -37,6 +37,8 @@ class PerturbatorType(Enum):
 
 class DatasetType(Enum):
     CIFAR10 = "cifar10"
+    CIFAR10_SUPERNET = "cifar10_supernet"
+    CIFAR10_MODEL = "cifar10_model"
     CIFAR100 = "cifar100"
     IMGNET16 = "imgnet16"
     IMGNET16_120 = "imgnet16_120"

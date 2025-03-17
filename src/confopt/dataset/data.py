@@ -303,6 +303,68 @@ class CIFAR100Data(CIFARData):
         return train_data, test_data
 
 
+class CIFAR10SupernetDataset(CIFAR10Data):
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets(
+            self.root, train_transform, test_transform
+        )
+
+        num_train = len(train_data) // 2  # type: ignore
+        print("Warning: Using only half of the CIFAR training data!")
+
+        indices = list(range(num_train))
+
+        split = int(np.floor(self.train_portion * num_train))
+        train_start_idx = 0
+        train_end_idx = split
+        val_start_idx = split
+        val_end_idx = num_train
+
+        train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[train_start_idx:train_end_idx]
+        )
+        val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[val_start_idx:val_end_idx]
+        )
+        return (
+            (train_data, train_sampler),
+            (train_data, val_sampler),
+            (test_data, None),
+        )
+
+
+class CIFAR10ModelDataset(CIFAR10Data):
+    def build_datasets(self) -> tuple[DS, DS, DS]:
+        train_transform, test_transform = self.get_transforms()
+        train_data, test_data = self.load_datasets(
+            self.root, train_transform, test_transform
+        )
+
+        n_samples = len(train_data)
+        print("Warning: Using only half of the CIFAR training data!")
+
+        indices = list(range(n_samples))
+
+        val_start_idx = 0
+        val_end_idx = n_samples // 2
+
+        train_start_idx = n_samples // 2
+        train_end_idx = -1
+
+        train_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[train_start_idx:train_end_idx]
+        )
+        val_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+            indices[val_start_idx:val_end_idx]
+        )
+        return (
+            (train_data, train_sampler),
+            (train_data, val_sampler),
+            (test_data, None),
+        )
+
+
 class ImageNet16Data(ImageNetData):
     def __init__(
         self, root: str, cutout: int, cutout_length: int, train_portion: float = 1.0
@@ -648,8 +710,8 @@ class SyntheticDataset(Dataset):
         shape: tuple[int, int, int],
         length: int,
         transform: Callable | None = None,
-        signal_receptive_field: int = 5,
-        shortcut_receptive_field: int = 3,
+        signal_width: int = 5,
+        shortcut_width: int = 3,
         shortcut_strength: float = 0,
     ):
         """Synthetic dataset generator for architecture search experiments.
@@ -659,21 +721,19 @@ class SyntheticDataset(Dataset):
             shape: Image dimensions (H, W, C)
             length: Number of samples to generate
             transform: Torchvision transforms to apply
-            signal_receptive_field: Size of main signal pattern
-            shortcut_receptive_field: Size of shortcut pattern
+            signal_width: Size of main signal pattern
+            shortcut_width: Size of shortcut pattern
             shortcut_strength: Strength of shortcut correlation (0=random, 1=perfect)
         """
         self.seed = seed
         self.shape = shape
         self.length = length
         self.transform = transform
-        self.signal_receptive_field = signal_receptive_field
-        self.shortcut_receptive_field = shortcut_receptive_field
+        self.signal_width = signal_width
+        self.shortcut_width = shortcut_width
         assert 0 <= shortcut_strength <= 1
         self.prob_shortcut_correct = 0.5 + 0.5 * shortcut_strength
-        self.padding = (
-            max(self.signal_receptive_field, self.shortcut_receptive_field) - 1
-        ) // 2
+        self.padding = (max(self.signal_width, self.shortcut_width) - 1) // 2
 
     def get_random_position(
         self, random: np.random.RandomState, padding: int
@@ -715,13 +775,13 @@ class SyntheticDataset(Dataset):
         center = self.get_random_position(random, self.padding)
 
         # Main signal pattern
-        self.insert_pattern(image, center, self.signal_receptive_field, "/")
+        self.insert_pattern(image, center, self.signal_width, "/")
 
         # Shortcut pattern
         if random.random() < self.prob_shortcut_correct:
-            self.insert_pattern(image, center, self.shortcut_receptive_field, "-")
+            self.insert_pattern(image, center, self.shortcut_width, "-")
         else:
-            self.insert_pattern(image, center, self.shortcut_receptive_field, "|")
+            self.insert_pattern(image, center, self.shortcut_width, "|")
 
         return image
 
@@ -735,13 +795,13 @@ class SyntheticDataset(Dataset):
         center = self.get_random_position(random, self.padding)
 
         # Main signal pattern
-        self.insert_pattern(image, center, self.signal_receptive_field, "\\")
+        self.insert_pattern(image, center, self.signal_width, "\\")
 
         # Shortcut pattern
         if random.random() < self.prob_shortcut_correct:
-            self.insert_pattern(image, center, self.shortcut_receptive_field, "|")
+            self.insert_pattern(image, center, self.shortcut_width, "|")
         else:
-            self.insert_pattern(image, center, self.shortcut_receptive_field, "-")
+            self.insert_pattern(image, center, self.shortcut_width, "-")
 
         return image
 
@@ -770,15 +830,15 @@ class SyntheticData(AbstractData):
         cutout: int,
         cutout_length: int,
         train_portion: float = 1.0,
-        signal_receptive_field: int = 5,
-        shortcut_receptive_field: int = 3,
+        signal_width: int = 5,
+        shortcut_width: int = 3,
         shortcut_strength: float = 0,
     ):
         super().__init__(root, train_portion)
         self.cutout = cutout
         self.cutout_length = cutout_length
-        self.signal_receptive_field = signal_receptive_field
-        self.shortcut_receptive_field = shortcut_receptive_field
+        self.signal_width = signal_width
+        self.shortcut_width = shortcut_width
         self.shortcut_strength = shortcut_strength
 
         if self.cutout > 0:
@@ -823,8 +883,8 @@ class SyntheticData(AbstractData):
         """Initialize train/test datasets."""
         common_args = {
             "shape": (32, 32, 3),
-            "signal_receptive_field": self.signal_receptive_field,
-            "shortcut_receptive_field": self.shortcut_receptive_field,
+            "signal_width": self.signal_width,
+            "shortcut_width": self.shortcut_width,
             "shortcut_strength": self.shortcut_strength,
         }
 

@@ -7,6 +7,8 @@ from typing import Iterable, Literal
 import torch
 from torch import nn
 
+from confopt.enums import DatasetType
+
 from .checkpoints import (
     copy_checkpoint,
     save_checkpoint,
@@ -80,7 +82,9 @@ TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"]
 
 
 def calc_accuracy(
-    output: torch.Tensor, target: torch.Tensor, topk: Iterable = (1,)
+    output: torch.Tensor,
+    target: torch.Tensor,
+    topk: Iterable = (1,),
 ) -> list[torch.Tensor]:
     """Computes the precision@k for the specified values of k."""
     maxk = max(topk)
@@ -118,20 +122,26 @@ def drop_path(x: torch.Tensor, drop_prob: float) -> torch.Tensor:
 
 
 def get_num_classes(dataset: str, domain: str | None = None) -> int:
-    if dataset == "cifar10":
+    if dataset in (
+        DatasetType.CIFAR10.value,
+        DatasetType.CIFAR10_MODEL.value,
+        DatasetType.CIFAR10_SUPERNET.value,
+    ):
         num_classes = 10
-    elif dataset == "cifar100":
+    elif dataset == DatasetType.CIFAR100.value:
         num_classes = 100
-    elif dataset in ("imgnet16_120", "imgnet16"):
+    elif dataset in (DatasetType.IMGNET16_120.value, DatasetType.IMGNET16.value):
         num_classes = 120
-    elif dataset == "taskonomy":
+    elif dataset == DatasetType.TASKONOMY.value:
         assert domain in ["class_object", "class_scene"]
         if "class_object" in domain:
             num_classes = 75
         elif "class_scene" in domain:
             num_classes = 47
-    elif dataset == "aircraft":
+    elif dataset == DatasetType.AIRCRAFT.value:
         num_classes = 30
+    elif dataset == "synthetic":
+        num_classes = 2
     else:
         raise ValueError("dataset is not defined.")
     return num_classes

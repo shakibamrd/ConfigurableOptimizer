@@ -306,6 +306,10 @@ class ConfigurableTrainer:
                 self.logger.update_wandb_logs(grad_stats)
                 unwrapped_network.reset_grad_stats()
 
+            # Log current genotype
+            genotype = network.get_genotype().tostr()  # type: ignore
+            self.logger.update_wandb_logs({"genotype": genotype})
+
             # Create checkpoints
             (
                 self.valid_losses[epoch],

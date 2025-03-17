@@ -1,12 +1,17 @@
 from __future__ import annotations
 import argparse
 
-from confopt.profile import DARTSProfile, DRNASProfile, GDASProfile
-from confopt.profile.base import BaseProfile
-from confopt.profile.profiles import ReinMaxProfile
+from confopt.profile import (
+    DARTSProfile,
+    DRNASProfile,
+    GDASProfile,
+    BaseProfile,
+    ReinMaxProfile,
+)
 from confopt.train import Experiment
 from confopt.enums import SearchSpaceType, DatasetType
 from confopt.utils import get_num_classes
+
 
 def read_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("Synthetic Experiment", add_help=False)
@@ -24,18 +29,18 @@ def read_args() -> argparse.Namespace:
         help="number of epochs to train the supernet",
         type=int,
     )
-    
+
     parser.add_argument(
-        "--signal-receptive-field",
+        "--signal_width",
         default=5,
-        help="receptive field of the signal",
+        help="receptive width of the signal",
         type=int,
     )
 
     parser.add_argument(
-        "--shortcut-receptive-field",
+        "--shortcut_width",
         default=3,
-        help="receptive field of the signal",
+        help="receptive width of the signal",
         type=int,
     )
 
@@ -56,18 +61,19 @@ def read_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
-def get_profile(args: argparse.Namespace) -> BaseProfile:
+
+def get_profile(args: argparse.Namespace) -> BaseProfile:  # type: ignore
     if args.sampler == "darts":
-        return DARTSProfile
+        return DARTSProfile  # type: ignore
 
     if args.sampler == "gdas":
-        return GDASProfile
+        return GDASProfile  # type: ignore
 
     if args.sampler == "drnas":
-        return DRNASProfile
+        return DRNASProfile  # type: ignore
 
     if args.sampler == "reinmax":
-        return ReinMaxProfile
+        return ReinMaxProfile  # type: ignore
 
 
 if __name__ == "__main__":
@@ -76,26 +82,28 @@ if __name__ == "__main__":
     searchspace = SearchSpaceType.BABYDARTS
     dataset = DatasetType.SYNTHETIC
 
-    profile = get_profile(args)(searchspace=searchspace, epochs=args.search_epochs)
+    profile = get_profile(args)(searchspace=searchspace, epochs=args.search_epochs)  # type: ignore
 
     profile.configure_synthetic_dataset(
-        signal_receptive_field=args.signal_receptive_field,
-        shortcut_receptive_field=args.shortcut_receptive_field,
+        signal_width=args.signal_width,
+        shortcut_width=args.shortcut_width,
         shortcut_strength=args.shortcut_strength,
     )
 
     profile.configure_searchspace(
         num_classes=get_num_classes(dataset.value),
+        # doesn't support skip_connect
         primitives=[
-            "skip_connect",
-            "sep_conv_3x3",
+            "conv_3x3",
+            "conv_5x5",
         ],
     )
     project_name = "Synthetic-Benchsuite"
-    exp_name=(f"synthetic-test-{args.sampler}-"
-            f"sig{args.signal_receptive_field}x{args.signal_receptive_field}-"
-            f"short{args.shortcut_receptive_field}x{args.shortcut_receptive_field}-"
-            f"strength{args.shortcut_strength:.3f}"
+    exp_name = (
+        f"synthetic-test-{args.sampler}-"
+        f"sig{args.signal_width}x{args.signal_width}-"
+        f"short{args.shortcut_width}x{args.shortcut_width}-"
+        f"strength{args.shortcut_strength:.3f}"
     )
     profile.configure_extra(project_name=project_name, meta_info=exp_name)
     # Configure experiment parameters
@@ -103,9 +111,9 @@ if __name__ == "__main__":
         search_space=SearchSpaceType.BABYDARTS,
         dataset=DatasetType.SYNTHETIC,
         seed=args.seed,
-        debug_mode=False,
+        debug_mode=True,
         exp_name=exp_name,
-        log_with_wandb=True,
+        log_with_wandb=False,
     )
 
     # Execute the training process
