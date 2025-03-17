@@ -822,6 +822,18 @@ class SyntheticDataset(Dataset):
     def __len__(self) -> int:
         return self.length
 
+    def get_sample_image(self) -> torch.Tensor:
+        image = np.zeros(self.shape, dtype=np.float32)
+        random = np.random.RandomState((self.seed, 0))
+        center = self.get_random_position(random, self.padding)
+
+        # Main signal pattern
+        self.insert_pattern(image, center, self.signal_width, "\\")
+
+        self.insert_pattern(image, center, self.shortcut_width, "|")
+
+        return torch.tensor(image)
+
 
 class SyntheticData(AbstractData):
     def __init__(
@@ -901,4 +913,24 @@ class SyntheticData(AbstractData):
                 transform=test_transform,
                 **common_args,  # type: ignore
             ),
+        )
+
+    def get_sample_image(self) -> torch.Tensor:
+        train_transform, _ = self.get_transforms()
+        common_args = {
+            "shape": (32, 32, 3),
+            "signal_width": self.signal_width,
+            "shortcut_width": self.shortcut_width,
+            "shortcut_strength": self.shortcut_strength,
+        }
+
+        return (
+            SyntheticDataset(
+                seed=1,
+                length=1,
+                transform=train_transform,
+                **common_args,  # type: ignore
+            )
+            .get_sample_image()
+            .permute(2, 0, 1)
         )
