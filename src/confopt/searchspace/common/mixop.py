@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from thop import profile as flop_profile
 import torch
 from torch import nn
 
-from confopt.oneshot.dropout import Dropout
-from confopt.oneshot.partial_connector import PartialConnector
-from confopt.oneshot.weightentangler import WeightEntangler
+if TYPE_CHECKING:
+    from confopt.oneshot.dropout import Dropout
+    from confopt.oneshot.partial_connector import PartialConnector
+    from confopt.oneshot.weightentangler import WeightEntangler
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 __all__ = ["OperationChoices"]

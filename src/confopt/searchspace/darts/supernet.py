@@ -191,7 +191,7 @@ class DARTSSearchSpace(
         return stats
 
     def get_drnas_anchors(self) -> list[torch.Tensor]:
-        if len(self.cells) == 1:
+        if len(self.model.cells) == 1:
             return [self.model.anchor_reduce]
 
         return [self.model.anchor_normal, self.model.anchor_reduce]
