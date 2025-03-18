@@ -14,7 +14,6 @@ from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
     calc_layer_alignment_score,
     get_pos_new_cell_darts,
-    get_pos_reductions_darts,
     preserve_gradients_in_module,
     prune,
     set_ops_to_prune,
@@ -327,7 +326,7 @@ class Network(nn.Module):
         self.cells = nn.ModuleList()
         reduction_prev = False
         for i in range(layers):
-            if i in get_pos_reductions_darts(layers=layers):
+            if i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
                 reduction = True
             else:
