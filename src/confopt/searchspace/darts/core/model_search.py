@@ -553,10 +553,14 @@ class Network(nn.Module):
         self.alphas_reduce = nn.Parameter(
             1e-3 * torch.randn(k, self.num_ops).to(DEVICE)
         )
-        self._arch_parameters = [
-            self.alphas_normal,
-            self.alphas_reduce,
-        ]
+
+        if len(self.cells) == 1:
+            self._arch_parameters = [self.alphas_reduce]
+        else:
+            self._arch_parameters = [
+                self.alphas_normal,
+                self.alphas_reduce,
+            ]
 
         self.betas_normal = nn.Parameter(1e-3 * torch.randn(k).to(DEVICE))
         self.betas_reduce = nn.Parameter(1e-3 * torch.randn(k).to(DEVICE))
