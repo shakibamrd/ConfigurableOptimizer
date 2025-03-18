@@ -82,7 +82,9 @@ TrainingMetrics = namedtuple("TrainingMetrics", ["loss", "acc_top1", "acc_top5"]
 
 
 def calc_accuracy(
-    output: torch.Tensor, target: torch.Tensor, topk: Iterable = (1,)
+    output: torch.Tensor,
+    target: torch.Tensor,
+    topk: Iterable = (1,),
 ) -> list[torch.Tensor]:
     """Computes the precision@k for the specified values of k."""
     maxk = max(topk)
@@ -138,6 +140,8 @@ def get_num_classes(dataset: str, domain: str | None = None) -> int:
             num_classes = 47
     elif dataset == DatasetType.AIRCRAFT.value:
         num_classes = 30
+    elif dataset == "synthetic":
+        num_classes = 2
     else:
         raise ValueError("dataset is not defined.")
     return num_classes
