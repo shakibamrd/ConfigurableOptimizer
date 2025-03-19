@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Literal, Tuple, Union
 
 import numpy as np
 from skimage import io
@@ -713,6 +713,9 @@ class SyntheticDataset(Dataset):
         signal_width: int = 5,
         shortcut_width: int = 3,
         shortcut_strength: float = 0,
+        test_patch_width: int = 10,
+        train: bool = True,
+        pattern_type: Literal[1, 2] = 1,
     ):
         """Synthetic dataset generator for architecture search experiments.
 
@@ -724,6 +727,9 @@ class SyntheticDataset(Dataset):
             signal_width: Size of main signal pattern
             shortcut_width: Size of shortcut pattern
             shortcut_strength: Strength of shortcut correlation (0=random, 1=perfect)
+            test_patch_width: Size of test patch
+            train: Train (True) or Test (False) set
+            pattern_type: choice between pattern 1 and pattern 2
         """
         self.seed = seed
         self.shape = shape
@@ -734,16 +740,55 @@ class SyntheticDataset(Dataset):
         assert 0 <= shortcut_strength <= 1
         self.prob_shortcut_correct = 0.5 + 0.5 * shortcut_strength
         self.padding = (max(self.signal_width, self.shortcut_width) - 1) // 2
+        self.train = train
+        # Note: the test patch is a fixed patch
+        # which is not accessed by train and validation
+        self.test_patch_width = test_patch_width
+        self.pattern_type = pattern_type
+
+    def is_point_in_bounds(
+        self,
+        point: tuple[int, int],
+        lower_bound: tuple[int, int],
+        upper_bound: tuple[int, int],
+    ) -> bool:
+        is_point_in_bound = True
+        for i in range(2):
+            is_point_in_bound = (
+                is_point_in_bound
+                and point[i] >= lower_bound[i]
+                and point[i] < upper_bound[i]
+            )
+
+        return is_point_in_bound
 
     def get_random_position(
         self, random: np.random.RandomState, padding: int
     ) -> tuple[int, int]:
         """Get random center position with padding."""
-        x = random.randint(padding, self.shape[0] - padding)
-        y = random.randint(padding, self.shape[1] - padding)
+        upper_x_bound = self.shape[0] - padding
+        upper_y_bound = self.shape[1] - padding
+        if self.train:
+            while True:
+                x = random.randint(padding, upper_x_bound)
+                y = random.randint(padding, upper_y_bound)
+
+                if self.is_point_in_bounds(
+                    (x, y),
+                    (
+                        upper_x_bound - self.test_patch_width,
+                        upper_y_bound - self.test_patch_width,
+                    ),
+                    (upper_x_bound, upper_y_bound),
+                ):
+                    continue
+                break
+        else:
+            x = random.randint(upper_x_bound - self.test_patch_width, upper_x_bound)
+            y = random.randint(upper_y_bound - self.test_patch_width, upper_y_bound)
         return x, y
 
-    def insert_pattern(
+    def insert_pattern_1(
         self, image: np.ndarray, center: tuple[int, int], size: int, direction: str
     ) -> None:
         assert size % 2 == 1, "Pattern size must be odd"
@@ -765,6 +810,35 @@ class SyntheticDataset(Dataset):
         else:
             raise ValueError(f"Invalid direction: {direction}")
 
+    def insert_pattern_2(
+        self,
+        image: torch.Tensor,
+        center: tuple[int, int],
+        size: int,
+        random: np.random.RandomState,
+        positive: bool = True,
+    ) -> None:
+        # Start with random integers between 0 and 1 inside the whole signal patch
+        # for positive example,
+        # On the middle of each side, insert a random integer less than 0.5
+        # for negative example,
+        # randomly sample one of the sides, and insert a random integer greater than 0.5
+        assert size % 2 == 1, "Pattern size must be odd"
+        h = (size - 1) // 2
+        x, y = center
+        patch = random.uniform(0, 1, (size, size, self.shape[-1]))
+
+        if positive:
+            image[x - h : x + h + 1, y - h : y + h + 1] = patch
+            image[x, y - h] = random.uniform(0, 0.5)
+            image[x, y + h] = random.uniform(0, 0.5)
+            image[x + h, y] = random.uniform(0, 0.5)
+            image[x - h, y] = random.uniform(0, 0.5)
+        else:
+            edges = [(x, y - h), (x, y + h), (x + h, y), (x - h, y)]
+            idx = random.choice(list(range(4)))
+            image[edges[idx][0], edges[idx][1]] = random.uniform(0.5, 1)
+
     def create_negative(self, random: np.random.RandomState) -> np.ndarray:
         """Generate negative sample with anti-diagonal pattern.
         0  0  1
@@ -774,14 +848,23 @@ class SyntheticDataset(Dataset):
         image = np.zeros(self.shape, dtype=np.float32)
         center = self.get_random_position(random, self.padding)
 
-        # Main signal pattern
-        self.insert_pattern(image, center, self.signal_width, "/")
+        if self.pattern_type == 1:
+            # Main signal pattern
+            self.insert_pattern_1(image, center, self.signal_width, "/")
 
-        # Shortcut pattern
-        if random.random() < self.prob_shortcut_correct:
-            self.insert_pattern(image, center, self.shortcut_width, "-")
+            # Shortcut pattern
+            if random.random() < self.prob_shortcut_correct:
+                self.insert_pattern_1(image, center, self.shortcut_width, "-")
+            else:
+                self.insert_pattern_1(image, center, self.shortcut_width, "|")
+        elif self.pattern_type == 2:
+            self.insert_pattern_2(
+                image, center, self.signal_width, random, positive=False
+            )
         else:
-            self.insert_pattern(image, center, self.shortcut_width, "|")
+            raise ValueError(
+                f"pattern_type={self.pattern_type} is not a valid pattern (1 and 2)."
+            )
 
         return image
 
@@ -794,14 +877,24 @@ class SyntheticDataset(Dataset):
         image = np.zeros(self.shape, dtype=np.float32)
         center = self.get_random_position(random, self.padding)
 
-        # Main signal pattern
-        self.insert_pattern(image, center, self.signal_width, "\\")
+        if self.pattern_type == 1:
+            # Main signal pattern
+            self.insert_pattern_1(image, center, self.signal_width, "\\")
 
-        # Shortcut pattern
-        if random.random() < self.prob_shortcut_correct:
-            self.insert_pattern(image, center, self.shortcut_width, "|")
+            # Shortcut pattern
+            if random.random() < self.prob_shortcut_correct:
+                self.insert_pattern_1(image, center, self.shortcut_width, "|")
+            else:
+                self.insert_pattern_1(image, center, self.shortcut_width, "-")
+        elif self.pattern_type == 2:
+            self.insert_pattern_2(
+                image, center, self.signal_width, random, positive=True
+            )
         else:
-            self.insert_pattern(image, center, self.shortcut_width, "-")
+            raise ValueError(
+                f"pattern_type={self.pattern_type} is not a valid pattern. "
+                + "Choose between 1 and 2"
+            )
 
         return image
 
@@ -827,10 +920,20 @@ class SyntheticDataset(Dataset):
         random = np.random.RandomState((self.seed, 0))
         center = self.get_random_position(random, self.padding)
 
-        # Main signal pattern
-        self.insert_pattern(image, center, self.signal_width, "\\")
+        if self.pattern_type == 1:
+            self.insert_pattern(image, center, self.signal_width, "\\")
 
-        self.insert_pattern(image, center, self.shortcut_width, "|")
+            self.insert_pattern(image, center, self.shortcut_width, "|")
+
+        elif self.pattern_type == 2:
+            self.insert_pattern_2(
+                image, center, self.signal_width, random, positive=True
+            )
+        else:
+            raise ValueError(
+                f"pattern_type={self.pattern_type} is not a valid pattern, ",
+                "Choose between 1 and 2",
+            )
 
         return torch.tensor(image)
 
@@ -845,6 +948,8 @@ class SyntheticData(AbstractData):
         signal_width: int = 5,
         shortcut_width: int = 3,
         shortcut_strength: float = 0,
+        test_patch_width: int = 10,
+        pattern_type: Literal[1, 2] = 1,
     ):
         super().__init__(root, train_portion)
         self.cutout = cutout
@@ -852,6 +957,8 @@ class SyntheticData(AbstractData):
         self.signal_width = signal_width
         self.shortcut_width = shortcut_width
         self.shortcut_strength = shortcut_strength
+        self.test_patch_width = test_patch_width
+        self.pattern_type = pattern_type
 
         if self.cutout > 0:
             raise NotImplementedError("Cutout not supported for synthetic data")
@@ -898,19 +1005,23 @@ class SyntheticData(AbstractData):
             "signal_width": self.signal_width,
             "shortcut_width": self.shortcut_width,
             "shortcut_strength": self.shortcut_strength,
+            "test_patch_width": self.test_patch_width,
+            "pattern_type": self.pattern_type,
         }
 
         return (
             SyntheticDataset(
                 seed=1,
-                length=50000,
+                length=20000,
                 transform=train_transform,
+                train=True,
                 **common_args,  # type: ignore
             ),
             SyntheticDataset(
                 seed=2,
-                length=10000,
+                length=5000,
                 transform=test_transform,
+                train=False,
                 **common_args,  # type: ignore
             ),
         )
