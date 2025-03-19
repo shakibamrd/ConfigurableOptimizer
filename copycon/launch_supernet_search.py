@@ -37,11 +37,13 @@ if __name__ == "__main__":
     parser.add_argument("--pcdarts", type=bool, default=False)
     parser.add_argument("--fairdarts", type=bool, default=False)
     parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
+    parser.add_argument("--dry-run", type=bool, default=False)
     args = parser.parse_args()
 
     seeds = args.seeds
     args_dict = vars(args)
 
+    is_dry_run = args.dry_run
     experiment_name = f"{args.optimizer}-{args.subspace}-{args.ops}"
 
     python_args = []
@@ -69,7 +71,7 @@ if __name__ == "__main__":
         python_args=python_args,
         python_binary="python",
         n_cpus=8,
-        max_runtime_minutes=60 * 24,
+        max_runtime_minutes=10 if is_dry_run else 60 * 24,
         # Pass environment variables to the running script.
         bash_setup_command=f"source ~/.bash_profile; conda activate {conda_env}",
         env=config,
