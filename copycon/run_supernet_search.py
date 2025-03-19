@@ -149,7 +149,7 @@ if __name__ == "__main__":
         partial_connector_config=partial_connector_config,
         seed=args.seed,
         oles=args.oles,
-        calc_gm_score=args.oles,
+        calc_gm_score=True,
         is_regularization_enabled=args.fairdarts,
         regularization_config=regularization_config,
         sampler_arch_combine_fn=arch_combine_fn,
