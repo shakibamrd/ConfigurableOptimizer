@@ -147,6 +147,8 @@ if __name__ == "__main__":
         opset=opset,
         benchmark=f"{subspace}-{opset}",
         tag=args.tag,
+        is_debug_run=DEBUG_MODE,
+        project_name="ConfoptAutoML25",
     )
 
     experiment = Experiment(

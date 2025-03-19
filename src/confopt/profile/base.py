@@ -457,7 +457,11 @@ class BaseProfile:
 
     def get_run_description(self) -> str:
         run_configs = []
-        run_configs.append(f"ss_{self.searchspace_type}")
+        run_configs.append(f"space_{self.searchspace_type}")
+
+        if self.extra_config is not None and "benchmark" in self.extra_config:
+            run_configs.append(f"benchmark_{self.extra_config['benchmark']}")
+
         if self.entangle_op_weights:
             run_configs.append("type_we")
         else:
@@ -467,9 +471,9 @@ class BaseProfile:
             run_configs.append(f"lorarank_{self.lora_config.get('r')}")
             run_configs.append(f"lorawarmup_{self.lora_warm_epochs}")
         run_configs.append(f"epochs_{self.trainer_config.get('epochs')}")
-        run_configs.append(f"seed_{self.seed}")
         if self.oles_config.get("oles"):
-            run_configs.append("with_oles")
+            run_configs.append("oles")
+        run_configs.append(f"seed_{self.seed}")
         return "-".join(run_configs)
 
     def _initialize_trainer_config_nb201(self) -> None:
