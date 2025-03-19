@@ -18,18 +18,16 @@ from benchsuite import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--optimizer", type=str)
-parser.add_argument("--subspace", type=str)
-parser.add_argument("--ops", type=str)
-parser.add_argument("--dataset", type=str)
-parser.add_argument("--seed", type=int)
-parser.add_argument("--tag", default="", type=str)
-parser.add_argument("--oles", action="store_true", default=False)
-parser.add_argument("--pcdarts", action="store_true", default=False)
-parser.add_argument("--fairdarts", action="store_true", default=False)
-parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
-parser.add_argument("--perturbator_sample_frequency", choices=["epoch", "step"], default="epoch", type=str)
-
+parser.add_argument("--optimizer", type=str, required=True)
+parser.add_argument("--subspace", type=str, required=True)
+parser.add_argument("--ops", type=str, required=True)
+parser.add_argument("--dataset", type=str, required=True)
+parser.add_argument("--seed", type=int, required=True)
+parser.add_argument("--tag", type=str, required=True)
+parser.add_argument("--oles", type=bool, required=True)
+parser.add_argument("--pcdarts", type=bool, required=True)
+parser.add_argument("--fairdarts", type=bool, required=True)
+parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], type=str, required=True)
 args = parser.parse_args()
 
 
@@ -116,7 +114,7 @@ if __name__ == "__main__":
         epochs=epochs,
         is_partial_connection=args.pcdarts,
         perturbation=args.sdarts,
-        perturbator_sample_frequency=args.perturbator_sample_frequency,
+        perturbator_sample_frequency="epoch",
         partial_connector_config=partial_connector_config,
         seed=args.seed,
         oles=args.oles,

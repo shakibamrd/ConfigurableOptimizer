@@ -32,6 +32,11 @@ if __name__ == "__main__":
     parser.add_argument("--ops", required=True, type=str)
     parser.add_argument("--dataset", required=True, type=str)
     parser.add_argument("--seeds", required=True, type=str,)
+    parser.add_argument("--tag", default="no-tag", type=str)
+    parser.add_argument("--oles", type=bool, default=False)
+    parser.add_argument("--pcdarts", type=bool, default=False)
+    parser.add_argument("--fairdarts", type=bool, default=False)
+    parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
     args = parser.parse_args()
 
     seeds = args.seeds
