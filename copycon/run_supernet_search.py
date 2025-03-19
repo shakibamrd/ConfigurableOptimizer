@@ -10,7 +10,7 @@ from confopt.profile import (
 )
 
 from confopt.train import Experiment
-from confopt.enums import SearchSpaceType, DatasetType
+from confopt.enums import SamplerType, SearchSpaceType, DatasetType
 from benchsuite import (
     BenchSuiteSpace,
     BenchSuiteOpSet,
@@ -41,6 +41,48 @@ def read_config(file_path: str) -> dict[str, str]:
                 config[key.strip()] = value.strip().strip('"')  # Remove surrounding quotes if any
     return config
 
+batch_sizes = {
+    SamplerType.DARTS: {
+        BenchSuiteSpace.DEEP: 64,
+        BenchSuiteSpace.WIDE: 96,
+        BenchSuiteSpace.SINGLE_CELL: 96,
+    },
+    SamplerType.DRNAS: {
+        BenchSuiteSpace.DEEP: 64,
+        BenchSuiteSpace.WIDE: 96,
+        BenchSuiteSpace.SINGLE_CELL: 96,
+    },
+    SamplerType.GDAS: {
+        BenchSuiteSpace.DEEP: 320,
+        BenchSuiteSpace.WIDE: 512,
+        BenchSuiteSpace.SINGLE_CELL: 512,
+    },
+}
+
+model_learning_rates = {
+    SamplerType.DARTS: 0.025,
+    SamplerType.DRNAS: 0.1,
+    SamplerType.GDAS: 0.025,
+}
+
+arch_learning_rates = {
+    SamplerType.DARTS: 3e-4,
+    SamplerType.DRNAS: 6e-4,
+    SamplerType.GDAS: 3e-4,
+}
+
+epochs_profiles = {
+    "darts": 100,
+    "gdas": 300,
+    "drnas": 100,
+}
+
+num_classes = {
+    DatasetType.CIFAR10: 10,
+    DatasetType.CIFAR10_MODEL: 10,
+    DatasetType.CIFAR10_SUPERNET: 10,
+    DatasetType.AIRCRAFT: 30,
+}
 
 if __name__ == "__main__":
     DEBUG_MODE = False
@@ -62,19 +104,6 @@ if __name__ == "__main__":
         "drnas": DRNASProfile,
     }
 
-    epochs_profiles = {
-        "darts": 50,
-        "gdas": 250,
-        "drnas": 50,
-    }
-
-    num_classes = {
-        DatasetType.CIFAR10: 10,
-        DatasetType.CIFAR10_MODEL: 10,
-        DatasetType.CIFAR10_SUPERNET: 10,
-        DatasetType.AIRCRAFT: 30,
-    }
-
     partial_connector_config = None
     if args.pcdarts:
         partial_connector_config = {
@@ -86,7 +115,9 @@ if __name__ == "__main__":
     active_reg_terms = []
     arch_combine_fn = "default"
 
-    if args.optimizer == "drnas":
+    sampler_type = SamplerType(args.optimizer)
+
+    if sampler_type == SamplerType.DRNAS:
         drnas_weight = 1
         reg_weights.append(drnas_weight)
         active_reg_terms.append("drnas")
@@ -136,6 +167,9 @@ if __name__ == "__main__":
 
     profile.configure_trainer(
         checkpointing_freq=10,
+        batch_size=batch_sizes[sampler_type][subspace],
+        lr=model_learning_rates[sampler_type],
+        arch_lr=arch_learning_rates[sampler_type],
     )
 
     profile.configure_searchspace(
