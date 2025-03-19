@@ -16,7 +16,7 @@ ADVERSARIAL_DATA = (
 
 
 class BaseProfile:
-    def __init__(
+    def __init__(  # noqa: PLR0912 PLR0915
         self,
         sampler_type: str | SamplerType,
         searchspace: str | SearchSpaceType,
@@ -50,6 +50,7 @@ class BaseProfile:
         early_stopper: str | None = None,
         early_stopper_config: dict | None = None,
         synthetic_dataset_config: dict | None = None,
+        extra_config: dict | None = None,
     ) -> None:
         self.searchspace_type = (
             SearchSpaceType(searchspace)
@@ -138,6 +139,11 @@ class BaseProfile:
             self.synthetic_dataset_config = synthetic_dataset_config
         else:
             self.synthetic_dataset_config = None  # type: ignore
+
+        if extra_config is not None:
+            self.extra_config = extra_config
+        else:
+            self.extra_config = None  # type: ignore
 
     def _set_pt_select_configs(
         self,
@@ -432,7 +438,10 @@ class BaseProfile:
             self.searchspace_config.update(config)
 
     def configure_extra(self, **config) -> None:  # type: ignore
-        self.extra_config = config
+        if self.extra_config is None:
+            self.extra_config = config
+        else:
+            self.extra_config.update(config)
 
     def configure_early_stopper(self, **config: Any) -> None:
         if self.early_stopper_config is None:
