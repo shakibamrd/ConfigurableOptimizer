@@ -308,7 +308,7 @@ class BaseProfile:
     def _initialize_partial_connector_config(self) -> None:
         if self.is_partial_connection:
             partial_connector_config = {"k": 4, "num_warm_epoch": 15}
-            self.configure_searchspace(**partial_connector_config)
+            self.configure_searchspace(k=partial_connector_config["k"])
         else:
             partial_connector_config = None
         self.partial_connector_config = partial_connector_config
