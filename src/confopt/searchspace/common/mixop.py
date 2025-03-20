@@ -181,12 +181,13 @@ class OperationBlock(nn.Module):
             alphas = self.dropout.apply_mask(alphas)
 
         if self.partial_connector:
-            if self.use_aux_skip:
-                return self.aux_skip(x) + self.partial_connector(  # type: ignore
-                    x, alphas, self.ops, self.forward_method
-                )
-
-            return self.partial_connector(x, alphas, self.ops, self.forward_method)
+            return self.partial_connector(
+                x,
+                alphas,
+                self.ops,
+                self.forward_method,
+                auxiliary_skip_module=self.aux_skip,
+            )
 
         return self.forward_method(x, self.ops, alphas)
 
