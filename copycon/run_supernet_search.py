@@ -17,6 +17,8 @@ from benchsuite import (
     configure_profile_with_search_space,
 )
 
+bool_type = lambda x: x.lower() in ['true', '1', 'yes']
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--optimizer", type=str, required=True)
 parser.add_argument("--subspace", type=str, required=True)
@@ -24,11 +26,11 @@ parser.add_argument("--ops", type=str, required=True)
 parser.add_argument("--dataset", type=str, required=True)
 parser.add_argument("--seed", type=int, required=True)
 parser.add_argument("--tag", type=str, required=True)
-parser.add_argument("--oles", type=bool, required=True)
-parser.add_argument("--pcdarts", type=bool, required=True)
-parser.add_argument("--fairdarts", type=bool, required=True)
+parser.add_argument("--oles", type=bool_type, required=True)
+parser.add_argument("--pcdarts", type=bool_type, required=True)
+parser.add_argument("--fairdarts", type=bool_type, required=True)
 parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], type=str, required=True)
-parser.add_argument("--dryrun", type=bool, required=True)
+parser.add_argument("--dryrun", type=bool_type, required=True)
 args = parser.parse_args()
 
 

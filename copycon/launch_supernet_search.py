@@ -24,6 +24,9 @@ def read_config(file_path: str) -> dict[str, str]:
 
 if __name__ == "__main__":
     # Parse command-line arguments for experiment name and number of seeds.
+
+    bool_type = lambda x: x.lower() in ['true', '1', 'yes']
+
     parser = argparse.ArgumentParser(
         description="Launch experiment jobs with multiple seeds."
     )
@@ -33,11 +36,11 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", required=True, type=str)
     parser.add_argument("--seeds", required=True, type=str,)
     parser.add_argument("--tag", default="no-tag", type=str)
-    parser.add_argument("--oles", type=bool, default=False)
-    parser.add_argument("--pcdarts", type=bool, default=False)
-    parser.add_argument("--fairdarts", type=bool, default=False)
+    parser.add_argument("--oles", type=bool_type, default=False)
+    parser.add_argument("--pcdarts", type=bool_type, default=False)
+    parser.add_argument("--fairdarts", type=bool_type, default=False)
     parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], default="none", type=str)
-    parser.add_argument("--dryrun", type=bool, default=False)
+    parser.add_argument("--dryrun", type=bool_type, default=False)
     args = parser.parse_args()
 
     seeds = args.seeds
