@@ -28,7 +28,7 @@ parser.add_argument("--oles", type=bool, required=True)
 parser.add_argument("--pcdarts", type=bool, required=True)
 parser.add_argument("--fairdarts", type=bool, required=True)
 parser.add_argument("--sdarts", choices=["none", "adverserial", "random"], type=str, required=True)
-parser.add_argument("--dry-run", type=bool, required=True)
+parser.add_argument("--dryrun", type=bool, required=True)
 args = parser.parse_args()
 
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             "fairdarts_config": {},
         }
 
-    epochs = 3 if args.dry_run is True else epochs_profiles[args.optimizer]
+    epochs = 3 if args.dryrun is True else epochs_profiles[args.optimizer]
     profile = profile_classes[args.optimizer](
         searchspace=SEARCHSPACE,
         epochs=epochs,
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         opset=opset,
         benchmark=f"{subspace}-{opset}",
         tag=args.tag,
-        is_debug_run=args.dry_run,
+        is_debug_run=args.dryrun,
         project_name="ConfoptAutoML25",
     )
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         search_space=SEARCHSPACE,
         dataset=DATASET,
         seed=args.seed,
-        debug_mode=args.dry_run,
+        debug_mode=args.dryrun,
         exp_name=exp_name,
         log_with_wandb=WANDB_LOG,
         dataset_dir=DATASET_DIR,
