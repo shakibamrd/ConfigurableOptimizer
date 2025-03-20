@@ -57,8 +57,8 @@ batch_sizes = {
     },
     SamplerType.GDAS: {
         BenchSuiteSpace.DEEP: 320,
-        BenchSuiteSpace.WIDE: 512,
-        BenchSuiteSpace.SINGLE_CELL: 512,
+        BenchSuiteSpace.WIDE: 480,
+        BenchSuiteSpace.SINGLE_CELL: 480,
     },
 }
 
