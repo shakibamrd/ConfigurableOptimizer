@@ -132,6 +132,7 @@ echo "Git info stored in '$DEST_DIR/info"
 cp -v ${source_dir_local}/copycon/launch_supernet_search.py ${DEST_DIR}
 cp -v ${source_dir_local}/copycon/launch_model_train.py ${DEST_DIR}
 cp -v ${source_dir_local}/copycon/run_supernet_search.py ${DEST_DIR}
+cp -v ${source_dir_local}/copycon/run_all.sh ${DEST_DIR}
 cp -v ${source_dir_local}/scripts/benchsuite_experiments/run_model_train.py ${DEST_DIR}
 cp -v ${CONFIG_FILE} ${DEST_DIR}
 
