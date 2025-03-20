@@ -13,7 +13,6 @@ from confopt.searchspace.darts.core.genotypes import (
     PRIMITIVES,
     DARTSGenotype,
 )
-from confopt.searchspace.darts.core.model import NetworkCIFAR, NetworkImageNet
 from confopt.utils import (
     preserve_gradients_in_module,
     prune,
@@ -95,7 +94,7 @@ class Cell(nn.Module):
         self._bns = nn.ModuleList()
 
         stride = 1
-        ops = MixedOp(3, C, stride, primitives, k)._ops
+        ops = MixedOp(C_prev, C, stride, primitives, k)._ops
         op = OperationChoices(ops, is_reduction_cell=reduction)
         self._ops.append(op)
 
@@ -197,10 +196,17 @@ class Network(nn.Module):
         self.mask: list[torch.Tensor] | None = None
         self.last_mask: list[torch.Tensor] = []
         C_curr = stem_multiplier * C
-        self.stem = Identity()
         self.primitives = primitives
+        if "skip_connect" not in self.primitives:
+            self.stem = Identity()
+            C_prev_prev, C_prev, C_curr = 3, 3, C
+        else:
+            self.stem = nn.Sequential(
+                nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
+                nn.BatchNorm2d(C_curr),
+            )
+            C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
 
-        C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
         reduction_prev = False
         for _ in range(layers):
@@ -420,29 +426,12 @@ class Network(nn.Module):
             else:
                 cell.prune_ops(self.mask[0])
 
-    def discretize(self) -> NetworkCIFAR | NetworkImageNet:
-        genotype = self.genotype()
-        if self._num_classes in {NUM_CIFAR_CLASSES, NUM_CIFAR100_CLASSES}:
-            discrete_model = NetworkCIFAR(
-                C=self._C,
-                num_classes=self._num_classes,
-                layers=self._layers,
-                auxiliary=False,
-                genotype=genotype,
-            )
-        elif self._num_classes == NUM_IMAGENET_CLASSES:
-            discrete_model = NetworkImageNet(
-                C=self._C,
-                num_classes=self._num_classes,
-                layers=self._layers,
-                auxiliary=False,
-                genotype=genotype,
-            )
-        else:
-            raise ValueError(
-                "number of classes is not a valid number of any of the datasets"
-            )
-
+    def discretize(self) -> Network:
+        # Make sure that the size of primitives is 1
+        assert len(self.primitives) == 1
+        # set alphas to 1
+        self.alphas_normal = torch.ones_like(self.alphas_normal)
+        discrete_model = self
         discrete_model.to(next(self.parameters()).device)
 
         return discrete_model
