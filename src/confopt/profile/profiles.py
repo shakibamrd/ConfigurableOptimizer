@@ -261,7 +261,7 @@ class DiscreteProfile:
             "learning_rate_min": 0.0,
             # "channel": 36,
             "print_freq": 2,
-            "drop_path_prob": 0.2,
+            "drop_path_prob": 0.3,
             "auxiliary_weight": 0.4,
             "cutout": 1,
             "cutout_length": 16,

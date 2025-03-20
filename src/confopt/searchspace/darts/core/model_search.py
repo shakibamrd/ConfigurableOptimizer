@@ -14,7 +14,6 @@ from confopt.searchspace.common.mixop import OperationBlock, OperationChoices
 from confopt.utils import (
     calc_layer_alignment_score,
     get_pos_new_cell_darts,
-    get_pos_reductions_darts,
     preserve_gradients_in_module,
     prune,
     set_ops_to_prune,
@@ -316,6 +315,8 @@ class Network(nn.Module):
         self.discretized = discretized
         self.mask: list[torch.Tensor] | None = None
         self.last_mask: list[torch.Tensor] = []
+        self.stem_multiplier = stem_multiplier
+        self.k = k
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
@@ -327,7 +328,7 @@ class Network(nn.Module):
         self.cells = nn.ModuleList()
         reduction_prev = False
         for i in range(layers):
-            if i in get_pos_reductions_darts(layers=layers):
+            if i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
                 reduction = True
             else:
@@ -368,7 +369,17 @@ class Network(nn.Module):
             Network: A torch module with same arch and beta parameters as this model.
         """
         model_new = Network(
-            self._C, self._num_classes, self._layers, self._criterion
+            C=self._C,
+            num_classes=self._num_classes,
+            layers=self._layers,
+            criterion=self._criterion,
+            steps=self._steps,
+            multiplier=self._multiplier,
+            stem_multiplier=self.stem_multiplier,
+            edge_normalization=self.edge_normalization,
+            discretized=self.discretized,
+            primitives=self.primitives,
+            k=self.k,
         ).to(DEVICE)
         for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
             x.data.copy_(y.data)
@@ -542,10 +553,14 @@ class Network(nn.Module):
         self.alphas_reduce = nn.Parameter(
             1e-3 * torch.randn(k, self.num_ops).to(DEVICE)
         )
-        self._arch_parameters = [
-            self.alphas_normal,
-            self.alphas_reduce,
-        ]
+
+        if len(self.cells) == 1:
+            self._arch_parameters = [self.alphas_reduce]
+        else:
+            self._arch_parameters = [
+                self.alphas_normal,
+                self.alphas_reduce,
+            ]
 
         self.betas_normal = nn.Parameter(1e-3 * torch.randn(k).to(DEVICE))
         self.betas_reduce = nn.Parameter(1e-3 * torch.randn(k).to(DEVICE))

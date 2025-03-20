@@ -72,17 +72,15 @@ class DrNASRegularizationTerm(RegularizationTerm):
         if self.reg_type == "kl":
             loss = self.loss_kl(anchors, arch_parameters)
         elif self.reg_type == "l2":
-            loss = self.loss_l2(anchors, arch_parameters)
+            loss = self.loss_l2(arch_parameters)
         else:
             raise ValueError(f"Unknown regularization type: {self.reg_type}")
         return loss
 
-    def loss_l2(
-        self, anchors: torch.Tensor, arch_parameters: list[nn.Parameter]
-    ) -> torch.Tensor:
+    def loss_l2(self, arch_parameters: list[nn.Parameter]) -> torch.Tensor:
         l2_reg_terms = []
-        for anchor, alphas in zip(anchors, arch_parameters):
-            l2_reg_terms.append(torch.sum((anchor - alphas) ** 2))
+        for alphas in arch_parameters:
+            l2_reg_terms.append(alphas.norm())
 
         return self.reg_scale * sum(l2_reg_terms)
 

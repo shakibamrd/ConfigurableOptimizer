@@ -340,9 +340,11 @@ class ConfigurableTrainer:
             )
 
             # Save Genotype and log best model
-            genotype = str(self.model.get_genotype())
-            # genotype = self.model.get_genotype().tostr()  # type: ignore
-            self.logger.save_genotype(genotype, epoch, self.checkpointing_freq)
+            # genotype = str(self.model.get_genotype())
+            genotype = self.model.get_genotype().tostr()  # type: ignore
+            self.logger.save_genotype(
+                genotype, epoch
+            )  # Checkpoint genotype in every epoch
             if valid_metrics.acc_top1 > self.valid_accs_top1["best"]:
                 self.valid_accs_top1["best"] = valid_metrics.acc_top1
                 self.logger.log(
@@ -353,9 +355,7 @@ class ConfigurableTrainer:
                 self.best_model_checkpointer.save(
                     name="best_model", checkpointables=checkpointables
                 )
-                self.logger.save_genotype(
-                    genotype, epoch, self.checkpointing_freq, save_best_model=True
-                )
+                self.logger.save_genotype(genotype, epoch, is_best_model=True)
 
             # Log Benchmark Results
             self.log_benchmark_result(network)

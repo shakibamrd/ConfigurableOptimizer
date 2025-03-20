@@ -116,14 +116,27 @@ class DARTSSearchSpace(
         """
         assert len(arch_parameters) == len(self.arch_parameters)
         assert arch_parameters[0].shape == self.arch_parameters[0].shape
-        (
-            self.model.alphas_normal.data,
-            self.model.alphas_reduce.data,
-        ) = arch_parameters
-        self.model._arch_parameters = [
-            self.model.alphas_normal,
-            self.model.alphas_reduce,
-        ]
+
+        len_params = len(arch_parameters)
+
+        if len(self.model.cells) == 1:
+            assert (
+                len_params == 1
+            ), f"Invalid number of arch parameters. Expected 1, got {len_params}."
+            self.model.alphas_reduce.data = arch_parameters[0].data
+            self.model._arch_parameters = [self.model.alphas_reduce]
+        else:
+            assert (
+                len_params == 2
+            ), f"Invalid number of arch parameters. Expected 2, got {len_params}."
+            (
+                self.model.alphas_normal.data,
+                self.model.alphas_reduce.data,
+            ) = arch_parameters
+            self.model._arch_parameters = [
+                self.model.alphas_normal,
+                self.model.alphas_reduce,
+            ]
 
     def get_cell_types(self) -> list[str]:
         return ["normal", "reduce"]
@@ -178,6 +191,9 @@ class DARTSSearchSpace(
         return stats
 
     def get_drnas_anchors(self) -> list[torch.Tensor]:
+        if len(self.model.cells) == 1:
+            return [self.model.anchor_reduce]
+
         return [self.model.anchor_normal, self.model.anchor_reduce]
 
     def get_weighted_flops(self) -> torch.Tensor:

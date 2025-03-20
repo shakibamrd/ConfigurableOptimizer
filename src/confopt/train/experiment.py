@@ -491,6 +491,55 @@ class Experiment:
         use_supernet_checkpoint: bool = False,
         use_expr_search_space: bool = False,
     ) -> DiscreteTrainer:
+        """Trains a discrete model using the given profile with options for loading
+        specific training states.
+
+        Args:
+            profile (DiscreteProfile): Contains configurations for training the model,
+                including hyperparameters and architecture details.The genotype could be
+                set in the profile, or the default genotype will be used.
+
+            model_to_load (str | int | None): Specifies the training state to load.
+                Acceptable string values are "last" or "best", representing the most
+                recent or the best-performing model checkpoint, respectively.
+                If an integer is provided, it represents the epoch number from which
+                training should be continued.
+                If `None`, behavior is determined by other parameters.
+
+            exp_runtime_to_load (str | None): The experiment runtime to load the model
+                from.
+                If `None`, the model will be loaded from the most recent runtime.
+
+            use_supernet_checkpoint (bool): If `True`, initializes the model's weights
+                from a supernet checkpoint.
+                If `False`, the model will use checkpoints from the discrete network
+                instead.
+
+            use_expr_search_space (bool): If `True`, gets the discretized model from
+                self.search_space
+
+        Returns:
+            DiscreteTrainer: The trained discrete model.
+
+        Behavior Notes:
+            - If none of the parameters are provided the default profile genotype will
+              be used.
+            - The default genotype in the profile refers to the best architecture found
+              after 50 epochs using the DARTS optimizer on the CIFAR-10 dataset within
+              the DARTS search space.
+            - Setting `use_supernet_checkpoint` to `True` allows loading from the
+              supernet, while `False` defaults to using checkpoints from the discrete
+              network.
+
+        Example:
+            >>> trainer = experiment.train_discrete_model(
+                    profile=profile,
+                    model_to_load="last",
+                    exp_runtime_to_load=None,
+                    use_supernet_checkpoint=True,
+                    use_expr_search_space=False,
+                )
+        """
         train_config = profile.get_trainer_config()
         searchspace_config = profile.get_searchspace_config(self.dataset.value)
         genotype_str = profile.get_genotype()
@@ -574,20 +623,19 @@ class Experiment:
         # A) Use the experiment's self.search_space of the experiment.
         if use_expr_search_space:
             model = self.get_discrete_model_from_supernet()
-            return model, model.get_genotype()  # type: ignore
+            return model, self.search_space.get_genotype()  # type: ignore
+        # B, C) Use a checkpoint (discrete net or supernet) to load the model.
         if model_to_load is not None:
             genotype_str = self.get_genotype_str_from_checkpoint(
                 model_to_load=model_to_load,
                 use_supernet_checkpoint=use_supernet_checkpoint,
             )
-        elif sum(
-            [
-                (model_to_load is not None),
-                use_supernet_checkpoint,
-            ],
-        ) == 0 and hasattr(self, "search_space"):
-            genotype_str = self.search_space.get_genotype().tostr()  # type: ignore
-
+        # E) Use the default genotype which is set in the discrete_profile.
+        # if you don't set the genotype in the profile the genotype
+        # is the best model found by darts
+        # elif genotype_str is None:
+        # genotype_str = searchspace_config.get("genotype")
+        # assert the according genotype_str is the one for the search space.
         elif genotype_str is None:
             raise ValueError("genotype cannot be empty")
 
