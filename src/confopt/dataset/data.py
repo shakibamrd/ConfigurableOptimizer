@@ -921,9 +921,9 @@ class SyntheticDataset(Dataset):
         center = self.get_random_position(random, self.padding)
 
         if self.pattern_type == 1:
-            self.insert_pattern(image, center, self.signal_width, "\\")
+            self.insert_pattern_1(image, center, self.signal_width, "\\")
 
-            self.insert_pattern(image, center, self.shortcut_width, "|")
+            self.insert_pattern_1(image, center, self.shortcut_width, "|")
 
         elif self.pattern_type == 2:
             self.insert_pattern_2(
