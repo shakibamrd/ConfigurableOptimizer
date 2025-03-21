@@ -211,11 +211,11 @@ class DRNASProfile(BaseProfile, ABC):
             "seed": self.seed,
         }
         self.trainer_config = default_train_config
-        searchspace_config = {"layers": 20, "C": 36}
-        if hasattr(self, "searchspace_config"):
-            self.searchspace_config.update(**searchspace_config)
-        else:
-            self.searchspace_config = searchspace_config
+        # searchspace_config = {"layers": 20, "C": 36}
+        # if hasattr(self, "searchspace_config"):
+        #     self.searchspace_config.update(**searchspace_config)
+        # else:
+        #     self.searchspace_config = searchspace_config
 
 
 class DiscreteProfile:
@@ -325,6 +325,9 @@ class DiscreteProfile:
             self.extra_config.update(config)
 
     def get_searchspace_config(self, dataset_str: str) -> dict:
+        if self.searchspace_config is not None:
+            return self.searchspace_config
+
         if self.searchspace == SearchSpaceType.NB201:
             searchspace_config = {
                 "N": 5,  # num_cells
@@ -343,6 +346,11 @@ class DiscreteProfile:
             searchspace_config = {
                 "domain": self.domain,  # type: ignore
                 "num_classes": get_num_classes(dataset_str, domain=self.domain),
+            }
+        elif self.searchspace == SearchSpaceType.BABYDARTS:
+            searchspace_config = {
+                "stem_multiplier": 1,
+                "num_classes": get_num_classes(dataset_str),
             }
         else:
             raise ValueError("search space is not correct")
