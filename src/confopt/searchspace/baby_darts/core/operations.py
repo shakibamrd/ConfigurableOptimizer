@@ -15,6 +15,11 @@ OPS = {
     "conv_3x3": lambda C_in, C_out, stride, affine: (  # noqa: ARG005
         SyntheticConvolution(C_in, C_out, kernel_size=3, stride=stride, padding=1)
     ),
+    "stacked_conv_3x3": lambda C_in, C_out, stride, affine: (  # noqa: ARG005
+        StackedSyntheticConvolution(
+            C_in, C_out, kernel_size=3, stride=stride, padding=1
+        )
+    ),
     "conv_5x5": lambda C_in, C_out, stride, affine: (  # noqa: ARG005
         SyntheticConvolution(C_in, C_out, kernel_size=5, stride=stride, padding=2)
     ),
@@ -25,9 +30,12 @@ OPS = {
     "max_pool_3x3": lambda C_in, C_out, stride, affine: Pooling(  # noqa: ARG005
         C_in, stride, "max", affine=affine
     ),
-    "skip_connect": lambda C_in, C_out, stride, affine: (  # noqa: ARG005
-        SyntheticConvolution(C_in, C_out, kernel_size=1, stride=stride, padding=0)
+    "skip_connect": lambda C_in, C_out, stride, affine: (
+        Identity() if stride == 1 else FactorizedReduce(C_in, C_out, affine=affine)
     ),
+    # "skip_connect": lambda C_in, C_out, stride, affine: (
+    #     SyntheticConvolution(C_in, C_out, kernel_size=1, stride=stride, padding=0)
+    # ),
     "sep_conv_3x3": lambda C_in, C_out, stride, affine: SepConv(
         C_in, C_out, 3, stride, 1, affine=affine
     ),
@@ -876,13 +884,18 @@ class Conv7x1Conv1x7BN(nn.Module):
         self.op[2].stride = (new_stride, 1)
 
 
-class SyntheticConvolution(torch.nn.Module):
+class StackedSyntheticConvolution(nn.Module):
     def __init__(
-        self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int
+        self,
+        C_in: int,
+        C_out: int,
+        kernel_size: int,
+        stride: int,
+        padding: int,
+        groups: int = 1,
     ) -> None:
         super().__init__()
         self.op = nn.Sequential(
-            nn.ReLU(inplace=False),
             nn.Conv2d(
                 C_in,
                 C_out,
@@ -890,10 +903,28 @@ class SyntheticConvolution(torch.nn.Module):
                 stride=stride,
                 padding=padding,
                 bias=False,
+                groups=groups,
             ),
-            nn.BatchNorm2d(C_out, affine=False),
+            nn.Conv2d(
+                C_in,
+                C_out,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
+                groups=groups,
+            ),
+            nn.Conv2d(
+                C_in,
+                C_out,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
+                groups=groups,
+            ),
+            nn.ReLU(inplace=False),
         )
-        self.activations = {}  # type: ignore
 
     def activate_hooks(self) -> None:
         def save_activation_map(
@@ -903,10 +934,51 @@ class SyntheticConvolution(torch.nn.Module):
         ) -> None:
             self.activations["output"] = output.detach()
 
+        self.op[0].register_forward_hook(save_activation_map)
         self.op[1].register_forward_hook(save_activation_map)
+        self.op[2].register_forward_hook(save_activation_map)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
 
-OLES_OPS = [Zero, Pooling, Identity, SepConv, DilConv]
+class SyntheticConvolution(nn.Module):
+    def __init__(
+        self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int
+    ) -> None:
+        super().__init__()
+        self.op = nn.Sequential(
+            nn.Conv2d(
+                C_in,
+                C_out,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=False,
+            ),
+            nn.ReLU(inplace=False),
+        )
+
+    def activate_hooks(self) -> None:
+        def save_activation_map(
+            module: torch.nn.Module,  # noqa: ARG001
+            input: torch.Tensor,  # noqa: ARG001, A002
+            output: torch.Tensor,
+        ) -> None:
+            self.activations["output"] = output.detach()
+
+        self.op[0].register_forward_hook(save_activation_map)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.op(x)
+
+
+OLES_OPS = [
+    Zero,
+    Pooling,
+    Identity,
+    SepConv,
+    DilConv,
+    StackedSyntheticConvolution,
+    SyntheticConvolution,
+]
