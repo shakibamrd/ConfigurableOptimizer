@@ -323,9 +323,11 @@ class DiscreteTrainer(ConfigurableTrainer):
                 _, logits = network(test_inputs)
                 test_loss = criterion(logits, test_targets)
 
-                test_prec1, test_prec5 = calc_accuracy(
-                    logits.data, test_targets.data, topk=(1, 5)
-                )
+                # test_prec1, test_prec5 = calc_accuracy(
+                #     logits.data, test_targets.data, topk=(1, 5)
+                # )
+                test_prec1 = calc_accuracy(logits.data, test_targets.data, topk=(1,))[0]
+                test_prec5 = torch.tensor(0)
 
                 test_losses.update(test_loss.item(), test_inputs.size(0))
                 test_top1.update(test_prec1.item(), test_inputs.size(0))

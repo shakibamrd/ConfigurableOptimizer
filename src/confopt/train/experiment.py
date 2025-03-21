@@ -581,6 +581,13 @@ class Experiment:
                 discrete_model = DARTSImageNetModel(**searchspace_config)
             else:
                 raise ValueError("undefined discrete model for this dataset.")
+        elif search_space_str == SearchSpaceType.BABYDARTS.value:
+            # as genotype we only get primitives
+            searchspace_config["primitives"] = [genotype_str]
+            discrete_model = BabyDARTSSearchSpace(**searchspace_config)
+            discrete_model.model.alphas_normal.data = torch.ones_like(
+                discrete_model.model.alphas_normal
+            ).to(DEVICE)
         else:
             raise ValueError("undefined discrete model for this search space.")
 
@@ -732,10 +739,17 @@ class Experiment:
         )
         trainer_arguments = Arguments(**train_config)  # type: ignore
 
+        dataset_kwargs = (
+            extra_config.get("synthetic_dataset_config")
+            if extra_config.get("synthetic_dataset_config") is not None
+            else {}
+        )
+
         data = self._get_dataset(
             cutout=trainer_arguments.cutout,  # type: ignore
             cutout_length=trainer_arguments.cutout_length,  # type: ignore
             train_portion=trainer_arguments.train_portion,  # type: ignore
+            **dataset_kwargs,
         )
 
         w_optimizer = self._get_optimizer(trainer_arguments.optim)(  # type: ignore
