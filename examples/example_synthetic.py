@@ -106,7 +106,7 @@ def get_profile(args: argparse.Namespace) -> BaseProfile:  # type: ignore
 if __name__ == "__main__":
     args = read_args()
 
-    WANDB_LOG = False
+    WANDB_LOG = True
     searchspace = SearchSpaceType.BABYDARTS
     dataset = DatasetType.SYNTHETIC
     sampler_type = SamplerType(args.optimizer)
@@ -179,6 +179,9 @@ if __name__ == "__main__":
     project_name = "Synthetic-Benchsuite"
     exp_name = (
         f"synthetic-test-{args.optimizer}-"
+        f"fairdarts-{args.fairdarts}-"
+        f"oles-{args.oles}-"
+        f"sdarts-{args.sdarts}-"
         f"sig{args.signal_width}x{args.signal_width}-"
         f"short{args.shortcut_width}x{args.shortcut_width}-"
         f"strength{args.shortcut_strength:.3f}"
@@ -189,7 +192,7 @@ if __name__ == "__main__":
         search_space=searchspace,
         dataset=dataset,
         seed=args.seed,
-        debug_mode=True,
+        debug_mode=False,
         exp_name=exp_name,
         log_with_wandb=WANDB_LOG,
     )
