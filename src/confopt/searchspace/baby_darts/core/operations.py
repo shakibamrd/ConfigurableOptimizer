@@ -906,7 +906,7 @@ class StackedSyntheticConvolution(nn.Module):
                 groups=groups,
             ),
             nn.Conv2d(
-                C_in,
+                C_out,
                 C_out,
                 kernel_size=kernel_size,
                 stride=stride,
@@ -915,7 +915,7 @@ class StackedSyntheticConvolution(nn.Module):
                 groups=groups,
             ),
             nn.Conv2d(
-                C_in,
+                C_out,
                 C_out,
                 kernel_size=kernel_size,
                 stride=stride,
