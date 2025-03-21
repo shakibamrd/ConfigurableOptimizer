@@ -291,9 +291,6 @@ class Network(nn.Module):
             - The output tensor after the forward pass.
             - The logits tensor produced by the model.
         """
-        if self.edge_normalization:
-            return self.edge_normalization_forward(x)
-
         s0 = s1 = self.stem(x)
         weights_normal, _ = self.sample_weights()
         self.sampled_weights = [weights_normal]
