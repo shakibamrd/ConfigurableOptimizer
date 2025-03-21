@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+from functools import partial
+
 import torch
 from torch import nn
 
-from confopt.searchspace.baby_darts.core import BabyDARTSSearchModel
-from confopt.searchspace.common.base_search import SearchSpace
+from confopt.searchspace.common.base_search import (
+    DrNASRegTermSupport,
+    FairDARTSRegTermSupport,
+    GradientMatchingScoreSupport,
+    SearchSpace,
+)
 from confopt.searchspace.darts.core.genotypes import DARTSGenotype
+from confopt.utils import update_gradient_matching_scores
+
+from .core import BabyDARTSSearchModel
+from .core.model_search import preserve_grads
+from .core.operations import OLES_OPS
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -17,7 +28,12 @@ BABY_PRIMITIVES = [
 ]
 
 
-class BabyDARTSSearchSpace(SearchSpace):
+class BabyDARTSSearchSpace(
+    SearchSpace,
+    DrNASRegTermSupport,
+    FairDARTSRegTermSupport,
+    GradientMatchingScoreSupport,
+):
     def __init__(self, **kwargs):  # type: ignore
         assert "layers" not in kwargs, "Layers parameter is hard coded to 1"
         assert "steps" not in kwargs, "Steps parameter is hard coded to 1"
@@ -58,3 +74,30 @@ class BabyDARTSSearchSpace(SearchSpace):
 
     def get_genotype(self) -> DARTSGenotype:
         return self.model.genotype()
+
+    def preserve_grads(self) -> None:
+        self.model.apply(preserve_grads)
+
+    def update_gradient_matching_scores(
+        self,
+        early_stop: bool = False,
+        early_stop_frequency: int = 20,
+        early_stop_threshold: float = 0.4,
+    ) -> None:
+        partial_fn = partial(
+            update_gradient_matching_scores,
+            oles_ops=OLES_OPS,
+            early_stop=early_stop,
+            early_stop_frequency=early_stop_frequency,
+            early_stop_threshold=early_stop_threshold,
+        )
+        self.model.apply(partial_fn)
+
+    def get_drnas_anchors(self) -> list[torch.Tensor]:
+        return [self.model.anchor_normal]
+
+    def get_sampled_weights(self) -> list[nn.Parameter]:
+        return self.model.sampled_weights
+
+    def get_fair_darts_arch_parameters(self) -> list[torch.Tensor]:
+        return self.get_sampled_weights()
