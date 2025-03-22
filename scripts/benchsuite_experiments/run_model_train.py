@@ -6,6 +6,7 @@ from confopt.profile.profiles import DiscreteProfile
 from confopt.train import Experiment
 from benchsuite import ( # type: ignore
     configure_discrete_profile_with_search_space,  # type: ignore
+    configure_discrete_profile_with_hp_set,  # type: ignore
     BenchSuiteOpSet, 
     BenchSuiteSpace,
 ) 
@@ -57,7 +58,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--tag", type=str, required=True, help="tag for the experiment")
     parser.add_argument("--other", type=str, required=True, help="other optimizer (FairDARTS, PC-DARTS etc)")
-    parser.add_argument("--seed", type=int, default=0, help="random seed")
+    parser.add_argument("--seed", type=int, required=True, help="random seed")
+    parser.add_argument("--hpsets", type=str, required=True, help="hyperparameter set to use to train this model")
+
     parser.add_argument(
         "--genotypes_folder",
         type=str,
@@ -71,9 +74,7 @@ def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
         genotype = file.read()
     discrete_profile.genotype = str(genotype)
 
-if __name__ == "__main__":
-    args = parse_args()
-
+def main(args: argparse.Namespace, hpset: int) -> None:
     DATASET_DIR = os.getenv('dataset_dir_remote', 'none')
     assert DATASET_DIR != 'none', "Please set the DATASET_DIR_REMOTE environment variable"
 
@@ -88,13 +89,18 @@ if __name__ == "__main__":
         opset=BenchSuiteOpSet(args.opset),
     )
 
-    extra_info = f"{args.other}-" if args.other != "baseline" else ""
-    genotype_filename = f"{args.optimizer}-{extra_info}{args.subspace}-{args.opset}.txt"
+    configure_discrete_profile_with_hp_set(
+        profile=discrete_profile,
+        hyperparameter_set=hpset,
+    )
+
+    genotype_filename = f"{args.optimizer}-{args.other}-{args.subspace}-{args.opset}.txt"
     genotype_filepath = os.path.join(args.genotypes_folder, genotype_filename)
 
     discrete_profile.configure_extra(
         project_name="ConfoptAutoML25-Models",
         tag=args.tag,
+        hyperparameter_set=hpset,
     )
 
     print("Path to genotype file: ", genotype_filepath)
@@ -115,3 +121,11 @@ if __name__ == "__main__":
     print("Training model with search space: ", discrete_profile.searchspace_config)
 
     experiment.train_discrete_model(discrete_profile)
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    hpsets = args.hpsets
+
+    for hpset in hpsets.split(","):
+        main(args, int(hpset))

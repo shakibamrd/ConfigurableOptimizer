@@ -31,7 +31,8 @@ if __name__ == "__main__":
     parser.add_argument("--subspace", required=True, type=str)
     parser.add_argument("--opset", required=True, type=str)
     parser.add_argument("--dataset", required=True, type=str)
-    parser.add_argument("--seeds", required=True, type=str,)
+    parser.add_argument("--hpsets", type=str, required=True, help="hyperparameter sets to use to train this model")
+    parser.add_argument("--seed", required=True, type=str,)
     parser.add_argument("--epochs", type=int, required=True, help="number of epochs to train")
     parser.add_argument("--searchspace", type=str, default="darts")
     parser.add_argument("--other", type=str, required=True, help="other optimizer (FairDARTS, PC-DARTS etc)")
@@ -39,16 +40,10 @@ if __name__ == "__main__":
     parser.add_argument("--genotypes_folder", type=str, default="genotypes")
     args = parser.parse_args()
 
-    seeds = args.seeds
     args_dict = vars(args)
 
     experiment_name = f"train_model-{args.optimizer}-{args.subspace}-{args.opset}"
-
-    python_args = []
-    for seed in args.seeds.split(","):
-        args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
-        args += f" --seed {seed}"
-        python_args.append(args)
+    python_args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
 
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
@@ -72,7 +67,7 @@ if __name__ == "__main__":
         max_runtime_minutes=60 * 24,
         # Pass environment variables to the running script.
         bash_setup_command=f"source ~/.bash_profile; conda activate {conda_env}",
-        n_concurrent_jobs=3,
+        # n_concurrent_jobs=3,
         env = config,
     )
     jobid = slurm.schedule_job(jobinfo)
