@@ -312,7 +312,7 @@ class CIFAR10SupernetDataset(CIFAR10Data):
         )
 
         num_train = len(train_data) // 2  # type: ignore
-        print("Warning: Using only half of the CIFAR training data!")
+        print("Warning: Using only half of the CIFAR training data (supernet split)!")
 
         indices = list(range(num_train))
 
@@ -343,7 +343,7 @@ class CIFAR10ModelDataset(CIFAR10Data):
         )
 
         n_samples = len(train_data)
-        print("Warning: Using only half of the CIFAR training data!")
+        print("Warning: Using only half of the CIFAR training data (model split)!")
 
         indices = list(range(n_samples))
 
