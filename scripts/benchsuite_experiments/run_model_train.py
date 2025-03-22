@@ -102,6 +102,7 @@ def main(args: argparse.Namespace, hpset: int) -> None:
         project_name="ConfoptAutoML25-Models",
         tag=args.tag,
         hyperparameter_set=hpset,
+        optimizer=args.optimizer,
         optimizer_other=args.other,
         dataset=args.dataset,
     )
