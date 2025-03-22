@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import argparse
+import wandb
 
 from confopt.profile.profiles import DiscreteProfile
 from confopt.train import Experiment
@@ -130,4 +131,8 @@ if __name__ == "__main__":
     hpsets = args.hpsets
 
     for hpset in hpsets.split(","):
-        main(args, int(hpset))
+        try:
+            main(args, int(hpset))
+        except Exception as e:
+            print(f"Error training model with hyperparameter set {hpset}: {e}")
+            wandb.finish(exit_code=1)  # type: ignore
