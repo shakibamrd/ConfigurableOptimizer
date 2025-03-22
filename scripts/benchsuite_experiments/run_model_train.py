@@ -101,6 +101,8 @@ def main(args: argparse.Namespace, hpset: int) -> None:
         project_name="ConfoptAutoML25-Models",
         tag=args.tag,
         hyperparameter_set=hpset,
+        optimizer_other=args.other,
+        dataset=args.dataset,
     )
 
     print("Path to genotype file: ", genotype_filepath)
