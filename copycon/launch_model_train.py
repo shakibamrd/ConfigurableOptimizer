@@ -34,6 +34,8 @@ if __name__ == "__main__":
     parser.add_argument("--seeds", required=True, type=str,)
     parser.add_argument("--epochs", type=int, required=True, help="number of epochs to train")
     parser.add_argument("--searchspace", type=str, default="darts")
+    parser.add_argument("--other", type=str, required=True, help="other optimizer (FairDARTS, PC-DARTS etc)")
+    parser.add_argument("--tag", type=str, required=True, help="tag for the experiment")
     parser.add_argument("--genotypes_folder", type=str, default="genotypes")
     args = parser.parse_args()
 

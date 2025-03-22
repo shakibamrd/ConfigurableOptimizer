@@ -14,40 +14,40 @@ from confopt.enums import SearchSpaceType, DatasetType
 WANDB_LOG = True
 DEBUG_MODE = False
 
-def parse_args() -> argparse.ArgumentParser:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset",
         choices=["cifar10", "cifar10_model", "cifar100", "imagenet16", "imgnet16_120", "taskonomy", "aircraft"],
-        default="cifar10_model",
+        required=True,
         type=str,
         help="dataset to use",
     )
     parser.add_argument(
         "--optimizer",
         choices=["darts", "gdas", "drnas"],
-        default="darts",
+        required=True,
         type=str,
         help="Optimizer which was used to obtain this model",
     )
     parser.add_argument(
         "--subspace",
         choices=["wide", "deep", "single_cell"],
-        default="wide",
+        required=True,
         type=str,
         help="benchsuite type to use",
     )
     parser.add_argument(
         "--opset",
         choices=["regular", "no_skip", "all_skip"],
-        default="no_skip",
+        required=True,
         type=str,
         help="benchsuite operation set to use",
     )
     parser.add_argument(
         "--epochs",
         type=int,
-        default=100,
+        required=True,
         help="number of epochs to train",
     )
     parser.add_argument(
@@ -55,6 +55,8 @@ def parse_args() -> argparse.ArgumentParser:
         type=str,
         default="darts",
     )
+    parser.add_argument("--tag", type=str, required=True, help="tag for the experiment")
+    parser.add_argument("--other", type=str, required=True, help="other optimizer (FairDARTS, PC-DARTS etc)")
     parser.add_argument("--seed", type=int, default=0, help="random seed")
     parser.add_argument(
         "--genotypes_folder",
@@ -62,7 +64,7 @@ def parse_args() -> argparse.ArgumentParser:
         default="genotypes",
         help="path to the file of the genotype you want to run."
     )
-    return parser
+    return parser.parse_args()
 
 def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
     with open(path, 'r') as file:
@@ -70,7 +72,7 @@ def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
     discrete_profile.genotype = str(genotype)
 
 if __name__ == "__main__":
-    args = parse_args().parse_args()
+    args = parse_args()
 
     DATASET_DIR = os.getenv('dataset_dir_remote', 'none')
     assert DATASET_DIR != 'none', "Please set the DATASET_DIR_REMOTE environment variable"
@@ -86,8 +88,14 @@ if __name__ == "__main__":
         opset=BenchSuiteOpSet(args.opset),
     )
 
-    genotype_filename = f"{args.optimizer}-{args.subspace}-{args.opset}.txt"
+    extra_info = f"{args.other}-" if args.other != "baseline" else ""
+    genotype_filename = f"{args.optimizer}-{extra_info}{args.subspace}-{args.opset}.txt"
     genotype_filepath = os.path.join(args.genotypes_folder, genotype_filename)
+
+    discrete_profile.configure_extra(
+        project_name="ConfoptAutoML25-Models",
+        tag=args.tag,
+    )
 
     print("Path to genotype file: ", genotype_filepath)
 
