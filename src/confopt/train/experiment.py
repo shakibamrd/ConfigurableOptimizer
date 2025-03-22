@@ -774,7 +774,9 @@ class Experiment:
             debug_mode=self.debug_mode,
         )
         if self.log_with_wandb:
-            config = train_config | {"extra_config": extra_config}
+            config = {k: v for k, v in train_config.items()}
+            config.update(extra_config)
+
             self._init_wandb(run_name, config=config)
 
         trainer.train(
