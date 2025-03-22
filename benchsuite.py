@@ -25,7 +25,7 @@ class BenchSuiteOpSet(Enum):
         return self.value
 
 
-search_space_configs = {
+SEARCH_SPACE_CONFIGS = {
     BenchSuiteSpace.WIDE: {
         "C": 18,
         "layers": 4,
@@ -41,7 +41,7 @@ search_space_configs = {
     },
 }
 
-opset_configs = {
+OPSET_CONFIGS = {
     BenchSuiteOpSet.REGULAR: {"primitives": PRIMITIVES},
     BenchSuiteOpSet.NO_SKIP: {
         "primitives": [prim for prim in PRIMITIVES if prim != "skip_connect"]
@@ -51,14 +51,98 @@ opset_configs = {
     },
 }
 
+MODEL_TRAIN_HYPERPARAMETERS = {
+    0: {
+        "lr": 0.025,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-4,
+        }
+    },
+    1: {
+        "lr": 0.025,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 3e-4,
+        }
+    },
+    2: {
+        "lr": 0.025,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-3,
+        }
+    },
+    3: {
+        "lr": 0.001,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-4,
+        }
+    },
+    4: {
+        "lr": 0.001,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 3e-4,
+        }
+    },
+    5: {
+        "lr": 0.001,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-3,
+        }
+    },
+    6: {
+        "lr": 0.01,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-4,
+        }
+    },
+    7: {
+        "lr": 0.01,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 3e-4,
+        }
+    },
+    8: {
+        "lr": 0.01,
+        "batch_size": 512,
+        "optim_config": {
+            "momentum": 0.9,
+            "nesterov": False,
+            "weight_decay": 1e-3,
+        }
+    },
+}
+
 
 def configure_profile_with_search_space(
     profile: BaseProfile,
     space: BenchSuiteSpace,
     opset: BenchSuiteOpSet,
 ) -> None:
-    search_space = search_space_configs[space]
-    operations = opset_configs[opset]
+    search_space = SEARCH_SPACE_CONFIGS[space]
+    operations = OPSET_CONFIGS[opset]
     profile.configure_searchspace(**search_space, **operations)
 
     if opset == BenchSuiteOpSet.ALL_SKIP:
@@ -69,7 +153,7 @@ def configure_discrete_profile_with_search_space(
     space: BenchSuiteSpace,
     opset: BenchSuiteOpSet,
 ) -> None:
-    search_space = search_space_configs[space]
+    search_space = SEARCH_SPACE_CONFIGS[space]
 
     if space == BenchSuiteSpace.SINGLE_CELL:
         search_space.pop("steps", None)
@@ -83,6 +167,13 @@ def configure_discrete_profile_with_search_space(
     if opset == BenchSuiteOpSet.ALL_SKIP:
         searchspace_config = {"use_auxiliary_skip_connection": True}
         profile.configure_searchspace(**searchspace_config)
+
+def configure_discrete_profile_with_hp_set(
+    profile: DiscreteProfile,
+    hyperparameter_set: int,
+) -> None:
+    hyperparameters = MODEL_TRAIN_HYPERPARAMETERS[hyperparameter_set]
+    profile.configure_trainer(**hyperparameters)
 
 
 if __name__ == "__main__":
