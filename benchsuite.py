@@ -80,7 +80,7 @@ MODEL_TRAIN_HYPERPARAMETERS = {
         }
     },
     3: {
-        "lr": 0.001,
+        "lr": 0.1,
         "batch_size": 512,
         "optim_config": {
             "momentum": 0.9,
@@ -89,7 +89,7 @@ MODEL_TRAIN_HYPERPARAMETERS = {
         }
     },
     4: {
-        "lr": 0.001,
+        "lr": 0.1,
         "batch_size": 512,
         "optim_config": {
             "momentum": 0.9,
@@ -98,7 +98,7 @@ MODEL_TRAIN_HYPERPARAMETERS = {
         }
     },
     5: {
-        "lr": 0.001,
+        "lr": 0.1,
         "batch_size": 512,
         "optim_config": {
             "momentum": 0.9,
