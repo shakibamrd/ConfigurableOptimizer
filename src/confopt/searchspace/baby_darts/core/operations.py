@@ -923,8 +923,9 @@ class StackedSyntheticConvolution(nn.Module):
                 bias=False,
                 groups=groups,
             ),
-            nn.ReLU(inplace=False),
+            # nn.ReLU(inplace=False),
         )
+        self.activations = {}  # type: ignore
 
     def activate_hooks(self) -> None:
         def save_activation_map(
@@ -932,7 +933,10 @@ class StackedSyntheticConvolution(nn.Module):
             input: torch.Tensor,  # noqa: ARG001, A002
             output: torch.Tensor,
         ) -> None:
-            self.activations["output"] = output.detach()
+            if "output" not in self.activations:
+                self.activations["output"] = [output.detach()]
+            else:
+                self.activations["output"].append(output.detach())
 
         self.op[0].register_forward_hook(save_activation_map)
         self.op[1].register_forward_hook(save_activation_map)
@@ -956,8 +960,9 @@ class SyntheticConvolution(nn.Module):
                 padding=padding,
                 bias=False,
             ),
-            nn.ReLU(inplace=False),
+            # nn.ReLU(inplace=False),
         )
+        self.activations = {}  # type: ignore
 
     def activate_hooks(self) -> None:
         def save_activation_map(
@@ -965,7 +970,10 @@ class SyntheticConvolution(nn.Module):
             input: torch.Tensor,  # noqa: ARG001, A002
             output: torch.Tensor,
         ) -> None:
-            self.activations["output"] = output.detach()
+            if "output" not in self.activations:
+                self.activations["output"] = [output.detach()]
+            else:
+                self.activations["output"].append(output.detach())
 
         self.op[0].register_forward_hook(save_activation_map)
 

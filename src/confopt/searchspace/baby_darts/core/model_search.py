@@ -197,15 +197,15 @@ class Network(nn.Module):
         self.last_mask: list[torch.Tensor] = []
         C_curr = stem_multiplier * C
         self.primitives = primitives
-        if "skip_connect" not in self.primitives:
-            self.stem = Identity()
-            C_prev_prev, C_prev, C_curr = 3, 3, C
-        else:
+        if "skip_connect" in self.primitives or "conv_3x3" in self.primitives:
             self.stem = nn.Sequential(
                 nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
                 nn.BatchNorm2d(C_curr),
             )
             C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
+        else:
+            self.stem = Identity()
+            C_prev_prev, C_prev, C_curr = 3, 3, C
 
         self.cells = nn.ModuleList()
         reduction_prev = False
