@@ -844,29 +844,31 @@ class ConfigurableTrainer:
 
         for name, module in model.named_modules():
             if hasattr(module, "activations"):
-                feature_map = module.activations["output"].squeeze(0).cpu().numpy()
-                plt.figure(figsize=(12, 8))
-                # fixed for C = 16
-                for i in range(16):
-                    plt.subplot(4, 4, i + 1)
-                    plt.imshow(feature_map[i], cmap="viridis")
-                    plt.axis("off")
-                    plt.title(f"Channel {i+1}")
-                plt.suptitle("Activation Maps")
-                plt.tight_layout()
+                feature_maps = [
+                    feature.squeeze(0).cpu().numpy()
+                    for feature in module.activations["output"]
+                ]
 
-                buf = BytesIO()
-                plt.savefig(buf, format="png", bbox_inches="tight")
-                buf.seek(0)
-                img = Image.open(buf)
+                for idx, feature_map in enumerate(feature_maps):
+                    plt.figure(figsize=(12, 8))
+                    plt.imshow(feature_map.transpose(1, 2, 0), cmap="viridis")
+                    plt.title(f"Activation Maps for {name}-{idx}")
+                    plt.tight_layout()
 
-                wandb.log(  # type: ignore
-                    {
-                        f"activation_maps/{name}": wandb.Image(  # type: ignore
-                            img, caption="Activation Maps for Sample Image"
-                        ),
-                    }
-                )
+                    buf = BytesIO()
+                    plt.savefig(buf, format="png", bbox_inches="tight")
+                    buf.seek(0)
+                    img = Image.open(buf)
+
+                    wandb.log(  # type: ignore
+                        {
+                            f"activation_maps/{name}-{idx}": (
+                                wandb.Image(  # type: ignore
+                                    img, caption="Activation Maps for Sample Image"
+                                ),
+                            )
+                        }
+                    )
 
     def get_arch_values_as_dict(self, model: SearchSpace | DataParallel) -> dict:
         if isinstance(model, DataParallel):

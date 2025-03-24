@@ -347,6 +347,11 @@ class DiscreteTrainer(ConfigurableTrainer):
 
             self.logger.log_metrics("[Discrete] Test", test_metrics, epoch_str="---")
 
+        if log_with_wandb and hasattr(self.data, "get_sample_image"):
+            self.plot_activation_maps(
+                model=network, sample_example=self.data.get_sample_image().unsqueeze(0)
+            )
+
         return test_metrics
 
     def _set_up_checkpointer(self, mode: str | None) -> Checkpointer:
