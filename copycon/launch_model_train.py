@@ -43,7 +43,12 @@ if __name__ == "__main__":
     args_dict = vars(args)
 
     experiment_name = f"train_model-{args.optimizer}-{args.subspace}-{args.opset}"
-    python_args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "seeds"])
+
+    python_args = []
+    for hpset in args.hpsets.split(","):
+        args = " ".join([f"--{k} {v}" for k, v in args_dict.items() if k != "hpsets"])
+        args += f" --hpset {hpset}"
+        python_args.append(args)
 
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
@@ -64,7 +69,7 @@ if __name__ == "__main__":
         python_args=python_args,
         python_binary="python",
         n_cpus=8,
-        max_runtime_minutes=60 * 24,
+        max_runtime_minutes=60 * 8,
         # Pass environment variables to the running script.
         bash_setup_command=f"source ~/.bash_profile; conda activate {conda_env}",
         # n_concurrent_jobs=3,

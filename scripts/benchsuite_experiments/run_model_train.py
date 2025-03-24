@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tag", type=str, required=True, help="tag for the experiment")
     parser.add_argument("--other", type=str, required=True, help="other optimizer (FairDARTS, PC-DARTS etc)")
     parser.add_argument("--seed", type=int, required=True, help="random seed")
-    parser.add_argument("--hpsets", type=str, required=True, help="hyperparameter set to use to train this model")
+    parser.add_argument("--hpset", type=int, required=True, help="hyperparameter set to use to train this model")
 
     parser.add_argument(
         "--genotypes_folder",
@@ -129,11 +129,4 @@ def main(args: argparse.Namespace, hpset: int) -> None:
 
 if __name__ == "__main__":
     args = parse_args()
-    hpsets = args.hpsets
-
-    for hpset in hpsets.split(","):
-        try:
-            main(args, int(hpset))
-        except Exception as e:
-            print(f"Error training model with hyperparameter set {hpset}: {e}")
-            wandb.finish(exit_code=1)  # type: ignore
+    main(args, args.hpset)
