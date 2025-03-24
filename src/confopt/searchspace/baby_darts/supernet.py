@@ -60,13 +60,9 @@ class BabyDARTSSearchSpace(
     def set_arch_parameters(self, arch_parameters: list[nn.Parameter]) -> None:
         assert len(arch_parameters) == len(self.arch_parameters)
         assert arch_parameters[0].shape == self.arch_parameters[0].shape
-        (
-            self.model.alphas_normal.data,
-            self.model.alphas_reduce.data,
-        ) = arch_parameters
+        self.model.alphas_normal.data = arch_parameters[0]
         self.model._arch_parameters = [
             self.model.alphas_normal,
-            self.model.alphas_reduce,
         ]
 
     def discretize(self) -> nn.Module:
