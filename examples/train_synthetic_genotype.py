@@ -12,7 +12,7 @@ def read_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("Synthetic Experiment", add_help=False)
 
     parser.add_argument(
-        "--search_epochs",
+        "--epochs",
         default=20,
         help="number of epochs to train the supernet",
         type=int,
@@ -40,9 +40,30 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--operation",
+        default="conv_5x5",
+        help="learning rate",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--lr",
+        default=0.1,
+        help="learning rate",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--wd",
+        default=3e-4,
+        help="learning rate",
+        type=float,
+    )
+
+    parser.add_argument(
         "--seed",
-        default=9001,
-        help="Seed for the experiment",
+        default=100,
+        help="Seed for tshe experiment",
         type=int,
     )
 
@@ -56,7 +77,9 @@ if __name__ == "__main__":
     searchspace = SearchSpaceType.BABYDARTS
     dataset = DatasetType.SYNTHETIC
 
-    profile = DiscreteProfile(searchspace=searchspace, epochs=20, batch_size=64)
+    profile = DiscreteProfile(
+        searchspace=searchspace, epochs=args.epochs, batch_size=512
+    )
 
     profile.configure_extra(
         synthetic_dataset_config={
@@ -71,19 +94,30 @@ if __name__ == "__main__":
         {
             "num_classes": get_num_classes(dataset.value),
             "stem_multiplier": 1,
-            "C": 3,
+            "C": 1,
         }
     )
-    profile.configure_trainer(cutout=0, train_portion=1, seed=args.seed)
-    # genotype_str = "stacked_conv_3x3"
-    genotype_str = "conv_5x5"
-    profile.genotype = genotype_str
-    project_name = "Synthetic-Benchsuite-Discrete"
+
+    optimizer_config = {
+        "momentum": 0.9,
+        "nesterov": False,
+        "weight_decay": args.wd,
+    }
+
+    profile.configure_trainer(
+        lr=args.lr,
+        optim_config=optimizer_config,
+        cutout=0,
+        train_portion=1,
+        seed=args.seed,
+    )
+    profile.genotype = args.operation
+    project_name = f"Synthetic-Benchsuite-Discrete-{args.operation}"
     exp_name = (
         f"sig{args.signal_width}x{args.signal_width}-"
         f"short{args.shortcut_width}x{args.shortcut_width}-"
         f"strength{args.shortcut_strength:.3f}-"
-        f"{genotype_str}"
+        f"{args.operation}"
     )
     profile.train_config.update(
         {
