@@ -30,7 +30,10 @@ def read_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--oles", type=bool, default=False, help="Use operation-level early stopping"
+        "--oles",
+        type=bool,
+        default=False,
+        help="Use operation-level early stopping"
     )
 
     parser.add_argument(
@@ -157,7 +160,7 @@ if __name__ == "__main__":
         test_patch_width=args.test_patch_width,
     )
 
-    assert args.pattern_type in [1, 2]
+    assert args.pattern_type in [1, 2, 3, 4, 5, 6]
     if args.pattern_type == 1:
         # there is already a 3x3 stem, so select this carefully
         primitives = [
@@ -176,7 +179,7 @@ if __name__ == "__main__":
         primitives=primitives,
         C=3,
     )
-    project_name = "Synthetic-Benchsuite"
+    project_name = "Synthetic-Benchsuite-Pattern-2"
     exp_name = (
         f"synthetic-test-{args.optimizer}-"
         f"fairdarts-{args.fairdarts}-"
