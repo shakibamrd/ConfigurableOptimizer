@@ -82,7 +82,7 @@ python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --s
 python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-fairdarts" --fairdarts
 ```
 
-For other benchmarks one can provide options **`deep`** and **`single_cell`** for `--subspace`, &  **`no_skip`** and **`all_skip`** for `--ops`. If you want to log your run on **WandB**, simply provide `--log_with_wandb` argument with the scripts above.
+For other benchmarks, one can provide options **`deep`** and **`single_cell`** for `--subspace`, &  **`no_skip`** and **`all_skip`** for `--ops`. If you want to log your run on **WandB**, simply provide `--log_with_wandb` argument with the scripts above.
 
 
 ### Retraining the architecture
