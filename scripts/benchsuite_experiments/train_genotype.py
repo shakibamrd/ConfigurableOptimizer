@@ -100,7 +100,7 @@ def set_profile_genotype(discrete_profile: DiscreteProfile, path: str) -> None:
 def main(args: argparse.Namespace, hpset: int) -> None:
 
     discrete_profile = DiscreteProfile(
-        searchspace="darts",
+        searchspace_type="darts",
         epochs=args.epochs,
         seed=args.seed,
     )

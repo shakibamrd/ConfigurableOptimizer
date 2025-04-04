@@ -180,7 +180,7 @@ def configure_discrete_profile_with_hp_set(
 
 if __name__ == "__main__":
     profile = DARTSProfile(
-        searchspace=SearchSpaceType.DARTS,
+        searchspace_type=SearchSpaceType.DARTS,
         epochs=10,
     )
 

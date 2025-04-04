@@ -6,7 +6,7 @@ from confopt.enums import SearchSpaceType, DatasetType
 
 if __name__ == "__main__":
     profile = GDASProfile(
-        searchspace=SearchSpaceType.DARTS,
+        searchspace_type=SearchSpaceType.DARTS,
         epochs=3,
     )
 
