@@ -15,13 +15,13 @@ class DARTSProfile(BaseProfile, ABC):
 
     def __init__(
         self,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         epochs: int,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             self.SAMPLER_TYPE,
-            searchspace,
+            searchspace_type,
             epochs,
             **kwargs,
         )
@@ -39,7 +39,7 @@ class GDASProfile(BaseProfile, ABC):
 
     def __init__(
         self,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         epochs: int,
         tau_min: float = 0.1,
         tau_max: float = 10,
@@ -50,7 +50,7 @@ class GDASProfile(BaseProfile, ABC):
 
         super().__init__(
             self.SAMPLER_TYPE,
-            searchspace,
+            searchspace_type,
             epochs,
             **kwargs,
         )
@@ -88,7 +88,7 @@ class SNASProfile(BaseProfile, ABC):
 
     def __init__(
         self,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         epochs: int,
         temp_init: float = 1.0,
         temp_min: float = 0.03,
@@ -102,7 +102,7 @@ class SNASProfile(BaseProfile, ABC):
 
         super().__init__(  # type: ignore
             self.SAMPLER_TYPE,
-            searchspace,
+            searchspace_type,
             epochs,
             **kwargs,
         )
@@ -124,13 +124,13 @@ class DRNASProfile(BaseProfile, ABC):
 
     def __init__(
         self,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         epochs: int,
         **kwargs: Any,
     ) -> None:
         super().__init__(  # type: ignore
             self.SAMPLER_TYPE,
-            searchspace,
+            searchspace_type,
             epochs,
             **kwargs,
         )
@@ -221,18 +221,18 @@ class DRNASProfile(BaseProfile, ABC):
 class DiscreteProfile:
     def __init__(
         self,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         domain: str | None = None,
         **kwargs: Any,
     ) -> None:
-        self.searchspace = (
-            SearchSpaceType(searchspace)
-            if isinstance(searchspace, str)
-            else searchspace
+        self.searchspace_type = (
+            SearchSpaceType(searchspace_type)
+            if isinstance(searchspace_type, str)
+            else searchspace_type
         )
         assert isinstance(
-            self.searchspace, SearchSpaceType
-        ), f"Invalid searchspace type: {searchspace}"
+            self.searchspace_type, SearchSpaceType
+        ), f"Invalid searchspace type: {searchspace_type}"
         self.domain = domain
         self._initialize_trainer_config()
         self._initializa_genotype()
@@ -246,7 +246,7 @@ class DiscreteProfile:
 
     def _initialize_trainer_config(self) -> None:
         default_train_config = {
-            "searchspace": self.searchspace,
+            "searchspace": self.searchspace_type,
             "lr": 0.025,
             "epochs": 100,
             "optim": "sgd",
@@ -325,20 +325,20 @@ class DiscreteProfile:
             self.extra_config.update(config)
 
     def get_searchspace_config(self, dataset_str: str) -> dict:
-        if self.searchspace == SearchSpaceType.NB201:
+        if self.searchspace_type == SearchSpaceType.NB201:
             searchspace_config = {
                 "N": 5,  # num_cells
                 "C": 16,  # channels
                 "num_classes": get_num_classes(dataset_str),
             }
-        elif self.searchspace == SearchSpaceType.DARTS:
+        elif self.searchspace_type == SearchSpaceType.DARTS:
             searchspace_config = {
                 "C": 36,  # init channels
                 "layers": 20,  # number of layers
                 "auxiliary": False,
                 "num_classes": get_num_classes(dataset_str),
             }
-        elif self.searchspace == SearchSpaceType.TNB101:
+        elif self.searchspace_type == SearchSpaceType.TNB101:
             assert self.domain is not None, "domain must be specified"
             searchspace_config = {
                 "domain": self.domain,  # type: ignore

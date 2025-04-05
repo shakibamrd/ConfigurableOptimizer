@@ -19,7 +19,7 @@ class BaseProfile:
     def __init__(  # noqa: PLR0912 PLR0915
         self,
         sampler_type: str | SamplerType,
-        searchspace: str | SearchSpaceType,
+        searchspace_type: str | SearchSpaceType,
         epochs: int = 50,
         *,
         sampler_sample_frequency: str = "step",
@@ -53,9 +53,9 @@ class BaseProfile:
         extra_config: dict | None = None,
     ) -> None:
         self.searchspace_type = (
-            SearchSpaceType(searchspace)
-            if isinstance(searchspace, str)
-            else searchspace
+            SearchSpaceType(searchspace_type)
+            if isinstance(searchspace_type, str)
+            else searchspace_type
         )
         self.sampler_type = (
             SamplerType(sampler_type) if isinstance(sampler_type, str) else sampler_type
@@ -77,7 +77,10 @@ class BaseProfile:
             assert (
                 searchspace_domain is None
             ), "searchspace_domain is not required for this searchspace"
-        if searchspace == "nb1shot1" or searchspace == SearchSpaceType.NB1SHOT1:
+        if (
+            searchspace_type == "nb1shot1"
+            or searchspace_type == SearchSpaceType.NB1SHOT1
+        ):
             assert searchspace_subspace in [
                 "S1",
                 "S2",
