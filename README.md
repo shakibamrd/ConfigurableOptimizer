@@ -40,7 +40,7 @@ The easiest way to ensure that the commits are well formatted is to commit using
 
 ## Getting Started
 
-We define modular, differentiable NAS components within our library. Below is a snippet that demonstrates how we run a vanilla-DARTS experiment. We recommend exploring the [demo-notebook](./examples/notebooks/demo_notebook.ipynb) for a hands-on experience with the library.
+We define modular, differentiable NAS components within our library. Below is a snippet that demonstrates how we run a vanilla-DARTS experiment. We recommend exploring the [demo-notebook](examples/notebooks/demo_notebook.ipynb) for a hands-on experience with the library.
 
 
 ```python 
@@ -65,4 +65,4 @@ experiment.train_supernet(profile)
 ## Reproduce
 
 To reproduce our workflow for the paper- 
-***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods* ([AutoML'2025](https://2025.automl.cc/)), checkout the **[reproducing docs](scripts/benchsuite_experiments/benchsuite_doc.md)**.
+***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods*, checkout the **[reproducing docs](scripts/benchsuite_experiments/benchsuite_doc.md)**.

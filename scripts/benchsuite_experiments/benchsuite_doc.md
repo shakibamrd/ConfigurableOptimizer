@@ -1,5 +1,5 @@
 # Reproducing Results
-Scripts accompanying the paper ***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods* ([AutoML'2025](https://2025.automl.cc/))
+Scripts accompanying the paper ***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods*
 
 ### Architecture Search on the Benchsuite
 
