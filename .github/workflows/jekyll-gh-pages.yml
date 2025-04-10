@@ -18,8 +18,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout gh-pages branch
         uses: actions/checkout@v4
+        with:
+          ref: gh-pages  # This specifies to checkout the gh-pages branch
 
       - name: Setup Python
         uses: actions/setup-python@v4
