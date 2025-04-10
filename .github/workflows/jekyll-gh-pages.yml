@@ -39,6 +39,9 @@ jobs:
           make clean
           make html
 
+      - name: Disable Jekyll
+        run: touch .nojekyll
+
       - name: Build and Deploy with Jekyll
         uses: peaceiris/actions-gh-pages@v4
         with:
