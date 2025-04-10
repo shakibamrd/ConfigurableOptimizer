@@ -33,14 +33,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install sphinx myst-parser sphinx_rtd_theme sphinx-panels
 
+      - name: Disable Jekyll
+        run: touch .nojekyll
+
       - name: Build Sphinx Documentation
         run: |
           cd docs
           make clean
           make html
-
-      - name: Disable Jekyll
-        run: touch .nojekyll
 
       - name: Build and Deploy with Jekyll
         uses: peaceiris/actions-gh-pages@v4
