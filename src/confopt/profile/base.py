@@ -825,8 +825,8 @@ class BaseProfile:
 
     def configure_regularization(self, **kwargs) -> None:  # type: ignore
         """Configure the regularization module for the supernet.
-        There are three different types of regularizations in
-        Configurable Optimizer:
+
+        There are three different types of regularizations in Configurable Optimizer:
             - FairDarts: FairDARTSRegularizationTerm
             - Flops: FLOPSRegularizationTerm
             - Drnas: DrNASRegularizationTerm.
@@ -835,20 +835,16 @@ class BaseProfile:
             **kwargs: Arbitrary keyword arguments. Possible keys include:
 
                 reg_weights (list[float]): List of weights for each regularization term.
-
                 loss_weight (float): Weight for the loss term.
-
                 active_reg_terms (list[str]): List of types of regularization terms.
 
                 drnas_config (dict): Configuration for DRNAS regularization.
                     This dictionary can contain the following keys:
-                    reg_scale (float): Scale for the regularization term.
-                    reg_type (str): Type of regularization. Can be 'l1' or 'kl'.
+                        reg_scale (float): Scale for the regularization term.
+                        reg_type (str): Type of regularization. Can be 'l1' or 'kl'.
 
                 flops_config (dict): Configuration for FLOPS regularization.
-
                 fairdarts_config (dict): Configuration for FairDARTS regularization.
-
         """
         for config_key in kwargs:
             assert (
