@@ -40,7 +40,14 @@ The easiest way to ensure that the commits are well formatted is to commit using
 
 ## Getting Started
 
-We define modular, differentiable NAS components within our library. Below is a snippet that demonstrates how we run a vanilla-DARTS experiment. We recommend exploring the [demo-notebook](../../examples/notebooks/demo_notebook.ipynb) for a hands-on experience with the library.
+We define modular, differentiable NAS components within our library. 
+
+#### Explore the Demo Notebook
+
+We recommend exploring the [demo-notebook](../../examples/notebooks/demo_notebook.ipynb) for a hands-on experience with the library.
+
+#### Run Your First Experiment (Vanilla DARTS)
+Below is a snippet that demonstrates how we run a vanilla-DARTS experiment. 
 
 
 ```python 
