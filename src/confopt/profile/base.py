@@ -491,7 +491,8 @@ class BaseProfile:
         return config
 
     def _initialize_sampler_config(self) -> None:
-        """Initialize the configuration for the sampler to None.
+        """Initializes the configuration for the sampler.
+        The inherited classes override this with their own implementations.
 
         Args:
             None
