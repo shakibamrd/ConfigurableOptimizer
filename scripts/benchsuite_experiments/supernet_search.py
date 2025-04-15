@@ -77,7 +77,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--sdarts",
-    choices=["none", "adverserial", "random"],
+    choices=["none", "adversarial", "random"],
     type=str,
     default="none",
     help="use perturbation for the experiments",

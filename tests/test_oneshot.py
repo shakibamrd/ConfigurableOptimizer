@@ -140,11 +140,11 @@ class TestArchSamplers(unittest.TestCase):
         for arch_param_before, arch_param_after in zip(alphas_before, alphas_after):
             assert not torch.allclose(arch_param_before, arch_param_after)
 
-        # Adverserial Attack
+        # Adversarial Attack
         # Changes the model's alpha as well, but if the loss does not decrease, it does
         # not change alpha
         # TODO Improve this test
-        perturbator.attack_type = "adverserial"
+        perturbator.attack_type = "adversarial"
         alphas_before = [
             arch_param.clone() for arch_param in searchspace.arch_parameters
         ]
@@ -154,27 +154,27 @@ class TestArchSamplers(unittest.TestCase):
     def test_illegal_sample_frequency(self) -> None:
         arch_parameters = [torch.randn(5, 5)]
         with self.assertRaises(AssertionError):
-            DARTSSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
+            DARTSSampler(arch_parameters=arch_parameters, sample_frequency="illegal") # type: ignore
 
         with self.assertRaises(AssertionError):
-            GDASSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
+            GDASSampler(arch_parameters=arch_parameters, sample_frequency="illegal") # type: ignore
 
         with self.assertRaises(AssertionError):
-            ReinMaxSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
+            ReinMaxSampler(arch_parameters=arch_parameters, sample_frequency="illegal") # type: ignore
 
         with self.assertRaises(AssertionError):
-            DRNASSampler(arch_parameters=arch_parameters, sample_frequency="illegal")
+            DRNASSampler(arch_parameters=arch_parameters, sample_frequency="illegal") # type: ignore
 
         with self.assertRaises(AssertionError):
             SNASSampler(
                 arch_parameters=arch_parameters,
-                sample_frequency="illegal",
+                sample_frequency="illegal", # type: ignore
             )
 
         with self.assertRaises(AssertionError):
             SDARTSPerturbator(
                 arch_parameters=arch_parameters,
-                sample_frequency="illegal",
+                sample_frequency="illegal", # type: ignore
                 epsilon=0.03,
             )
 
@@ -204,7 +204,7 @@ class TestDropout(unittest.TestCase):
 
     def test_illegal_anneal_frequency(self) -> None:
         with self.assertRaises(AssertionError):
-            Dropout(p=0.5, anneal_frequency="illegal")
+            Dropout(p=0.5, anneal_frequency="illegal") # type: ignore
 
     def test_illegal_anneal_type_and_frequency(self) -> None:
         with self.assertRaises(AssertionError):

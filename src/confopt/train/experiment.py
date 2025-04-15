@@ -1140,7 +1140,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--perturbator",
         default="none",
-        help="Type of perturbation in (none, random, adverserial)",
+        help="Type of perturbation in (none, random, adversarial)",
         type=str,
     )
     parser.add_argument(

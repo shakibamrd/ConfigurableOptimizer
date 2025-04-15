@@ -65,4 +65,4 @@ experiment.train_supernet(profile)
 ## Reproduce
 
 To reproduce our workflow for the paper- 
-***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods*, checkout the **[reproducing docs](scripts/benchsuite_experiments/benchsuite_doc.md)**.
+***`confopt`** : A Library for Implementation and Evaluation of Gradient-based One-Shot NAS Methods*, checkout the **[reproducing docs](scripts/benchsuite_experiments/README.md)**.
