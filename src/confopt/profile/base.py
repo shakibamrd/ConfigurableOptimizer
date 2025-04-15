@@ -400,8 +400,7 @@ class BaseProfile:
         self._initialize_perturbation_config()
 
     def _set_partial_connector(self, is_partial_connection: bool = False) -> None:
-        """Set the value is_partial_connection along the defualt configuration for
-        the partial connector.
+        """Initializes the default configuration for the partial connector.
 
         Args:
             is_partial_connection (bool): Flag to enable partial connections in \
