@@ -439,14 +439,14 @@ class BaseProfile:
         self._initialize_regularization_config()
 
     def get_config(self) -> dict:
-        """This method returns a dictionary containing the configurations for \
-            the supernet.
+        """This method returns a dictionary representation of the Profile class. \
+        The configurations are used for training the supernet.
 
         Args:
             None
 
         Returns:
-            dict: A dictionary containing the configurations for the supernet.
+            dict: A dictionary representation of the Profile class.
         """
         assert (
             self.sampler_config is not None
