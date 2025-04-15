@@ -726,7 +726,42 @@ class BaseProfile:
 
                 optim_config (dict): Additional configuration of the optimizer.
 
-                ...
+                    momentum (float): Momentum for model's optimizer.
+
+                    nesterov (bool): Flag to use Nesterov momentum for model's \
+                        optimizer.
+
+                    weight_decay (float): Weight decay for model's optimizer.
+
+                arch_optim_config (dict): Additional configuration of the architecture \
+                    optimizer.
+
+                    weight_decay (float): Weight decay for architecture's optimizer.
+
+                    beta (float): Beta for architecture's optimizer.
+
+                scheduler (str): Scheduler's type.
+
+                scheduler_config (dict): Additional configuration of the scheduler.
+
+                criterion (str): Loss function type.
+
+                batch_size (int): Batch size for training.
+
+                learning_rate_min (float): Minimum learning rate.
+
+                cutout (int): Enables cutout. If  cutout > 0, cutout is applied.
+
+                cutout_length (int): Cutout length.
+
+                train_portion (float): Portion of the training data to use for \
+                    training the model's parameter.
+
+                use_data_parallel (bool): Flag to use data parallelism.
+
+                checkpointing_freq (int): Frequency of checkpointing.
+
+                seed (int): Seed for random number generators.
 
         Raises:
             AssertionError: If any of the provided configuration keys are not valid.
