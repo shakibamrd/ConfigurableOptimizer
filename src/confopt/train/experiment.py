@@ -166,7 +166,7 @@ class Experiment:
             recent or the best-performing model checkpoint, respectively.
             If an integer is provided, it represents the epoch number from which
             training should be continued.
-            If `None`, then it would start a new run.
+            If `None`, then it starts training the model from scratch.
 
             exp_runtime_to_load (str | None): The particular experiment runtime to
             load the model from.If `None`, the model will be loaded from the last
