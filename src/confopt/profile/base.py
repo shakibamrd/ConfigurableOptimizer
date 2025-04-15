@@ -535,6 +535,10 @@ class BaseProfile:
         If the is_partial_connection flag is disabled, the configuration is set
         to None, otherwise it is set to a default configuration.
 
+        Note:
+            The default configuration for the partial connector includes:
+            - `k`: 4 (1/k of the number of channels would be used during training)
+            - `num_warm_epoch`: 15 (indicates the number of warm-up epochs)
 
         Args:
             None
