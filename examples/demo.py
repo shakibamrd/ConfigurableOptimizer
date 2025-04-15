@@ -5,7 +5,6 @@ from confopt.train import Experiment
 from confopt.enums import DatasetType, SearchSpaceType
 
 if __name__ == "__main__":
-
     searchspace = SearchSpaceType.DARTS
     dataset = DatasetType.CIFAR10
     seed = 100
