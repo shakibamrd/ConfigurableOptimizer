@@ -249,10 +249,10 @@ class BaseProfile:
         pt_projection_criteria: Literal["acc", "loss"] = "acc",
         pt_projection_interval: int = 10,
     ) -> None:
-        """Set the configuration for the projection based selection of the supernet.
+        """Set the configuration for the projection-based selection of the supernet.
 
         Args:
-            pt_select_architecture (bool): Flag to enable projection based \
+            pt_select_architecture (bool): Flag to enable projection-based \
                 selection of the supernet.
             pt_projection_criteria (str): Criteria for projection. Can be \
                 'acc' or 'loss'.
@@ -857,7 +857,7 @@ class BaseProfile:
             self.regularization_config[config_key] = kwargs[config_key]
 
     def configure_pt_selection(self, **kwargs) -> None:  # type: ignore
-        """Configure the projection based selection for the supernet.
+        """Configure the projection-based selection for the supernet.
 
         Args:
             **kwargs: Arbitrary keyword arguments. Possible keys include:
