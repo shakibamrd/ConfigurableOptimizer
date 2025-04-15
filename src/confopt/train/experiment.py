@@ -172,8 +172,7 @@ class Experiment:
             load the model from.If `None`, the model will be loaded from the last
             runtime.
 
-            use_benchmark (bool): If `True`, uses a benchmark API for evaluation,
-            instead of training the model from scratch.
+            use_benchmark (bool): If `True`, uses a benchmark API for evaluation.
 
         Returns:
             ConfigurableTrainer: The trained supernet.
