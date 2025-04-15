@@ -159,7 +159,7 @@ class Experiment:
 
         Args:
             profile (BaseProfile): Contains configurations for training the supernet,
-            including compnent settings and architectural specifications.
+            including component settings and architectural specifications.
 
             model_to_load (str | int | None): Specifies the training state to load the
             supernet from. Valid values are "last" or "best", representing the most
