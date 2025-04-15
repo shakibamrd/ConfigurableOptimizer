@@ -28,11 +28,9 @@ class BaseProfile:
     component be used.
 
     Parameters:
-        sampler_type (SamplerType or str): Type of sampler to use, converted to \
-            SamplerType if passed as string.
-        searchspace (SearchSpaceType or str): Type of search space, converted to \
-            SearchSpaceType if passed as string.
-        epochs (int): Number of training epochs. Defaults to 50.
+        sampler_type (SamplerType or str): Type of sampler to use.
+        searchspace (SearchSpaceType or str): Type of search space.
+        epochs (int): Number of training epochs.
         sampler_sample_frequency (str): Frequency of sampling. Valid values are \
             'step' or 'epoch'. Defaults to 'step'.
 
@@ -50,8 +48,8 @@ class BaseProfile:
             Defaults to 'epoch'.
         perturbator_config (dict, optional): Configuration for the perturbator.
 
-        entangle_op_weights (bool): Flag to enable operation weight entanglement. \
-            Defaults to False.
+        entangle_op_weights (bool): Flag to enable weight entanglement \
+            between candidate operations. Defaults to False.
 
         lora_rank (int): Rank for LoRA configuration. Defaults to 0.
         lora_warm_epochs (int): Number of warm-up epochs for LoRA. Defaults to 0.
@@ -67,7 +65,7 @@ class BaseProfile:
         calc_gm_score (bool): Flag to calculate GM score for OLES. Required if \
               oles is True.
 
-        prune_epochs (list[int], optional): List of epochs to apply pruning. \
+        prune_epochs (list[int], optional): List of epochs to apply pruning at. \
             Defaults to None.
         prune_fractions (list[float], optional): Fractions to prune in specified \
             epochs. Defaults to None.
