@@ -686,7 +686,7 @@ class BaseProfile:
         Args:
             **kwargs: Arbitrary keyword arguments. Possible keys include:
 
-                k (int): 1/Number of connections to keep.
+                k (int): 1/(Number of connections to keep).
 
                 num_warm_epoch (int): Number of warm-up epochs.
 
