@@ -709,22 +709,22 @@ class BaseProfile:
             self.configure_searchspace(k=kwargs["k"])
 
     def configure_trainer(self, **kwargs) -> None:  # type: ignore
-        """Configure the trainer component for the supernet.
+        """Configure the trainer component of the supernet.
 
         Args:
             **kwargs: Arbitrary keyword arguments. Possible keys include:
 
-                lr (float): Learning rate for the optimizer.
+                lr (float): Learning rate of the optimizer.
 
-                arch_lr (float): Learning rate for architecture parameters.
+                arch_lr (float): Learning rate of architecture parameters.
 
                 epochs (int): Number of training epochs.
 
                 optim (str): Optimizer type. Can be 'sgd', 'adam', etc.
 
-                arch_optim (str): Optimizer type for architecture parameters.
+                arch_optim (str): Optimizer type of architecture parameters.
 
-                optim_config (dict): Additional configuration for the optimizer.
+                optim_config (dict): Additional configuration of the optimizer.
 
                 ...
 
