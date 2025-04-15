@@ -252,11 +252,6 @@ class SNASProfile(BaseProfile, ABC):
 
                 total_epochs (int): Total number of epochs for training.
 
-        Example:
-            >>> from confopt.profile import SNASProfile
-            >>> snas_profile = SNASProfile(searchspace='darts', epochs=50)
-            >>> snas_profile.configure_sampler(temp_init=1.1)
-
         The accepted keyword arguments should align with the sampler's configuration and
         the attributes can be configured dynamically.
 
