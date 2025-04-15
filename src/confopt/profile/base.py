@@ -43,7 +43,7 @@ class BaseProfile:
             parameters. Defaults to None.
 
         perturbation (str, optional): Type of perturbation to apply. Valid values \
-            are 'adverserial' and 'random'. Defaults to None.
+            are 'adversarial' and 'random'. Defaults to None.
         perturbator_sample_frequency (str): Sampling frequency for perturbator. \
             Defaults to 'epoch'.
         perturbator_config (dict, optional): Configuration for the perturbator.
@@ -378,20 +378,20 @@ class BaseProfile:
 
         Args:
             perturb_type (str | None): Type of perturbation to apply. \
-                Valid values are 'adverserial' and 'random'.
+                Valid values are 'adversarial' and 'random'.
             perturbator_sample_frequency (str): Sampling frequency for \
                 perturbator. Defaults to 'epoch'.
 
         Raises:
             AssertionError: If perturbator_sample_frequency is not 'epoch' or 'step'.
             AssertionError: If perturb_type is neither the string values \
-                'adverserial', 'random', 'none' or None.
+                'adversarial', 'random', 'none' or None.
 
         Returns:
             None
         """
         assert perturbator_sample_frequency in ["epoch", "step"]
-        assert perturb_type in ["adverserial", "random", "none", None]
+        assert perturb_type in ["adversarial", "random", "none", None]
         if perturb_type is None:
             self.perturb_type = "none"
         else:
@@ -513,7 +513,7 @@ class BaseProfile:
         Returns:
             None
         """
-        if self.perturb_type == "adverserial":
+        if self.perturb_type == "adversarial":
             perturb_config = {
                 "epsilon": 0.3,
                 "data": ADVERSARIAL_DATA,
@@ -640,7 +640,7 @@ class BaseProfile:
             **kwargs: Arbitrary keyword arguments. Possible keys include:
 
                 Possible keys include:
-                for perturbation type 'adverserial':
+                for perturbation type 'adversarial':
 
                 epsilon (float): Perturbation strength.
 
@@ -669,7 +669,7 @@ class BaseProfile:
         assert (
             self.perturb_type != "none"
         ), "Perturbator is initialized with None, \
-            re-initialize with random or adverserial"
+            re-initialize with random or adversarial"
 
         for config_key in kwargs:
             assert (
