@@ -28,7 +28,7 @@ class SamplerType(Enum):
 
 class PerturbatorType(Enum):
     RANDOM = "random"
-    ADVERSERIAL = "adverserial"
+    ADVERSARIAL = "adversarial"
     NONE = "none"
 
     def __str__(self) -> str:

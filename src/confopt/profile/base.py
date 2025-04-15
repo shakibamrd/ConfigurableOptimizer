@@ -222,7 +222,7 @@ class BaseProfile:
         perturbator_sample_frequency: str = "epoch",
     ) -> None:
         assert perturbator_sample_frequency in ["epoch", "step"]
-        assert perturb_type in ["adverserial", "random", "none", None]
+        assert perturb_type in ["adversarial", "random", "none", None]
         if perturb_type is None:
             self.perturb_type = "none"
         else:
@@ -289,7 +289,7 @@ class BaseProfile:
         self.sampler_config = None
 
     def _initialize_perturbation_config(self) -> None:
-        if self.perturb_type == "adverserial":
+        if self.perturb_type == "adversarial":
             perturb_config = {
                 "epsilon": 0.3,
                 "data": ADVERSARIAL_DATA,
@@ -363,7 +363,7 @@ class BaseProfile:
         assert (
             self.perturb_type != "none"
         ), "Perturbator is initialized with None, \
-            re-initialize with random or adverserial"
+            re-initialize with random or adversarial"
 
         for config_key in kwargs:
             assert (
