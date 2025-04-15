@@ -24,12 +24,12 @@ python scripts/benchsuite_experiments/supernet_search.py --optimizer "gdas" --su
 
 ##### OLES &#8594;
 ```bash
-python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-oles" --oles
+python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-oles" --oles true
 ```
 
 ##### PC-DARTS &#8594;
 ```bash
-python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-pcdarts" --pcdarts
+python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-pcdarts" --pcdarts true
 ```
 
 ##### SmoothDARTS &#8594;
@@ -39,10 +39,10 @@ python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --s
 
 ##### FairDARTS &#8594;
 ```bash
-python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-fairdarts" --fairdarts
+python scripts/benchsuite_experiments/supernet_search.py --optimizer "darts" --subspace "wide" --ops "regular" --dataset "cifar10_supernet" --seed 0 --tag "wide-regular-fairdarts" --fairdarts true
 ```
 
-For other benchmarks, one can provide options **`deep`** and **`single_cell`** for `--subspace`, &  **`no_skip`** and **`all_skip`** for `--ops`. If you want to log your run on **WandB**, simply provide `--log_with_wandb` argument with the scripts above.
+For other benchmarks, one can provide options **`deep`** and **`single_cell`** for `--subspace`, &  **`no_skip`** and **`all_skip`** for `--ops`. If you want to log your run on **WandB**, simply provide `--log_with_wandb true` argument with the scripts above.
 
 
 ### Retraining the architecture
@@ -62,3 +62,4 @@ Please use **`--hpset`** (vary from 1-9) for training with the respective hyperp
 > Note: 
 > - For Fair-DARTS, SmoothDARTS, OLES, and PC-DARTS, one has to change the **`--other`** option to **`fairdarts`**, **`sdarts`**, **`oles`** and **`pcdarts`** respectively, with **`--optimizer darts`**.
 > - Make sure that **`genotypes`** folder exist in the path.
+> - If you want to log your run on **WandB**, simply provide `--log_with_wandb true` argument with the scripts above.
