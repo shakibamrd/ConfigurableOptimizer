@@ -419,7 +419,7 @@ class BaseProfile:
 
         Args:
             dropout (float | None): Dropout operation rate for architectural \
-                parameters. Defaults to None.
+                parameters. Must be in the range [0, 1). Defaults to None.
 
         Returns:
             None
