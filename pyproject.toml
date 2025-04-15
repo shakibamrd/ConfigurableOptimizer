@@ -14,9 +14,6 @@ dependencies = [
     "thop",
     "seaborn",
     "scikit-image",
-    "myst-parser",
-    "sphinx_rtd_theme",
-    "sphinx-panels",
     "gdown",
 ]
 requires-python = ">=3.8"
@@ -102,6 +99,9 @@ doc = [
   "mike",
   "pillow",
   "cairosvg",
+  "myst-parser",
+  "sphinx_rtd_theme",
+  "sphinx-panels",
 ]
 
 [project.urls]
