@@ -413,8 +413,7 @@ class BaseProfile:
         self._initialize_partial_connector_config()
 
     def _set_dropout(self, dropout: float | None = None) -> None:
-        """Set the value of dropout operation for the architecture parameters \
-            along with the default configurations for dropout.
+        """Initializes the default configurations for dropout.
 
         Args:
             dropout (float | None): Dropout operation rate for architectural \
@@ -427,8 +426,7 @@ class BaseProfile:
         self._initialize_dropout_config()
 
     def _set_regularization(self, is_regularization_enabled: bool = False) -> None:
-        """Set the value of is_regularization_enabled along with the default \
-            configuration for regularization.
+        """Initializes the default configuration for regularization.
 
         Args:
             is_regularization_enabled (bool): Flag to enable regularization \
