@@ -278,7 +278,7 @@ class BaseProfile:
         """Set the configuration for the pruning of the supernet.
 
         Args:
-            prune_epochs (list[int] | None): List of epochs to apply pruning.
+            prune_epochs (list[int] | None): List of epochs to apply pruning at.
             prune_fractions (list[float] | None): List of fractions to prune in \
                 the specified epochs.
 
