@@ -1008,7 +1008,7 @@ class Experiment:
             model_to_load (str | int | None): The model to load. Can be "last",
             "best", or specific epoch.
             exp_runtime_to_load (str | None): The runtime to load the model from.
-            log_with_wandb (bool): Whether to log with wandb.
+            log_with_wandb (bool): Flag to  log with wandb.
             run_name (str): The name of the run.
             src_folder_path (str | None): The source folder path of experiment's run.
 

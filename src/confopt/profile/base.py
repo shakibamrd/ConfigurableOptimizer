@@ -652,7 +652,7 @@ class BaseProfile:
 
                 steps (int): Number of steps for perturbation.
 
-                random_start (bool): Whether to start with a random perturbation.
+                random_start (bool): Flag to  start with a random perturbation.
 
                 sample_frequency (str): Frequency of sampling. Can be 'epoch' or 'step'.
 

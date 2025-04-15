@@ -191,7 +191,7 @@ class SNASProfile(BaseProfile, ABC):
     Attributes:
         temp_init (float): Initial temperature for sampling.
         temp_min (float): Minimum temperature for sampling.
-        temp_annealing (bool): Whether to use temperature annealing.
+        temp_annealing (bool): Flag to  use temperature annealing.
         total_epochs (int): Total number of epochs for training.
     """
 
@@ -248,7 +248,7 @@ class SNASProfile(BaseProfile, ABC):
 
                 temp_min (float): Minimum temperature for sampling.
 
-                temp_annealing (bool): Whether to use temperature annealing.
+                temp_annealing (bool): Flag to  use temperature annealing.
 
                 total_epochs (int): Total number of epochs for training.
 
