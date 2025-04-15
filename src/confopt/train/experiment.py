@@ -77,7 +77,7 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 class Experiment:
     """The Experiment class is responsible for managing the training and evaluation of
-    the supernet and discrete models. It initializes the necessary components, and
+    the supernet and discrete models. It initializes the necessary components,
     manages the states to load, and handles the training process.
 
     Parameters:
