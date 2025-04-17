@@ -128,7 +128,6 @@ class BaseProfile:
         prune_epochs: list[int] | None = None,
         prune_fractions: list[float] | None = None,
         is_arch_attention_enabled: bool = False,
-        is_regularization_enabled: bool = False,
         regularization_config: dict | None = None,
         sampler_arch_combine_fn: str = "default",
         pt_select_architecture: bool = False,
@@ -211,7 +210,7 @@ class BaseProfile:
         self._set_pruner_configs(prune_epochs, prune_fractions)
         self._set_pt_select_configs(pt_select_architecture)
         self.is_arch_attention_enabled = is_arch_attention_enabled
-        self._set_regularization(is_regularization_enabled)
+        self._initialize_regularization_config()
 
         if regularization_config is not None:
             self.configure_regularization(**regularization_config)
@@ -424,19 +423,6 @@ class BaseProfile:
         """
         self.dropout = dropout
         self._initialize_dropout_config()
-
-    def _set_regularization(self, is_regularization_enabled: bool = False) -> None:
-        """Initializes the default configuration for regularization.
-
-        Args:
-            is_regularization_enabled (bool): Flag to enable regularization \
-                during training. Defaults to False.
-
-        Returns:
-            None
-        """
-        self.is_regularization_enabled = is_regularization_enabled
-        self._initialize_regularization_config()
 
     def get_config(self) -> dict:
         """This method returns a dictionary representation of the Profile class. \
