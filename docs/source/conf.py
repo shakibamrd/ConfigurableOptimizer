@@ -49,6 +49,11 @@ html_theme_options = {
 }
 # html_static_path = ['_static']
 
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+
 extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
